@@ -24,11 +24,14 @@ html,body{
   font-family:'PixelMplus12','DotGothic16','MS Gothic',monospace;
   overflow:hidden;
   -webkit-tap-highlight-color:transparent;
+  -webkit-text-size-adjust:100%;
 }
 #stage{
   position:fixed; inset:0;
   display:flex; align-items:center; justify-content:center;
-  flex-direction:column; gap:10px;
+  flex-direction:column; gap:8px;
+  touch-action:manipulation;
+  user-select:none; -webkit-user-select:none;
 }
 #screen{
   image-rendering:pixelated;
@@ -40,16 +43,41 @@ html,body{
   touch-action:manipulation;
   cursor:pointer;
 }
+
+/* スマホ用オンスクリーン操作パッド（マウス環境では非表示） */
+#pad{
+  display:flex; gap:10px; align-items:center; justify-content:center;
+  padding:2px 0;
+}
+#pad button{
+  font-family:inherit; font-size:15px; line-height:1;
+  background:linear-gradient(#1c2a6e,#0d1136);
+  color:#f4f4ef;
+  border:2px solid #f4f4ef; border-radius:8px;
+  min-width:60px; min-height:50px; padding:0 12px;
+  touch-action:manipulation; cursor:pointer;
+  user-select:none; -webkit-user-select:none;
+}
+#pad button:active{ background:#2e3a8e; transform:translateY(1px); }
+#pad .ok{ min-width:124px; color:#f2d24b; border-color:#f2d24b; }
+@media (hover:hover) and (pointer:fine){ #pad{ display:none; } }
+
 #hint{
-  font-size:11px; letter-spacing:.08em; color:#4d5165;
-  user-select:none; text-align:center; line-height:1.6;
+  font-size:11px; letter-spacing:.06em; color:#4d5165;
+  text-align:center; line-height:1.6; padding:0 8px;
 }
 #hint b{color:#7d84a0; font-weight:normal;}
+@media (pointer:coarse){ #hint{ font-size:10px; } }
 </style>
 </head>
 <body>
 <div id="stage">
   <canvas id="screen" width="256" height="224"></canvas>
+  <div id="pad">
+    <button type="button" data-key="up" aria-label="うえ">▲</button>
+    <button type="button" data-key="down" aria-label="した">▼</button>
+    <button type="button" data-key="ok" class="ok">けってい</button>
+  </div>
   <div id="hint"><b>↑↓</b> えらぶ　／　<b>Z</b> または <b>Enter</b> けってい　（画面タップでも可）</div>
 </div>
 
@@ -64,6 +92,9 @@ const W = 256, H = 224;
 const DOT = 8;                         // スプライト1ドットの描画サイズ
 
 const screenCv  = document.getElementById('screen');
+const stageEl   = document.getElementById('stage');
+const padEl     = document.getElementById('pad');
+const hintEl    = document.getElementById('hint');
 const screenCtx = screenCv.getContext('2d');
 const buf       = document.createElement('canvas');
 buf.width = W; buf.height = H;
@@ -507,7 +538,7 @@ const G = {
   mode: 'idle',        // 'text' | 'wait' | 'choice' | 'tween' | 'idle' | 'done'
   cmds: [], ci: 0,
   // テキスト
-  lines: [], speaker: null, revealed: 0, totalChars: 0,
+  lines: [], curText: '', speaker: null, revealed: 0, totalChars: 0,
   charTimer: 0, charSpeed: 40, muteTick: false, finished: false,
   // 待ち
   waitUntil: 0,
@@ -687,6 +718,7 @@ function exec(c){
       G.speaker  = c.who;
       G.charSpeed = c.speed;
       G.muteTick = !!c.mute || c.speed >= 90;
+      G.curText = c.text;
       setFont(12);
       G.lines = wrap(c.text, 218);
       G.totalChars = G.lines.reduce((a, l) => a + l.length, 0);
@@ -1230,12 +1262,15 @@ window.addEventListener('keydown', e => {
   else if (k === 'z' || k === 'Z' || k === 'Enter' || k === ' '){ e.preventDefault(); confirm(); }
 });
 
-// タップ／クリック（選択肢は直接タップでも選べる）
-screenCv.addEventListener('pointerdown', e => {
-  const r = screenCv.getBoundingClientRect();
-  const px = (e.clientX - r.left) * (W / r.width);
-  const py = (e.clientY - r.top)  * (H / r.height);
-  if (G.mode === 'choice' && G.choiceRects.length){
+// 画面のどこをタップしても進む。選択肢は項目を直接タップでも選べる。
+stageEl.addEventListener('pointerdown', e => {
+  if (padEl.contains(e.target)) return;      // パッドのボタンは各自で処理
+  e.preventDefault();
+
+  if (e.target === screenCv && G.mode === 'choice' && G.choiceRects.length){
+    const r = screenCv.getBoundingClientRect();
+    const px = (e.clientX - r.left) * (W / r.width);
+    const py = (e.clientY - r.top)  * (H / r.height);
     for (const cr of G.choiceRects){
       if (px >= cr.x && px <= cr.x + cr.w && py >= cr.y && py <= cr.y + cr.h){
         if (G.cursor !== cr.i){ G.cursor = cr.i; SFX.move(); }
@@ -1247,40 +1282,77 @@ screenCv.addEventListener('pointerdown', e => {
   confirm();
 });
 
+// オンスクリーン操作パッド
+padEl.addEventListener('pointerdown', e => {
+  const btn = e.target.closest('button');
+  if (!btn) return;
+  e.preventDefault();
+  e.stopPropagation();
+  audio();                                    // iOS の音声アンロックはユーザー操作内で
+  const k = btn.getAttribute('data-key');
+  if (k === 'up') moveCursor(-1);
+  else if (k === 'down') moveCursor(1);
+  else confirm();
+});
+// ゴーストクリック抑止
+padEl.addEventListener('click', e => e.preventDefault());
+stageEl.addEventListener('contextmenu', e => e.preventDefault());
+
 /* ------------------------------------------------------------
    表示スケール（整数倍）
    ------------------------------------------------------------ */
+/* 拡大率は「デバイスピクセル基準」の整数倍で決める。
+   CSSピクセル基準で floor すると、DPR3のスマホでは常に 1倍 になってしまい、
+   画面のごく一部にしか描画されず「真っ暗」に見えるため。 */
 function resize(){
-  const pad = 56;
-  const s = Math.max(1, Math.floor(Math.min(
-    (window.innerWidth - 16) / W,
-    (window.innerHeight - pad) / H
-  )));
-  screenCv.style.width  = (W * s) + 'px';
-  screenCv.style.height = (H * s) + 'px';
+  const dpr = window.devicePixelRatio || 1;
+  const padH  = padEl  ? padEl.offsetHeight  : 0;
+  const hintH = hintEl ? hintEl.offsetHeight : 0;
+
+  const availW = Math.max(64, window.innerWidth  - 8);
+  const availH = Math.max(64, window.innerHeight - padH - hintH - 22);
+
+  // デバイスピクセルで整数倍 → にじみゼロのまま画面いっぱいに使える
+  let s = Math.floor(Math.min(availW * dpr / W, availH * dpr / H));
+  if (s < 1) s = 1;
+
+  // 端数のないデバイスピクセル幅になるよう、CSSサイズは割り戻した実数で指定する
+  screenCv.style.width  = (W * s / dpr) + 'px';
+  screenCv.style.height = (H * s / dpr) + 'px';
 }
 window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+if (window.visualViewport) window.visualViewport.addEventListener('resize', resize);
 resize();
+requestAnimationFrame(resize);   // パッド描画後の実寸で測り直す
 
 /* ------------------------------------------------------------
    起動（フォント読み込みを待つ／失敗しても続行）
    ------------------------------------------------------------ */
-(async function boot(){
-  try {
-    const timeout = new Promise(r => setTimeout(r, 2500));
-    await Promise.race([
-      Promise.all([
-        document.fonts.load('12px "PixelMplus12"').catch(() => {}),
-        document.fonts.load('12px "DotGothic16"').catch(() => {}),
-        document.fonts.load('30px "DotGothic16"').catch(() => {})
-      ]),
-      timeout
-    ]);
-  } catch (e){ /* フォールバックで続行 */ }
+// フォントの到着は待たない（待つと最大数秒、画面が真っ黒に見えるため）。
+// monospace で即座に動かし、ピクセルフォントが来たら差し替える。
+last = performance.now();
+requestAnimationFrame(frame);
 
-  last = performance.now();
-  requestAnimationFrame(frame);
-})();
+try {
+  if (document.fonts && document.fonts.load){
+    document.fonts.load('12px "PixelMplus12"').catch(() => {});
+    document.fonts.load('12px "DotGothic16"').catch(() => {});
+    document.fonts.load('30px "DotGothic16"').catch(() => {});
+  }
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(() => {
+      // フォント差し替えで文字幅が変わるので、表示中の行を折り直す
+      if (G.curText && G.lines.length){
+        setFont(12);
+        G.lines = wrap(G.curText, 218);
+        G.totalChars = G.lines.reduce((a, l) => a + l.length, 0);
+        if (G.finished) G.revealed = G.totalChars;
+      }
+      resize();
+    }).catch(() => {});
+  }
+} catch (e){ /* フォールバックのまま続行 */ }
 </script>
 </body>
 </html>
