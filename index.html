@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>究極の選択</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
+<style>
+/* PixelMplus をCDNから。取得できない場合は DotGothic16 → monospace へ自動フォールバック */
+@font-face{
+  font-family:'PixelMplus12';
+  src:url('https://cdn.jsdelivr.net/gh/itouhiro/PixelMplus@master/PixelMplus12-Regular.ttf') format('truetype');
+  font-display:swap;
+}
+
+html,body{
+  margin:0; padding:0; height:100%;
+  background:#07060d;
+  color:#8a8fa3;
+  font-family:'PixelMplus12','DotGothic16','MS Gothic',monospace;
+  overflow:hidden;
+  -webkit-tap-highlight-color:transparent;
+}
+#stage{
+  position:fixed; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column; gap:10px;
+}
+#screen{
+  image-rendering:pixelated;
+  image-rendering:crisp-edges;
+  -ms-interpolation-mode:nearest-neighbor;
+  background:#000;
+  display:block;
+  box-shadow:0 0 0 2px #24203c, 0 0 40px rgba(80,60,160,.28);
+  touch-action:manipulation;
+  cursor:pointer;
+}
+#hint{
+  font-size:11px; letter-spacing:.08em; color:#4d5165;
+  user-select:none; text-align:center; line-height:1.6;
+}
+#hint b{color:#7d84a0; font-weight:normal;}
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="screen" width="256" height="224"></canvas>
+  <div id="hint"><b>↑↓</b> えらぶ　／　<b>Z</b> または <b>Enter</b> けってい　（画面タップでも可）</div>
+</div>
+
+<script>
+"use strict";
+/* ============================================================
+   究極の選択  —  1シーン完結ドット絵RPG
+   内部解像度 256x224 / 1ドット=8px のスプライト
+   ============================================================ */
+
+const W = 256, H = 224;
+const DOT = 8;                         // スプライト1ドットの描画サイズ
+
+const screenCv  = document.getElementById('screen');
+const screenCtx = screenCv.getContext('2d');
+const buf       = document.createElement('canvas');
+buf.width = W; buf.height = H;
+const ctx = buf.getContext('2d');
+screenCtx.imageSmoothingEnabled = false;
+ctx.imageSmoothingEnabled = false;
+
+/* ------------------------------------------------------------
+   パレット（レトロ16色）
+   ------------------------------------------------------------ */
+const PAL = {
+  '.': null,              // 透明
+  K: '#0d0b1a',           // 黒
+  D: '#1b1b2e',           // 濃紺
+  B: '#2e2a55',           // 紫紺
+  P: '#6b5bd2',           // 紫
+  R: '#b8283c',           // 赤
+  r: '#7a1626',           // 暗赤
+  O: '#e08a2c',           // 橙
+  Y: '#f2d24b',           // 黄
+  W: '#f4f4ef',           // 白
+  G: '#9aa4b8',           // 灰
+  g: '#5a6478',           // 暗灰
+  S: '#3aa06a',           // 緑
+  C: '#4fa8d8',           // 水
+  F: '#e8b58b',           // 肌
+  f: '#b8785a'            // 肌影
+};
+
+/* ------------------------------------------------------------
+   スプライト定義：1文字 = 1ドット の2次元配列
+   ------------------------------------------------------------ */
+function toGrid(rows){ return rows.map(r => r.split('')); }
+
+// 主人公（勇者風・14x14ドット）
+const HERO = toGrid([
+  '.....YY.......',
+  '....GGGG......',
+  '...GGGGGG.....',
+  '..GGGGGGGG....',
+  '..gggggggg.WW.',
+  '..GFKFFKFG.WW.',
+  '...FFFFFF..WW.',
+  '....FffF...WW.',
+  '..SSSSSSSS.YYY',
+  '.FSSSSSSSSFNN.',
+  '.FSSSSSSSSF...',
+  '..NNNNNNNN....',
+  '...SS..SS.....',
+  '...NN..NN.....'
+]);
+
+// 悪魔（ニヤついた・角としっぽ・14x15ドット）
+const DEMON = toGrid([
+  '.R..........R.',
+  '.RR........RR.',
+  '.RRR.RRRR.RRR.',
+  '..RRRRRRRRRR..',
+  '.RRRRRRRRRRRR.',
+  '.RRYYRRRRYYRR.',
+  '.RRYKRRRRKYRR.',
+  '.RRRRRRRRRRRR.',
+  '..RKKKKKKKKR..',
+  '..RWKWKWKWWR..',
+  '...RRRRRRRR..r',
+  '.rrRRRRRRRRr.r',
+  'rrrRRRRRRRRrrr',
+  '.rrRRRRRRRRr..',
+  '...rrr..rrr...'
+]);
+
+// 「表情なし」の主人公（目と口を肌色で潰す）
+const HERO_NOFACE = HERO.map(row =>
+  row.map(c => (c === 'K' || c === 'f') ? 'F' : c)
+);
+
+/* ------------------------------------------------------------
+   スプライト描画
+   ------------------------------------------------------------ */
+function shade(hex, mul, blueMix){
+  const n = parseInt(hex.slice(1), 16);
+  let r = (n >> 16) & 255, g = (n >> 8) & 255, b = n & 255;
+  r = r * mul; g = g * mul; b = b * mul;
+  if (blueMix){
+    r = r * (1 - blueMix) + 0x1b * blueMix;
+    g = g * (1 - blueMix) + 0x22 * blueMix;
+    b = b * (1 - blueMix) + 0x4a * blueMix;
+  }
+  const cl = v => Math.max(0, Math.min(255, Math.round(v)));
+  return 'rgb(' + cl(r) + ',' + cl(g) + ',' + cl(b) + ')';
+}
+
+const shadeCache = new Map();
+function palFor(key, mul, blueMix){
+  const id = key + '|' + mul + '|' + blueMix;
+  if (shadeCache.has(id)) return shadeCache.get(id);
+  const c = shade(PAL[key], mul, blueMix);
+  shadeCache.set(id, c);
+  return c;
+}
+
+function drawSprite(grid, x, y, opt){
+  opt = opt || {};
+  const alpha = opt.alpha === undefined ? 1 : opt.alpha;
+  if (alpha <= 0.01) return;
+  const mul  = opt.mul  === undefined ? 1 : opt.mul;
+  const blue = opt.blue === undefined ? 0 : opt.blue;
+  const old = ctx.globalAlpha;
+  ctx.globalAlpha = old * alpha;
+  for (let ry = 0; ry < grid.length; ry++){
+    const row = grid[ry];
+    for (let rx = 0; rx < row.length; rx++){
+      const k = row[rx];
+      if (k === '.' || !PAL[k]) continue;
+      ctx.fillStyle = (mul === 1 && blue === 0) ? PAL[k] : palFor(k, mul, blue);
+      ctx.fillRect(x + rx * DOT, y + ry * DOT, DOT, DOT);
+    }
+  }
+  ctx.globalAlpha = old;
+}
+
+/* ------------------------------------------------------------
+   決定論的な擬似乱数（背景を毎フレーム同じに描くため）
+   ------------------------------------------------------------ */
+function makeRng(seed){
+  let s = seed >>> 0;
+  return function(){
+    s ^= s << 13; s >>>= 0;
+    s ^= s >> 17;
+    s ^= s << 5;  s >>>= 0;
+    return s / 4294967296;
+  };
+}
+
+/* ------------------------------------------------------------
+   背景A：暗い洞窟
+   ------------------------------------------------------------ */
+const caveStalactites = (() => {
+  const rng = makeRng(20240815);
+  const arr = [];
+  for (let i = 0; i < 16; i++){
+    arr.push({ x: Math.floor(rng() * 32) * 8, w: 8 + Math.floor(rng() * 3) * 8, h: 16 + Math.floor(rng() * 6) * 8 });
+  }
+  return arr;
+})();
+const caveRocks = (() => {
+  const rng = makeRng(777001);
+  const arr = [];
+  for (let i = 0; i < 22; i++){
+    arr.push({ x: Math.floor(rng() * 32) * 8, y: 120 + Math.floor(rng() * 12) * 8, w: 8 + Math.floor(rng() * 3) * 8, h: 8 + Math.floor(rng() * 2) * 8, d: rng() });
+  }
+  return arr;
+})();
+const caveGlints = (() => {
+  const rng = makeRng(4242);
+  const arr = [];
+  for (let i = 0; i < 14; i++){
+    arr.push({ x: Math.floor(rng() * 64) * 4, y: Math.floor(rng() * 34) * 4, p: rng() * 6.28, s: 0.6 + rng() });
+  }
+  return arr;
+})();
+
+function drawCave(t){
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0,    '#100d1c');
+  g.addColorStop(0.55, '#171331');
+  g.addColorStop(1,    '#090813');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  // 奥の淡い光だまり
+  const pulse = 0.5 + 0.5 * Math.sin(t / 1100);
+  const rg = ctx.createRadialGradient(148, 74, 4, 148, 74, 96);
+  rg.addColorStop(0, 'rgba(107,91,210,' + (0.20 + 0.07 * pulse).toFixed(3) + ')');
+  rg.addColorStop(1, 'rgba(107,91,210,0)');
+  ctx.fillStyle = rg;
+  ctx.fillRect(0, 0, W, 160);
+
+  // 鍾乳石（上）
+  for (const s of caveStalactites){
+    let w = s.w;
+    for (let yy = 0; yy < s.h; yy += 8){
+      if (w <= 0) break;
+      ctx.fillStyle = (yy === 0) ? '#241f42' : (yy < s.h / 2 ? '#1e1937' : '#171330');
+      ctx.fillRect(s.x + Math.floor((s.w - w) / 2 / 8) * 8, yy, w, 8);
+      if (yy % 16 === 8) w -= 8;
+    }
+  }
+
+  // 岩壁（下）
+  ctx.fillStyle = '#120f24';
+  ctx.fillRect(0, 152, W, H - 152);
+  for (const r of caveRocks){
+    ctx.fillStyle = r.d > 0.6 ? '#1d1838' : (r.d > 0.3 ? '#171330' : '#221c40');
+    ctx.fillRect(r.x, r.y, r.w, r.h);
+  }
+  // 地面のライン
+  ctx.fillStyle = '#2a2350';
+  ctx.fillRect(0, 130, W, 4);
+  ctx.fillStyle = '#0e0b1c';
+  ctx.fillRect(0, 134, W, 6);
+
+  // ちらつく鉱石
+  for (const gl of caveGlints){
+    const a = 0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t / (420 / gl.s) + gl.p));
+    ctx.fillStyle = 'rgba(79,168,216,' + a.toFixed(3) + ')';
+    ctx.fillRect(gl.x, gl.y, 4, 4);
+  }
+}
+
+/* ------------------------------------------------------------
+   背景B：夜のタワマン夜景
+   ------------------------------------------------------------ */
+const skyline = (() => {
+  const rng = makeRng(31337);
+  const b = [];
+  let x = -8;
+  while (x < W + 8){
+    const w = 16 + Math.floor(rng() * 4) * 8;
+    const h = 40 + Math.floor(rng() * 9) * 8;
+    const lit = [];
+    for (let wy = 8; wy < h - 8; wy += 8){
+      for (let wx = 4; wx < w - 4; wx += 8){
+        if (rng() < 0.42) lit.push({ x: wx, y: wy, k: rng() });
+      }
+    }
+    b.push({ x: x, w: w, h: h, lit: lit, depth: rng() });
+    x += w + (rng() < 0.35 ? 8 : 0);
+  }
+  return b;
+})();
+const stars = (() => {
+  const rng = makeRng(90210);
+  const a = [];
+  for (let i = 0; i < 26; i++) a.push({ x: Math.floor(rng() * 128) * 2, y: Math.floor(rng() * 22) * 2, p: rng() * 6.28 });
+  return a;
+})();
+
+function drawTower(t){
+  const g = ctx.createLinearGradient(0, 0, 0, 150);
+  g.addColorStop(0,   '#060814');
+  g.addColorStop(0.6, '#0c1130');
+  g.addColorStop(1,   '#17204d');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const s of stars){
+    const a = 0.25 + 0.5 * (0.5 + 0.5 * Math.sin(t / 900 + s.p));
+    ctx.fillStyle = 'rgba(244,244,239,' + a.toFixed(3) + ')';
+    ctx.fillRect(s.x, s.y, 2, 2);
+  }
+
+  // 月
+  ctx.fillStyle = '#e9e6d2';
+  ctx.fillRect(206, 18, 18, 18);
+  ctx.fillRect(204, 22, 22, 10);
+  ctx.fillRect(210, 14, 10, 26);
+  ctx.fillStyle = '#0a0d22';
+  ctx.fillRect(200, 12, 14, 14);
+  ctx.fillRect(198, 16, 12, 10);
+
+  // ビル群
+  const sorted = skyline.slice().sort((a, b) => a.depth - b.depth);
+  for (const b of sorted){
+    const top = 138 - b.h;
+    ctx.fillStyle = b.depth > 0.6 ? '#0a0e22' : (b.depth > 0.3 ? '#0d1330' : '#111841');
+    ctx.fillRect(b.x, top, b.w, b.h);
+    ctx.fillStyle = 'rgba(255,255,255,0.05)';
+    ctx.fillRect(b.x, top, b.w, 2);
+    for (const l of b.lit){
+      const flick = (l.k > 0.94) ? (0.5 + 0.5 * Math.sin(t / 260 + l.x)) : 1;
+      ctx.fillStyle = l.k > 0.72
+        ? 'rgba(242,210,75,' + (0.85 * flick).toFixed(3) + ')'
+        : 'rgba(224,138,44,' + (0.55 * flick).toFixed(3) + ')';
+      ctx.fillRect(b.x + l.x, top + l.y, 4, 4);
+    }
+  }
+
+  // 最上階の床（ガラス張りの反射）
+  ctx.fillStyle = '#141a3a';
+  ctx.fillRect(0, 134, W, H - 134);
+  ctx.fillStyle = '#1b2350';
+  ctx.fillRect(0, 134, W, 3);
+  for (let x = 0; x < W; x += 32){
+    ctx.fillStyle = 'rgba(107,91,210,0.10)';
+    ctx.fillRect(x, 138, 2, H - 138);
+  }
+  ctx.fillStyle = 'rgba(0,0,0,0.35)';
+  ctx.fillRect(0, 160, W, H - 160);
+}
+
+/* ------------------------------------------------------------
+   パネル（RPGツクール風メッセージウィンドウ）
+   ------------------------------------------------------------ */
+function panel(x, y, w, h){
+  const r = 4;
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.lineTo(x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.lineTo(x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.lineTo(x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.closePath();
+
+  const g = ctx.createLinearGradient(0, y, 0, y + h);
+  g.addColorStop(0,   '#1c2a6e');
+  g.addColorStop(0.5, '#141c4c');
+  g.addColorStop(1,   '#0d1136');
+  ctx.fillStyle = g;
+  ctx.fill();
+
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#f4f4ef';
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(107,91,210,0.55)';
+  ctx.beginPath();
+  ctx.moveTo(x + r + 2, y + 2);
+  ctx.lineTo(x + w - r - 2, y + 2);
+  ctx.moveTo(x + 2, y + r + 2);
+  ctx.lineTo(x + 2, y + h - r - 2);
+  ctx.stroke();
+}
+
+/* ------------------------------------------------------------
+   フォント
+   ------------------------------------------------------------ */
+const FONT = '"PixelMplus12","DotGothic16","MS Gothic",monospace';
+function setFont(px, weight){ ctx.font = (weight ? weight + ' ' : '') + px + 'px ' + FONT; }
+
+// 行頭に来てはいけない文字（禁則処理）
+const NO_LINE_HEAD = '。、」』）！？…ゝゞーぁぃぅぇぉっゃゅょァィゥェォッャュョ';
+
+function wrap(text, maxW){
+  const out = [];
+  let cur = '';
+  for (const ch of text){
+    if (ch === '\n'){ out.push(cur); cur = ''; continue; }
+    const test = cur + ch;
+    if (cur.length && ctx.measureText(test).width > maxW){
+      if (NO_LINE_HEAD.indexOf(ch) >= 0 && cur.length > 1){
+        // 禁則文字は前の1文字を道連れにして次行へ送る
+        out.push(cur.slice(0, -1));
+        cur = cur.slice(-1) + ch;
+      } else {
+        out.push(cur);
+        cur = ch;
+      }
+    } else cur = test;
+  }
+  out.push(cur);
+  return out;
+}
+
+/* ------------------------------------------------------------
+   サウンド（Web Audio でビープ生成）
+   ------------------------------------------------------------ */
+let AC = null;
+function audio(){
+  if (AC === null){
+    try { AC = new (window.AudioContext || window.webkitAudioContext)(); }
+    catch (e){ AC = false; }
+  }
+  if (AC && AC.state === 'suspended') AC.resume();
+  return AC;
+}
+function beep(freq, dur, type, vol, slideTo){
+  const ac = audio();
+  if (!ac) return;
+  const t0 = ac.currentTime;
+  const o = ac.createOscillator();
+  const g = ac.createGain();
+  o.type = type || 'square';
+  o.frequency.setValueAtTime(freq, t0);
+  if (slideTo) o.frequency.exponentialRampToValueAtTime(Math.max(30, slideTo), t0 + dur);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.06, t0 + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(dur, vol){
+  const ac = audio();
+  if (!ac) return;
+  const n = Math.floor(ac.sampleRate * dur);
+  const b = ac.createBuffer(1, n, ac.sampleRate);
+  const d = b.getChannelData(0);
+  for (let i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * (1 - i / n);
+  const src = ac.createBufferSource(); src.buffer = b;
+  const g = ac.createGain(); g.gain.value = vol || 0.12;
+  const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 900;
+  src.connect(f); f.connect(g); g.connect(ac.destination);
+  src.start();
+}
+const SFX = {
+  move:  () => beep(760, 0.05, 'square', 0.05),
+  ok:    () => { beep(980, 0.06, 'square', 0.07); setTimeout(() => beep(1420, 0.09, 'square', 0.055), 55); },
+  tick:  () => beep(1500, 0.014, 'square', 0.016),
+  low:   () => beep(150, 0.5, 'sawtooth', 0.05, 90),
+  boom:  () => { noise(0.55, 0.16); beep(90, 0.5, 'sawtooth', 0.09, 40); },
+  poof:  () => { noise(0.35, 0.07); beep(520, 0.28, 'sine', 0.05, 190); },
+  coin:  () => { beep(1180, 0.07, 'square', 0.06); setTimeout(() => beep(1760, 0.22, 'square', 0.05), 70); },
+  bad:   () => beep(230, 1.1, 'sawtooth', 0.07, 70),
+  good:  () => { beep(520, 0.2, 'sine', 0.05); setTimeout(() => beep(780, 0.5, 'sine', 0.045), 190); }
+};
+
+/* ------------------------------------------------------------
+   ビュー状態
+   ------------------------------------------------------------ */
+const view = {
+  bg: 'cave',          // 'cave' | 'tower' | 'black'
+  heroShow: false,
+  heroAlpha: 1,
+  heroDark: false,
+  heroNoFace: false,
+  demonShow: false,
+  demonAlpha: 0,
+  windowShow: false,
+  overlayColor: '#000000',
+  overlayAlpha: 0,
+  flashAlpha: 0,
+  shakeAmp: 0,
+  centerText: null,
+  centerColor: '#f4f4ef',
+  mosaic: 0
+};
+
+const HERO_X = 8,  HERO_Y = 18;
+const DEMON_X = 136, DEMON_Y = 12;
+
+let particles = [];
+let floaters  = [];
+
+/* ------------------------------------------------------------
+   ゲーム全体の状態
+   ------------------------------------------------------------ */
+const G = {
+  scene: 'title',      // 'title' | 'play' | 'end'
+  mode: 'idle',        // 'text' | 'wait' | 'choice' | 'tween' | 'idle' | 'done'
+  cmds: [], ci: 0,
+  // テキスト
+  lines: [], speaker: null, revealed: 0, totalChars: 0,
+  charTimer: 0, charSpeed: 40, muteTick: false, finished: false,
+  // 待ち
+  waitUntil: 0,
+  // 選択肢
+  choices: null, cursor: 0, choiceRects: [],
+  // 終幕
+  endTitle: '', endLabel: '', endTone: 'bad',
+  // 演出
+  tweens: [],
+  flashUntil: 0, flashDur: 0,
+  shakeUntil: 0, shakeDur: 0,
+  t: 0
+};
+
+/* ------------------------------------------------------------
+   コマンド生成ヘルパ
+   ------------------------------------------------------------ */
+const say    = (who, text, speed, opt) => Object.assign({ t: 'say', who, text, speed: speed || 40 }, opt || {});
+const narr   = (text, speed, opt)      => Object.assign({ t: 'say', who: null, text, speed: speed || 38 }, opt || {});
+const wait   = ms                      => ({ t: 'wait', ms });
+const set    = v                       => ({ t: 'set', v });
+const tween  = (key, to, ms, blocking) => ({ t: 'tween', key, to, ms, blocking: !!blocking });
+const sfx    = name                    => ({ t: 'sfx', name });
+const clear  = ()                      => ({ t: 'clear' });
+const flash  = ms                      => ({ t: 'flash', ms });
+const shake  = (ms, amp)               => ({ t: 'shake', ms, amp });
+const smoke  = ()                      => ({ t: 'smoke' });
+const center = (text, color)           => ({ t: 'center', text, color });
+const choice = opts                    => ({ t: 'choice', opts });
+const ending = (label, title, tone)    => ({ t: 'ending', label, title, tone });
+
+/* ------------------------------------------------------------
+   スクリプト
+   ------------------------------------------------------------ */
+function introScript(){
+  return [
+    set({ bg: 'cave', heroShow: true, heroAlpha: 1, heroDark: false, heroNoFace: false,
+          demonShow: false, demonAlpha: 0, windowShow: true, overlayAlpha: 0 }),
+
+    /* --- 導入：ギャグ --- */
+    narr('なんの変哲もない、火曜日の午後だった。', 26),
+    narr('コンビニの新作プリンのことしか、考えていなかった。', 24),
+    narr('──そのとき、足もとの地面が、割れた。', 46),
+
+    sfx('boom'), shake(600, 3), wait(420),
+    set({ demonShow: true }),
+    tween('demonAlpha', 1, 900, true),
+    sfx('low'), wait(260),
+
+    say('demon', 'よう', 90),
+    narr('悪魔が出た。', 30),
+    narr('ふつうに出た。', 20),
+    narr('プリンの話をしていたのに。', 22),
+
+    say('demon', 'くっくっく…お前のナニをよこせ。代わりに10億円くれてやろう', 44),
+
+    say('hero', '……ナニ？', 95),
+    say('demon', 'ナニだよ', 34),
+    say('hero', 'ナニって、ナニですか', 30),
+    say('demon', 'ナニといえば、ナニだろうが', 36),
+    narr('※ ナニです', 60),
+
+    narr('10億円。', 70),
+    narr('プリンが、3億個買える。', 26),
+
+    choice(['10億円もらう', 'ことわる'])
+  ];
+}
+
+function routeA(){
+  return [
+    /* --- 契約 --- */
+    set({ windowShow: false }),
+    sfx('boom'),
+    flash(420), shake(760, 4), wait(300),
+    smoke(), sfx('poof'), wait(1500),
+
+    say('demon', '契約成立だ。……ほれ、10億', 50),
+
+    sfx('coin'),
+    narr('10億円を手に入れた！', 30),
+    narr('※ ナニかを失った', 72),
+
+    /* --- 暗転 → 3年後 --- */
+    tween('overlayAlpha', 1, 700, true),
+    set({ bg: 'tower', heroDark: true, heroNoFace: true, demonShow: false, demonAlpha: 0,
+          windowShow: false, overlayColor: '#000000' }),
+    center('─── 3年後 ───', '#9aa4b8'),
+    wait(2300),
+    center(null),
+    clear(),
+    tween('overlayAlpha', 0, 1100, true),
+    set({ windowShow: true }),
+    wait(500),
+
+    /* --- タワマンの夜 --- */
+    narr('タワーマンションの最上階。', 78),
+    narr('時計を買った。車を買った。', 66),
+    narr('島も買った。', 74),
+    narr('欲しいものは、全部買った。', 72),
+    narr('もう、欲しいものが無い。', 108),
+
+    set({ demonShow: true }),
+    tween('demonAlpha', 1, 1400, true),
+    say('demon', 'よう。……幸せか？', 95),
+    say('hero', '……', 260),
+    say('demon', '言ったろ。値札のついてるモンはな、', 58),
+    say('demon', 'ぜんぶ『その程度』なんだよ', 76),
+
+    wait(700),
+    /* この1行だけ、極端に遅く */
+    narr('心は、満たされなかった。', 300, { mute: true }),
+    wait(1600),
+
+    sfx('bad'),
+    set({ overlayColor: '#3a0a12' }),           // 赤系フェードアウト
+    tween('overlayAlpha', 1, 2200, true),
+    ending('── BAD END ──', '10億円と、空っぽの夜', 'bad')
+  ];
+}
+
+function routeB(){
+  return [
+    say('hero', '……いらねえ', 100),
+    say('demon', 'ほう？　10億だぞ。人生変わるぞ', 46),
+    say('hero', '変わっちまうから、いらねえんだよ', 70),
+
+    wait(500),
+    say('demon', 'くっくっく……', 130),
+    say('demon', 'なあ、知ってるか', 72),
+    say('demon', 'これまで9999人に、同じ話をした', 56),
+    say('demon', '断ったのは──お前で3人目だ', 90),
+
+    /* ここに 1.5秒の無音・無演出の「間」 */
+    wait(1500),
+
+    /* 悪魔がゆっくり半透明化しながら退場（セリフと並行して進む） */
+    tween('demonAlpha', 0, 7000, false),
+
+    say('demon', 'やはり、男のブツには', 86),
+    say('demon', '値がつかんらしい', 96),
+
+    wait(1200),
+    set({ demonShow: false }),
+    wait(600),
+
+    narr('所持金：32円', 62),
+    narr('だが、失ったものは何もない。', 92),
+
+    wait(1400),
+    sfx('good'),
+    set({ overlayColor: '#f4f4ef' }),
+    tween('overlayAlpha', 1, 2600, true),
+    ending('── TRUE END ──', '値札のつかないもの', 'true')
+  ];
+}
+
+/* ------------------------------------------------------------
+   コマンド実行
+   ------------------------------------------------------------ */
+function startScript(cmds){
+  G.cmds = cmds; G.ci = 0; G.scene = 'play';
+  next();
+}
+
+function next(){
+  if (G.ci >= G.cmds.length){ G.mode = 'idle'; return; }
+  const c = G.cmds[G.ci++];
+  exec(c);
+}
+
+function exec(c){
+  switch (c.t){
+
+    case 'say': {
+      view.windowShow = true;
+      G.speaker  = c.who;
+      G.charSpeed = c.speed;
+      G.muteTick = !!c.mute || c.speed >= 90;
+      setFont(12);
+      G.lines = wrap(c.text, 218);
+      G.totalChars = G.lines.reduce((a, l) => a + l.length, 0);
+      G.revealed = 0; G.charTimer = 0; G.finished = false;
+      G.mode = 'text';
+      break;
+    }
+
+    case 'wait':
+      G.waitUntil = G.t + c.ms;
+      G.mode = 'wait';
+      break;
+
+    case 'set':
+      Object.assign(view, c.v);
+      next();
+      break;
+
+    case 'tween': {
+      const tw = { key: c.key, from: view[c.key], to: c.to, ms: Math.max(1, c.ms), el: 0, blocking: c.blocking };
+      G.tweens.push(tw);
+      if (c.blocking) G.mode = 'tween';
+      else next();
+      break;
+    }
+
+    case 'sfx':
+      if (SFX[c.name]) SFX[c.name]();
+      next();
+      break;
+
+    case 'flash':
+      G.flashDur = c.ms; G.flashUntil = G.t + c.ms;
+      next();
+      break;
+
+    case 'shake':
+      G.shakeDur = c.ms; G.shakeUntil = G.t + c.ms; view.shakeAmp = c.amp;
+      next();
+      break;
+
+    case 'smoke':
+      spawnSmoke();
+      next();
+      break;
+
+    case 'clear':
+      G.lines = []; G.speaker = null; G.revealed = 0; G.totalChars = 0; G.finished = true;
+      next();
+      break;
+
+    case 'center':
+      view.centerText  = c.text;
+      view.centerColor = c.color || '#f4f4ef';
+      next();
+      break;
+
+    case 'choice':
+      G.choices = c.opts;
+      G.cursor = 0;
+      G.mode = 'choice';
+      break;
+
+    case 'ending':
+      G.endLabel = c.label;
+      G.endTitle = c.title;
+      G.endTone  = c.tone;
+      G.scene = 'end';
+      G.mode  = 'done';
+      G.cursor = 0;
+      break;
+  }
+}
+
+/* ------------------------------------------------------------
+   煙・☓・モザイク演出（抽象表現のみ）
+   ------------------------------------------------------------ */
+function spawnSmoke(){
+  const cx = HERO_X + 6 * DOT + 4;
+  const cy = HERO_Y + 10 * DOT;
+  view.mosaic = 2200;
+  for (let i = 0; i < 30; i++){
+    particles.push({
+      x: cx + (Math.random() - 0.5) * 26,
+      y: cy + (Math.random() - 0.5) * 10,
+      vx: (Math.random() - 0.5) * 0.35,
+      vy: -0.22 - Math.random() * 0.42,
+      life: 1400 + Math.random() * 1200,
+      age: 0,
+      size: 4 + Math.floor(Math.random() * 3) * 2,
+      kind: Math.random() < 0.22 ? 'x' : 'puff'
+    });
+  }
+  floaters.push({ text: 'ポワン', x: cx + 4, y: cy - 16, age: 0, life: 1500, color: '#f4f4ef' });
+}
+
+function updateFx(dt){
+  for (const p of particles){
+    p.age += dt;
+    p.x += p.vx * dt * 0.06;
+    p.y += p.vy * dt * 0.06;
+  }
+  particles = particles.filter(p => p.age < p.life);
+
+  for (const f of floaters){ f.age += dt; f.y -= dt * 0.012; }
+  floaters = floaters.filter(f => f.age < f.life);
+
+  if (view.mosaic > 0) view.mosaic = Math.max(0, view.mosaic - dt);
+}
+
+function drawFx(){
+  // モザイク（抽象処理）
+  if (view.mosaic > 0){
+    const a = Math.min(1, view.mosaic / 500);
+    const bx = HERO_X + 4 * DOT, by = HERO_Y + 10 * DOT, bw = 5 * DOT, bh = 3 * DOT;
+    const rng = makeRng(9001);
+    ctx.globalAlpha = a;
+    for (let y = by; y < by + bh; y += 8){
+      for (let x = bx; x < bx + bw; x += 8){
+        const v = rng();
+        ctx.fillStyle = v > 0.66 ? '#5a6478' : (v > 0.33 ? '#3b4256' : '#9aa4b8');
+        ctx.fillRect(x, y, 8, 8);
+      }
+    }
+    ctx.globalAlpha = 1;
+  }
+
+  for (const p of particles){
+    const k = p.age / p.life;
+    const a = k < 0.15 ? k / 0.15 : (1 - k) * 0.85;
+    ctx.globalAlpha = Math.max(0, Math.min(1, a));
+    const x = Math.round(p.x / 2) * 2, y = Math.round(p.y / 2) * 2;
+    if (p.kind === 'x'){
+      ctx.fillStyle = '#f4f4ef';
+      for (let i = 0; i < 5; i++){
+        ctx.fillRect(x + i * 2, y + i * 2, 2, 2);
+        ctx.fillRect(x + (4 - i) * 2, y + i * 2, 2, 2);
+      }
+    } else {
+      const s = p.size + Math.floor(k * 4) * 2;
+      ctx.fillStyle = k < 0.5 ? '#c9cede' : '#7b8296';
+      ctx.fillRect(x, y, s, s);
+      ctx.fillStyle = k < 0.5 ? '#e8ebf3' : '#9aa4b8';
+      ctx.fillRect(x + 2, y + 2, Math.max(2, s - 4), Math.max(2, s - 4));
+    }
+  }
+  ctx.globalAlpha = 1;
+
+  for (const f of floaters){
+    const k = f.age / f.life;
+    ctx.globalAlpha = Math.max(0, 1 - k * k);
+    setFont(14);
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#0d0b1a';
+    ctx.fillText(f.text, f.x + 1, f.y + 1);
+    ctx.fillStyle = f.color;
+    ctx.fillText(f.text, f.x, f.y);
+    ctx.textAlign = 'left';
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* ------------------------------------------------------------
+   テキスト更新（タイプライター）
+   1文字ごとの間：句読点・三点リーダは長めに
+   ------------------------------------------------------------ */
+function charDelay(ch, base){
+  if (ch === '…' || ch === '─') return base * 2.4;
+  if (ch === '、' || ch === '　') return base * 1.9;
+  if (ch === '。' || ch === '？' || ch === '！') return base * 2.6;
+  if (ch === '「' || ch === '」' || ch === '『' || ch === '』') return base * 0.3;
+  return base;
+}
+
+function currentChar(idx){
+  let i = idx;
+  for (const l of G.lines){
+    if (i < l.length) return l[i];
+    i -= l.length;
+  }
+  return '';
+}
+
+function updateText(dt){
+  if (G.finished) return;
+  G.charTimer += dt;
+  let guard = 0;
+  while (!G.finished && guard++ < 400){
+    const d = charDelay(currentChar(G.revealed), G.charSpeed);
+    if (G.charTimer < d) break;
+    G.charTimer -= d;
+    const ch = currentChar(G.revealed);
+    G.revealed++;
+    if (!G.muteTick && G.revealed % 2 === 0 && ch !== '　' && ch !== '…') SFX.tick();
+    if (G.revealed >= G.totalChars) G.finished = true;
+  }
+}
+
+/* ------------------------------------------------------------
+   描画：メッセージウィンドウ
+   ------------------------------------------------------------ */
+const WIN = { x: 8, y: 146, w: 240, h: 70 };
+
+function drawWindow(){
+  panel(WIN.x, WIN.y, WIN.w, WIN.h);
+
+  let ty = WIN.y + 12;
+  if (G.speaker){
+    setFont(12);
+    ctx.fillStyle = G.speaker === 'demon' ? '#f2d24b' : '#4fa8d8';
+    ctx.textBaseline = 'top';
+    ctx.fillText(G.speaker === 'demon' ? '悪魔' : '主人公', WIN.x + 12, ty);
+    ty += 18;
+  } else {
+    ty += 6;
+  }
+
+  setFont(12);
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#f4f4ef';
+  let left = G.revealed;
+  let ly = ty;
+  for (const line of G.lines){
+    if (left <= 0) break;
+    const shown = line.slice(0, Math.min(left, line.length));
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillText(shown, WIN.x + 13, ly + 1);
+    ctx.fillStyle = '#f4f4ef';
+    ctx.fillText(shown, WIN.x + 12, ly);
+    left -= line.length;
+    ly += 17;
+  }
+
+  // 続きの▼（点滅）
+  if (G.mode === 'text' && G.finished){
+    if (Math.floor(G.t / 380) % 2 === 0){
+      const px = WIN.x + WIN.w - 18, py = WIN.y + WIN.h - 14;
+      ctx.fillStyle = '#f4f4ef';
+      ctx.fillRect(px, py, 8, 2);
+      ctx.fillRect(px + 2, py + 2, 4, 2);
+      ctx.fillRect(px + 3, py + 4, 2, 2);
+    }
+  }
+}
+
+/* ------------------------------------------------------------
+   描画：選択肢
+   ------------------------------------------------------------ */
+function drawChoices(){
+  const rowH = 19;
+  const w = 124, h = 14 + G.choices.length * rowH;
+  const x = Math.round((W - w) / 2), y = 140 - h;   // 悪魔の顔を隠さない高さに置く
+  panel(x, y, w, h);
+  setFont(12);
+  ctx.textBaseline = 'top';
+  G.choiceRects = [];
+  for (let i = 0; i < G.choices.length; i++){
+    const cy = y + 8 + i * rowH;
+    G.choiceRects.push({ x: x, y: cy - 4, w: w, h: rowH, i: i });
+    if (i === G.cursor && Math.floor(G.t / 300) % 2 === 0){
+      ctx.fillStyle = '#f2d24b';
+      ctx.fillText('▶', x + 10, cy);
+    }
+    ctx.fillStyle = (i === G.cursor) ? '#f4f4ef' : '#8f96ad';
+    ctx.fillText(G.choices[i], x + 30, cy);
+  }
+}
+
+/* ------------------------------------------------------------
+   描画：タイトル
+   ------------------------------------------------------------ */
+function drawTitle(){
+  drawCave(G.t);
+  ctx.fillStyle = 'rgba(6,5,14,0.5)';
+  ctx.fillRect(0, 0, W, H);
+
+  // 下半分に沈むシルエットの二人
+  const bob = Math.round(Math.sin(G.t / 760) * 2);
+  drawSprite(HERO,  HERO_X - 4,  106,       { mul: 0.30, blue: 0.5 });
+  drawSprite(DEMON, DEMON_X + 6, 102 + bob, { mul: 0.34, blue: 0.22 });
+
+  const vg = ctx.createLinearGradient(0, 96, 0, H);
+  vg.addColorStop(0,   'rgba(6,5,14,0)');
+  vg.addColorStop(0.5, 'rgba(6,5,14,0.72)');
+  vg.addColorStop(1,   'rgba(6,5,14,0.92)');
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 96, W, H - 96);
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  const tb = Math.round(Math.sin(G.t / 900));
+  setFont(30);
+  ctx.fillStyle = '#7a1626';
+  ctx.fillText('究極の選択', W / 2 + 2, 34 + tb + 2);
+  ctx.fillStyle = '#b8283c';
+  ctx.fillText('究極の選択', W / 2 + 1, 34 + tb + 1);
+  ctx.fillStyle = '#f4f4ef';
+  ctx.fillText('究極の選択', W / 2, 34 + tb);
+
+  setFont(11);
+  ctx.fillStyle = '#8f96ad';
+  ctx.fillText('― THE ULTIMATE CHOICE ―', W / 2, 76);
+
+  if (Math.floor(G.t / 520) % 2 === 0){
+    setFont(12);
+    ctx.fillStyle = '#f2d24b';
+    ctx.fillText('PRESS  Z', W / 2, 172);
+  }
+  setFont(10);
+  ctx.fillStyle = '#5a6478';
+  ctx.fillText('↑↓ SELECT   Z / ENTER  DECIDE', W / 2, 200);
+
+  ctx.textAlign = 'left';
+}
+
+/* ------------------------------------------------------------
+   描画：エンドカード
+   ------------------------------------------------------------ */
+function drawEnding(){
+  const isTrue = G.endTone === 'true';
+  ctx.fillStyle = isTrue ? '#f4f4ef' : '#210711';
+  ctx.fillRect(0, 0, W, H);
+
+  if (!isTrue){
+    const rg = ctx.createRadialGradient(W / 2, 100, 10, W / 2, 100, 150);
+    rg.addColorStop(0, 'rgba(184,40,60,0.22)');
+    rg.addColorStop(1, 'rgba(184,40,60,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+  } else {
+    const rg = ctx.createLinearGradient(0, 0, 0, H);
+    rg.addColorStop(0, 'rgba(107,91,210,0.10)');
+    rg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = rg;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'top';
+
+  setFont(12);
+  ctx.fillStyle = isTrue ? '#7a8096' : '#b8283c';
+  ctx.fillText(G.endLabel, W / 2, 74);
+
+  setFont(16);
+  ctx.fillStyle = isTrue ? '#1b1b2e' : '#f4f4ef';
+  ctx.fillText('「' + G.endTitle + '」', W / 2, 102);
+
+  ctx.fillStyle = isTrue ? 'rgba(27,27,46,0.25)' : 'rgba(244,244,239,0.18)';
+  ctx.fillRect(W / 2 - 46, 132, 92, 1);
+
+  if (Math.floor(G.t / 460) % 2 === 0){
+    setFont(12);
+    ctx.fillStyle = isTrue ? '#1b1b2e' : '#f2d24b';
+    ctx.fillText('▶ もういちど', W / 2, 166);
+  }
+  setFont(10);
+  ctx.fillStyle = isTrue ? '#7a8096' : '#5a6478';
+  ctx.fillText('Z / ENTER', W / 2, 192);
+
+  ctx.textAlign = 'left';
+}
+
+/* ------------------------------------------------------------
+   メインループ
+   ------------------------------------------------------------ */
+let last = performance.now();
+
+function frame(now){
+  const dt = Math.min(64, now - last);
+  last = now;
+  G.t += dt;
+
+  update(dt);
+  render();
+
+  requestAnimationFrame(frame);
+}
+
+function update(dt){
+  updateFx(dt);
+
+  // トゥイーン
+  for (let i = G.tweens.length - 1; i >= 0; i--){
+    const tw = G.tweens[i];
+    tw.el += dt;
+    const k = Math.min(1, tw.el / tw.ms);
+    const e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    view[tw.key] = tw.from + (tw.to - tw.from) * e;
+    if (k >= 1){
+      view[tw.key] = tw.to;
+      G.tweens.splice(i, 1);
+      if (tw.blocking && G.mode === 'tween') next();
+    }
+  }
+
+  // フラッシュ／シェイク
+  view.flashAlpha = G.t < G.flashUntil ? (G.flashUntil - G.t) / G.flashDur : 0;
+  if (G.t >= G.shakeUntil) view.shakeAmp = 0;
+
+  if (G.scene === 'play'){
+    if (G.mode === 'text') updateText(dt);
+    else if (G.mode === 'wait' && G.t >= G.waitUntil) next();
+  }
+}
+
+function render(){
+  // 背景
+  if (view.bg === 'cave') drawCave(G.t);
+  else if (view.bg === 'tower') drawTower(G.t);
+  else { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }
+
+  if (G.scene === 'title'){
+    drawTitle();
+  } else if (G.scene === 'end' && view.overlayAlpha >= 0.999){
+    drawEnding();
+  } else {
+    // 悪魔（ふわふわ）
+    if (view.demonShow && view.demonAlpha > 0.01){
+      const bob = Math.round(Math.sin(G.t / 760) * 2);
+      drawSprite(DEMON, DEMON_X, DEMON_Y + bob, { alpha: view.demonAlpha });
+    }
+    // 主人公
+    if (view.heroShow && view.heroAlpha > 0.01){
+      const grid = view.heroNoFace ? HERO_NOFACE : HERO;
+      drawSprite(grid, HERO_X, HERO_Y, {
+        alpha: view.heroAlpha,
+        mul:  view.heroDark ? 0.40 : 1,
+        blue: view.heroDark ? 0.40 : 0
+      });
+    }
+
+    drawFx();
+
+    if (view.windowShow) drawWindow();
+    if (G.mode === 'choice' && G.choices) drawChoices();
+
+    // オーバーレイ（フェード）
+    if (view.overlayAlpha > 0.001){
+      ctx.globalAlpha = Math.min(1, view.overlayAlpha);
+      ctx.fillStyle = view.overlayColor;
+      ctx.fillRect(0, 0, W, H);
+      ctx.globalAlpha = 1;
+    }
+
+    // 中央テロップ（3年後 など）— 暗転の「上」に出す
+    if (view.centerText){
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, W, H);
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      setFont(14);
+      ctx.fillStyle = view.centerColor;
+      ctx.fillText(view.centerText, W / 2, 104);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // フラッシュ
+  if (view.flashAlpha > 0.001){
+    ctx.globalAlpha = Math.min(1, view.flashAlpha);
+    ctx.fillStyle = '#f4f4ef';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+
+  // 転送（シェイクは転送時にオフセット）
+  let sx = 0, sy = 0;
+  if (view.shakeAmp > 0){
+    sx = Math.round((Math.random() - 0.5) * 2 * view.shakeAmp);
+    sy = Math.round((Math.random() - 0.5) * 2 * view.shakeAmp);
+  }
+  screenCtx.fillStyle = '#000';
+  screenCtx.fillRect(0, 0, W, H);
+  screenCtx.drawImage(buf, sx, sy);
+}
+
+/* ------------------------------------------------------------
+   入力
+   ------------------------------------------------------------ */
+function confirm(){
+  audio();
+
+  if (G.scene === 'title'){
+    SFX.ok();
+    resetView();
+    startScript(introScript());
+    return;
+  }
+
+  if (G.scene === 'end'){
+    if (view.overlayAlpha < 0.999) return;   // フェード中は無視
+    SFX.ok();
+    resetView();
+    G.scene = 'title'; G.mode = 'idle';
+    return;
+  }
+
+  if (G.mode === 'text'){
+    if (!G.finished){ G.revealed = G.totalChars; G.finished = true; }   // 全表示スキップ
+    else { SFX.ok(); next(); }
+    return;
+  }
+
+  if (G.mode === 'choice'){
+    SFX.ok();
+    const pick = G.cursor;
+    G.choices = null;
+    G.cmds = (pick === 0) ? routeA() : routeB();
+    G.ci = 0;
+    next();
+    return;
+  }
+  // 'wait' / 'tween' 中は入力を受け付けない（「間」を守る）
+}
+
+function moveCursor(d){
+  if (G.mode !== 'choice' || !G.choices) return;
+  const n = G.choices.length;
+  G.cursor = (G.cursor + d + n) % n;
+  SFX.move();
+}
+
+function resetView(){
+  Object.assign(view, {
+    bg: 'cave', heroShow: false, heroAlpha: 1, heroDark: false, heroNoFace: false,
+    demonShow: false, demonAlpha: 0, windowShow: false,
+    overlayColor: '#000000', overlayAlpha: 0, flashAlpha: 0, shakeAmp: 0,
+    centerText: null, mosaic: 0
+  });
+  particles = []; floaters = []; G.tweens = [];
+  G.lines = []; G.revealed = 0; G.totalChars = 0; G.speaker = null;
+  G.flashUntil = 0; G.shakeUntil = 0; G.choices = null; G.cursor = 0;
+}
+
+window.addEventListener('keydown', e => {
+  const k = e.key;
+  if (k === 'ArrowUp'){ e.preventDefault(); moveCursor(-1); }
+  else if (k === 'ArrowDown'){ e.preventDefault(); moveCursor(1); }
+  else if (k === 'z' || k === 'Z' || k === 'Enter' || k === ' '){ e.preventDefault(); confirm(); }
+});
+
+// タップ／クリック（選択肢は直接タップでも選べる）
+screenCv.addEventListener('pointerdown', e => {
+  const r = screenCv.getBoundingClientRect();
+  const px = (e.clientX - r.left) * (W / r.width);
+  const py = (e.clientY - r.top)  * (H / r.height);
+  if (G.mode === 'choice' && G.choiceRects.length){
+    for (const cr of G.choiceRects){
+      if (px >= cr.x && px <= cr.x + cr.w && py >= cr.y && py <= cr.y + cr.h){
+        if (G.cursor !== cr.i){ G.cursor = cr.i; SFX.move(); }
+        confirm();
+        return;
+      }
+    }
+  }
+  confirm();
+});
+
+/* ------------------------------------------------------------
+   表示スケール（整数倍）
+   ------------------------------------------------------------ */
+function resize(){
+  const pad = 56;
+  const s = Math.max(1, Math.floor(Math.min(
+    (window.innerWidth - 16) / W,
+    (window.innerHeight - pad) / H
+  )));
+  screenCv.style.width  = (W * s) + 'px';
+  screenCv.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', resize);
+resize();
+
+/* ------------------------------------------------------------
+   起動（フォント読み込みを待つ／失敗しても続行）
+   ------------------------------------------------------------ */
+(async function boot(){
+  try {
+    const timeout = new Promise(r => setTimeout(r, 2500));
+    await Promise.race([
+      Promise.all([
+        document.fonts.load('12px "PixelMplus12"').catch(() => {}),
+        document.fonts.load('12px "DotGothic16"').catch(() => {}),
+        document.fonts.load('30px "DotGothic16"').catch(() => {})
+      ]),
+      timeout
+    ]);
+  } catch (e){ /* フォールバックで続行 */ }
+
+  last = performance.now();
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
