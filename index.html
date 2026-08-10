@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>究極の選択</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,6 +32,10 @@ html,body{
   flex-direction:column; gap:8px;
   touch-action:manipulation;
   user-select:none; -webkit-user-select:none;
+  /* LINE等のアプリ内ブラウザやノッチにボタンが潜り込まないようにする */
+  box-sizing:border-box;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right)
+          env(safe-area-inset-bottom) env(safe-area-inset-left);
 }
 
 /* スクリプトが動かないビューア（CSPでインラインJSが止められる等）向けの案内。
@@ -1365,8 +1369,13 @@ function resize(){
   const padH  = padEl  ? padEl.offsetHeight  : 0;
   const hintH = hintEl ? hintEl.offsetHeight : 0;
 
-  const availW = Math.max(64, window.innerWidth  - 8);
-  const availH = Math.max(64, window.innerHeight - padH - hintH - 22);
+  // window.innerHeight ではなく stage の実寸を使う。
+  // セーフエリア分を差し引いた、実際に描ける領域がこちらだから。
+  const boxW = stageEl ? stageEl.clientWidth  : window.innerWidth;
+  const boxH = stageEl ? stageEl.clientHeight : window.innerHeight;
+
+  const availW = Math.max(64, boxW - 8);
+  const availH = Math.max(64, boxH - padH - hintH - 22);
 
   // デバイスピクセルで整数倍 → にじみゼロのまま画面いっぱいに使える
   let s = Math.floor(Math.min(availW * dpr / W, availH * dpr / H));
