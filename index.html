@@ -1,0 +1,1099 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>究極の選択</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&display=swap');
+
+/* PixelMplus（あれば使う。無ければ DotGothic16 → monospace にフォールバック） */
+@font-face{
+  font-family:'PixelMplus12';
+  font-display:swap;
+  src:url('https://cdn.jsdelivr.net/gh/itouhiro/PixelMplus@master/PixelMplus12-Regular.ttf') format('truetype');
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  background:#05050a;
+  color:#7b8494;
+  font-family:'DotGothic16','PixelMplus12',monospace;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;
+  overflow:hidden;
+  -webkit-text-size-adjust:100%;
+  user-select:none;-webkit-user-select:none;
+}
+#stage{position:relative;line-height:0}
+canvas{
+  display:block;
+  image-rendering:pixelated;
+  image-rendering:-moz-crisp-edges;
+  image-rendering:crisp-edges;
+  background:#000;
+  box-shadow:0 0 0 2px #1b1d2b,0 0 34px rgba(60,40,90,.45);
+}
+/* 走査線（ごく薄く） */
+#scan{
+  position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.16) 0 1px,rgba(0,0,0,0) 1px 3px);
+  mix-blend-mode:multiply;opacity:.5;
+}
+#hint{font-size:12px;letter-spacing:.08em;text-align:center;padding:0 8px}
+#pad{display:none;gap:10px}
+@media (pointer:coarse){#pad{display:flex}}
+#pad button{
+  font-family:inherit;font-size:16px;
+  background:#171a2c;color:#cdd3e0;border:2px solid #4a5170;
+  border-radius:8px;padding:10px 16px;min-width:56px;
+}
+#pad button:active{background:#2a3050}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <canvas id="g" width="256" height="224"></canvas>
+  <div id="scan"></div>
+</div>
+<div id="hint">↑↓ えらぶ ／ Ｚ・Ｅｎｔｅｒ けってい</div>
+<div id="pad">
+  <button id="bu" aria-label="up">▲</button>
+  <button id="bd" aria-label="down">▼</button>
+  <button id="bo" aria-label="ok">Ｚ</button>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   基本設定
+   ============================================================ */
+const W = 256, H = 224;          // 内部解像度
+const DOT = 8;                   // スプライト1ドット = 8px
+const GROUND = 148;              // 足元のY
+const cv  = document.getElementById('g');
+const ctx = cv.getContext('2d');
+ctx.imageSmoothingEnabled = false;
+
+const FONT = '"DotGothic16","PixelMplus12",monospace';
+const F16 = '16px ' + FONT;
+const F12 = '12px ' + FONT;
+const F32 = '32px ' + FONT;
+
+function fit(){
+  const s = Math.max(1, Math.min(
+    Math.floor((window.innerWidth  - 16) / W),
+    Math.floor((window.innerHeight - 96) / H)
+  ));
+  cv.style.width  = (W * s) + 'px';
+  cv.style.height = (H * s) + 'px';
+}
+window.addEventListener('resize', fit);
+fit();
+
+/* ============================================================
+   パレット（16色・レトロ限定色）
+   ============================================================ */
+const PAL = {
+  '0':'#0b0b12', '1':'#1a1c2c', '2':'#5d275d', '3':'#b13e53',
+  '4':'#ef7d57', '5':'#ffcd75', '6':'#a7f070', '7':'#38b764',
+  '8':'#257179', '9':'#29366f', 'a':'#3b5dc9', 'b':'#41a6f6',
+  'c':'#73eff7', 'd':'#f4f4f4', 'e':'#94b0c2', 'f':'#566c86'
+};
+// 暗い色調（Aルート後半用）
+const PAL_DARK = (function(){
+  const o = {};
+  for (const k in PAL){
+    const h = PAL[k];
+    let r = parseInt(h.substr(1,2),16), g = parseInt(h.substr(3,2),16), b = parseInt(h.substr(5,2),16);
+    // 減光しつつ、夜の青へ寄せる
+    r = Math.round(r*0.34 + 0x18*0.30);
+    g = Math.round(g*0.34 + 0x1e*0.30);
+    b = Math.round(b*0.42 + 0x3a*0.34);
+    o[k] = 'rgb(' + r + ',' + g + ',' + b + ')';
+  }
+  return o;
+})();
+
+/* ============================================================
+   ドット絵（1文字 = 1ドット）
+   ============================================================ */
+// 主人公：勇者風（12 x 15）
+const HERO = [
+  '...4444.....',
+  '..444444....',
+  '..455554....',
+  '..450504....',
+  '..455554..d.',
+  '...5535...d.',
+  '...5555...d.',
+  '..eaaaae..d.',
+  '.55aaaa5..d.',
+  '..a3333a5eee',
+  '..aaaaaa..5.',
+  '..a9999a....',
+  '...9..9.....',
+  '...9..9.....',
+  '..11..11....'
+];
+// 主人公（表情なし）：目はうつろ、口が無い
+const HERO_BLANK = [
+  '...4444.....',
+  '..444444....',
+  '..455554....',
+  '..45f5f4....',
+  '..455554..d.',
+  '...5555...d.',
+  '...5555...d.',
+  '..eaaaae..d.',
+  '.55aaaa5..d.',
+  '..a3333a5eee',
+  '..aaaaaa..5.',
+  '..a9999a....',
+  '...9..9.....',
+  '...9..9.....',
+  '..11..11....'
+];
+// 悪魔：角・しっぽ・ニヤつき（16 x 16）
+const DEMON = [
+  '.3............3.',
+  '.33..........33.',
+  '..33........33..',
+  '...3333333333...',
+  '..333333333333..',
+  '..322333333223..',
+  '..350333333053..',
+  '..333333333333..',
+  '..333000000333..',
+  '..330500500533..',
+  '..333300003333.3',
+  '....33333333..3.',
+  '...3333333333.3.',
+  '.2233333333223..',
+  '....33333333....',
+  '....33....33....'
+];
+
+function drawSprite(rows, ox, oy, alpha, dark){
+  if (alpha <= 0.001) return;
+  const pal = dark ? PAL_DARK : PAL;
+  const old = ctx.globalAlpha;
+  ctx.globalAlpha = old * alpha;
+  for (let r = 0; r < rows.length; r++){
+    const line = rows[r];
+    for (let c = 0; c < line.length; c++){
+      const ch = line[c];
+      if (ch === '.') continue;
+      ctx.fillStyle = pal[ch] || '#f0f';
+      ctx.fillRect(ox + c*DOT, oy + r*DOT, DOT, DOT);
+    }
+  }
+  ctx.globalAlpha = old;
+}
+
+/* ============================================================
+   乱数（毎フレーム同じ絵になるよう種を固定）
+   ============================================================ */
+let _seed = 1;
+function srand(s){ _seed = s >>> 0; }
+function rnd(){
+  _seed = (_seed + 0x6D2B79F5) | 0;
+  let t = _seed;
+  t = Math.imul(t ^ (t >>> 15), 1 | t);
+  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+
+/* ============================================================
+   背景A：暗い洞窟
+   ============================================================ */
+function drawCave(t){
+  const g = ctx.createLinearGradient(0,0,0,H);
+  g.addColorStop(0,'#06050d'); g.addColorStop(0.6,'#100e1e'); g.addColorStop(1,'#191428');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+  // 奥の岩肌
+  srand(9731);
+  for (let i=0;i<260;i++){
+    const x = (rnd()*W)|0, y = (rnd()*GROUND)|0, s = rnd()<0.75?2:3;
+    ctx.fillStyle = rnd()<0.5 ? '#171528' : '#221d38';
+    ctx.fillRect(x,y,s,s);
+  }
+  // 鍾乳石（上から）
+  srand(4242);
+  ctx.fillStyle = '#14121f';
+  for (let i=0;i<14;i++){
+    const x = (rnd()*W)|0;
+    const h = 10 + (rnd()*34|0);
+    const w = 6 + (rnd()*8|0);
+    for (let r=0;r<h;r++){
+      const ww = Math.max(1, Math.round(w * (1 - r/h)));
+      ctx.fillRect(x - (ww>>1), r, ww, 1);
+    }
+  }
+  // 床
+  srand(777);
+  ctx.fillStyle = '#100f1c';
+  for (let x=0;x<W;x+=4){
+    const hh = 2 + (rnd()*4|0);
+    ctx.fillRect(x, GROUND - hh, 4, H - GROUND + hh);
+  }
+  ctx.fillStyle = '#1c1830';
+  ctx.fillRect(0, GROUND+2, W, 2);
+
+  // たいまつ（ゆらぎ）
+  torch(26, 74, t);
+  torch(228, 66, t + 900);
+}
+function torch(x, y, t){
+  const f = Math.sin(t/110) * 0.5 + Math.sin(t/47) * 0.5;
+  // 光
+  const rad = 34 + f*4;
+  const gr = ctx.createRadialGradient(x, y, 2, x, y, rad);
+  gr.addColorStop(0, 'rgba(255,205,117,0.30)');
+  gr.addColorStop(1, 'rgba(255,205,117,0)');
+  ctx.fillStyle = gr;
+  ctx.fillRect(x-rad, y-rad, rad*2, rad*2);
+  // 台
+  ctx.fillStyle = '#3a3450'; ctx.fillRect(x-2, y, 4, 22);
+  // 炎
+  ctx.fillStyle = '#b13e53'; ctx.fillRect(x-4, y-8+((f>0)?0:1), 8, 10);
+  ctx.fillStyle = '#ef7d57'; ctx.fillRect(x-3, y-6, 6, 8);
+  ctx.fillStyle = '#ffcd75'; ctx.fillRect(x-1, y-4-((f>0)?1:0), 2, 5);
+}
+
+/* ============================================================
+   背景B：夜のタワマン夜景
+   ============================================================ */
+function drawCity(t){
+  const g = ctx.createLinearGradient(0,0,0,GROUND);
+  g.addColorStop(0,'#03040c'); g.addColorStop(0.55,'#0a0f28'); g.addColorStop(1,'#16224a');
+  ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+  // 星
+  srand(1357);
+  for (let i=0;i<70;i++){
+    const x=(rnd()*W)|0, y=(rnd()*80)|0, ph=rnd()*6.28;
+    const a = 0.25 + 0.55*Math.abs(Math.sin(t/900 + ph));
+    ctx.fillStyle = 'rgba(244,244,244,'+a.toFixed(2)+')';
+    ctx.fillRect(x,y,1,1);
+  }
+  // 月
+  ctx.fillStyle = '#e6e8f2';
+  circle(206, 28, 11);
+  ctx.fillStyle = '#0a0f28';
+  circle(201, 24, 9);
+
+  // ビル群（奥）
+  srand(2468);
+  for (let i=0;i<18;i++){
+    const bw = 10 + (rnd()*16|0);
+    const bx = (rnd()*(W+20)|0) - 10;
+    const bh = 26 + (rnd()*48|0);
+    const by = GROUND - 18 - bh;
+    ctx.fillStyle = '#080b1c';
+    ctx.fillRect(bx, by, bw, bh + 18);
+    // 輪郭（夜空との境目をうっすら立てる）
+    ctx.fillStyle = '#1c2544';
+    ctx.fillRect(bx, by, bw, 1);
+    ctx.fillRect(bx, by, 1, bh + 18);
+    // 窓
+    for (let wy = by+3; wy < GROUND-20; wy += 5){
+      for (let wx = bx+2; wx < bx+bw-2; wx += 4){
+        const r = rnd();
+        if (r < 0.42){
+          const blink = (rnd() < 0.10) ? (Math.sin(t/700 + wx*wy) > 0 ? 1 : 0) : 1;
+          if (!blink) continue;
+          ctx.fillStyle = (r < 0.08) ? '#73eff7' : (r < 0.22 ? '#ffcd75' : '#e8b45c');
+          ctx.fillRect(wx, wy, 2, 3);
+        }
+      }
+    }
+  }
+  // 手前（最上階の床とベランダ手すり）
+  ctx.fillStyle = '#05060f'; ctx.fillRect(0, GROUND-16, W, H-GROUND+16);
+  ctx.fillStyle = '#242b45'; ctx.fillRect(0, GROUND-16, W, 2);
+  ctx.fillStyle = '#161b30';
+  for (let x=0;x<W;x+=12) ctx.fillRect(x, GROUND-16, 2, 14);
+  ctx.fillStyle = '#0b0d18'; ctx.fillRect(0, GROUND+2, W, H-GROUND);
+}
+function circle(cx, cy, r){
+  for (let y=-r; y<=r; y++){
+    const w = Math.floor(Math.sqrt(r*r - y*y));
+    ctx.fillRect(cx-w, cy+y, w*2+1, 1);
+  }
+}
+
+/* ============================================================
+   サウンド（Web Audio でビープ生成）
+   ============================================================ */
+let ac = null;
+function audioInit(){
+  if (ac) { if (ac.state === 'suspended') ac.resume(); return; }
+  try {
+    ac = new (window.AudioContext || window.webkitAudioContext)();
+  } catch(e){ ac = null; }
+}
+function tone(freq, dur, type, vol, delay){
+  if (!ac) return;
+  const t0 = ac.currentTime + (delay || 0);
+  const o = ac.createOscillator(), g = ac.createGain();
+  o.type = type || 'square';
+  o.frequency.setValueAtTime(freq, t0);
+  g.gain.setValueAtTime(0.0001, t0);
+  g.gain.exponentialRampToValueAtTime(vol || 0.06, t0 + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  o.connect(g); g.connect(ac.destination);
+  o.start(t0); o.stop(t0 + dur + 0.02);
+}
+function noise(dur, vol){
+  if (!ac) return;
+  const n = Math.floor(ac.sampleRate * dur);
+  const buf = ac.createBuffer(1, n, ac.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i=0;i<n;i++) d[i] = (Math.random()*2-1) * (1 - i/n);
+  const src = ac.createBufferSource(); src.buffer = buf;
+  const g = ac.createGain(); g.gain.value = vol || 0.12;
+  src.connect(g); g.connect(ac.destination); src.start();
+}
+function sfx(kind){
+  if (!ac) return;
+  switch(kind){
+    case 'tick':   tone(1400, 0.012, 'square', 0.015); break;
+    case 'move':   tone(760, 0.05, 'square', 0.05); break;
+    case 'ok':     tone(880, 0.06, 'square', 0.06); tone(1320, 0.09, 'square', 0.05, 0.06); break;
+    case 'start':  tone(660, 0.07, 'square', 0.06); tone(990, 0.07, 'square', 0.06, 0.07); tone(1320, 0.14, 'square', 0.05, 0.14); break;
+    case 'appear': tone(110, 0.5, 'sawtooth', 0.05); tone(82, 0.7, 'sawtooth', 0.04, 0.1); break;
+    case 'boom':   noise(0.5, 0.18); tone(60, 0.4, 'sawtooth', 0.09); break;
+    case 'poof':   noise(0.35, 0.07); tone(300, 0.25, 'sine', 0.05); tone(180, 0.3, 'sine', 0.04, 0.12); break;
+    case 'coin':   tone(1046,0.07,'square',0.05); tone(1568,0.18,'square',0.05,0.07); break;
+    case 'vanish': tone(220, 0.6, 'sine', 0.03); break;
+  }
+}
+
+/* ============================================================
+   入力
+   ============================================================ */
+const input = { up:false, down:false, ok:false };
+function press(k){ input[k] = true; audioInit(); }
+window.addEventListener('keydown', function(e){
+  const k = e.key;
+  if (k === 'ArrowUp' || k === 'ArrowDown' || k === ' ' || k === 'Enter') e.preventDefault();
+  if (e.repeat) return;
+  if (k === 'ArrowUp' || k === 'w') press('up');
+  else if (k === 'ArrowDown' || k === 's') press('down');
+  else if (k === 'z' || k === 'Z' || k === 'Enter' || k === ' ') press('ok');
+});
+cv.addEventListener('pointerdown', function(e){ e.preventDefault(); press('ok'); });
+document.getElementById('bu').addEventListener('click', function(){ press('up'); });
+document.getElementById('bd').addEventListener('click', function(){ press('down'); });
+document.getElementById('bo').addEventListener('click', function(){ press('ok'); });
+function takeOk(){ const v = input.ok; input.ok = false; return v; }
+function takeUp(){ const v = input.up; input.up = false; return v; }
+function takeDown(){ const v = input.down; input.down = false; return v; }
+function clearInput(){ input.up = input.down = input.ok = false; }
+
+/* ============================================================
+   ウィンドウ描画（RPGツクール風・濃紺グラデ＋白枠＋角丸）
+   ============================================================ */
+function roundPath(x,y,w,h,r){
+  ctx.beginPath();
+  ctx.moveTo(x+r, y);
+  ctx.lineTo(x+w-r, y);   ctx.quadraticCurveTo(x+w, y, x+w, y+r);
+  ctx.lineTo(x+w, y+h-r); ctx.quadraticCurveTo(x+w, y+h, x+w-r, y+h);
+  ctx.lineTo(x+r, y+h);   ctx.quadraticCurveTo(x, y+h, x, y+h-r);
+  ctx.lineTo(x, y+r);     ctx.quadraticCurveTo(x, y, x+r, y);
+  ctx.closePath();
+}
+function drawWindow(x,y,w,h){
+  const g = ctx.createLinearGradient(0, y, 0, y+h);
+  g.addColorStop(0, '#1b2a6b');
+  g.addColorStop(0.5, '#141c48');
+  g.addColorStop(1, '#0d1130');
+  roundPath(x,y,w,h,6);
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#f4f4f4'; ctx.stroke();
+  roundPath(x+3,y+3,w-6,h-6,4);
+  ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(148,176,194,0.35)'; ctx.stroke();
+}
+function drawNamePlate(name, x, y){
+  if (!name) return;
+  ctx.font = F12;
+  const tw = Math.ceil(ctx.measureText(name).width);
+  const w = tw + 14, h = 16;
+  roundPath(x, y, w, h, 4);
+  ctx.fillStyle = '#2b1442'; ctx.fill();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = '#f4f4f4'; ctx.stroke();
+  ctx.fillStyle = '#ffcd75';
+  ctx.textBaseline = 'top';
+  ctx.fillText(name, x+7, y+3);
+}
+function triangle(x,y,w,h,color,dir){
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  if (dir === 'down'){ ctx.moveTo(x,y); ctx.lineTo(x+w,y); ctx.lineTo(x+w/2,y+h); }
+  else { ctx.moveTo(x,y); ctx.lineTo(x+w,y+h/2); ctx.lineTo(x,y+h); }
+  ctx.closePath(); ctx.fill();
+}
+
+/* ============================================================
+   メッセージ表示
+   ============================================================ */
+const WIN = { x:6, y:152, w:244, h:66 };
+const TX = WIN.x + 12, TY = WIN.y + 11, LH = 17, MAXW = WIN.w - 24, LINES = 3;
+
+const ui = {
+  active:false, blank:false,
+  name:'', pages:[], page:0, shown:0, t:0,
+  speed:45, noSkip:false, silent:false, waiting:false
+};
+
+function wrapText(text){
+  ctx.font = F16;
+  const out = [];
+  const paras = String(text).split('\n');
+  for (const p of paras){
+    let cur = '';
+    for (const ch of p){
+      const test = cur + ch;
+      if (cur.length && ctx.measureText(test).width > MAXW){ out.push(cur); cur = ch; }
+      else cur = test;
+    }
+    out.push(cur);
+  }
+  return out;
+}
+function paginate(lines){
+  const pages = [];
+  for (let i=0;i<lines.length;i+=LINES) pages.push(lines.slice(i, i+LINES));
+  return pages.length ? pages : [['']];
+}
+function pageLen(p){ let n=0; for (const l of p) n += l.length; return n; }
+
+function drawMessage(t){
+  if (!ui.active) return;
+  drawWindow(WIN.x, WIN.y, WIN.w, WIN.h);
+  if (ui.blank) return;
+  drawNamePlate(ui.name, WIN.x + 8, WIN.y - 9);
+
+  ctx.font = F16;
+  ctx.textBaseline = 'top';
+  const page = ui.pages[ui.page] || [''];
+  let n = ui.shown;
+  for (let i=0;i<page.length;i++){
+    const line = page[i];
+    const take = Math.max(0, Math.min(line.length, n));
+    if (take > 0){
+      ctx.fillStyle = '#0a0a12';
+      ctx.fillText(line.slice(0, take), TX+1, TY + i*LH + 1);
+      ctx.fillStyle = '#f4f4f4';
+      ctx.fillText(line.slice(0, take), TX, TY + i*LH);
+    }
+    n -= line.length;
+    if (n <= 0) break;
+  }
+  if (ui.waiting && Math.floor(t/380) % 2 === 0){
+    triangle(WIN.x + WIN.w - 20, WIN.y + WIN.h - 14, 8, 6, '#ffcd75', 'down');
+  }
+}
+
+/* ============================================================
+   選択肢
+   ============================================================ */
+const choiceUI = { active:false, opts:[], idx:0 };
+const CWIN = { x:8, y:86, w:152, h:54 };
+function drawChoice(t){
+  if (!choiceUI.active) return;
+  drawWindow(CWIN.x, CWIN.y, CWIN.w, CWIN.h);
+  ctx.font = F16; ctx.textBaseline = 'top';
+  for (let i=0;i<choiceUI.opts.length;i++){
+    const y = CWIN.y + 12 + i*22;
+    ctx.fillStyle = '#0a0a12';
+    ctx.fillText(choiceUI.opts[i], CWIN.x + 31, y + 1);
+    ctx.fillStyle = (i === choiceUI.idx) ? '#ffcd75' : '#c8cede';
+    ctx.fillText(choiceUI.opts[i], CWIN.x + 30, y);
+  }
+  if (Math.floor(t/300) % 2 === 0){
+    triangle(CWIN.x + 14, CWIN.y + 13 + choiceUI.idx*22, 9, 12, '#ffcd75', 'right');
+  }
+}
+
+/* ============================================================
+   演出ステート
+   ============================================================ */
+const fx = {
+  flash:0, shakeT:0, shakeAmp:0,
+  fadeColor:'#000', fadeA:1,
+  smoke:[], smokeSpawn:0, mosaic:0, xmark:-1, poof:-1
+};
+const demon = { alpha:0, ax:0, av:0, adur:0, a0:0, a1:0 };
+const hero  = { visible:false, dark:false, blank:false };
+let bgId = 'cave';
+
+function tweenDemon(to, ms){
+  demon.a0 = demon.alpha; demon.a1 = to; demon.adur = ms; demon.av = 0;
+}
+function updateDemonTween(dt){
+  if (demon.adur > 0){
+    demon.av += dt;
+    const k = Math.min(1, demon.av / demon.adur);
+    demon.alpha = demon.a0 + (demon.a1 - demon.a0) * k;
+    if (k >= 1) demon.adur = 0;
+  }
+}
+
+const GROIN_X = 16 + 6*DOT, GROIN_Y = (GROUND - HERO.length*DOT) + 11*DOT;
+function startSmoke(){
+  fx.smoke = []; fx.smokeSpawn = 620; fx.mosaic = 2200; fx.xmark = 0; fx.poof = 0;
+  sfx('poof');
+}
+function spawnSmoke(n){
+  for (let i=0;i<n;i++){
+    fx.smoke.push({
+      x: GROIN_X + (Math.random()*18-9),
+      y: GROIN_Y + (Math.random()*10-5),
+      vx: (Math.random()-0.5)*0.022,
+      vy: -0.014 - Math.random()*0.026,
+      life: 0, max: 1100 + Math.random()*1000,
+      s: 3 + ((Math.random()*4)|0)
+    });
+  }
+}
+function updateFx(dt, t){
+  if (fx.flash > 0)  fx.flash  = Math.max(0, fx.flash - dt/260);
+  if (fx.shakeT > 0) fx.shakeT = Math.max(0, fx.shakeT - dt);
+  if (fx.smokeSpawn > 0){ fx.smokeSpawn -= dt; spawnSmoke(2); }
+  if (fx.mosaic > 0) fx.mosaic -= dt;
+  if (fx.xmark >= 0) fx.xmark += dt;
+  if (fx.poof  >= 0) fx.poof  += dt;
+  for (let i=fx.smoke.length-1;i>=0;i--){
+    const p = fx.smoke[i];
+    p.life += dt; p.x += p.vx*dt; p.y += p.vy*dt;
+    if (p.life >= p.max) fx.smoke.splice(i,1);
+  }
+}
+function drawSmokeFx(t){
+  // モザイク（抽象処理）
+  if (fx.mosaic > 0){
+    srand(Math.floor(t/90));
+    for (let yy=0; yy<2; yy++){
+      for (let xx=0; xx<3; xx++){
+        const v = 0.20 + rnd()*0.35;
+        ctx.fillStyle = 'rgba(120,126,150,'+v.toFixed(2)+')';
+        ctx.fillRect(GROIN_X - 12 + xx*8, GROIN_Y - 4 + yy*8, 8, 8);
+      }
+    }
+  }
+  // ☓記号
+  if (fx.xmark >= 0 && fx.xmark < 2400){
+    const k = Math.min(1, fx.xmark/180);
+    const L = Math.round(16*k);
+    const cx = GROIN_X, cy = GROIN_Y + 2;
+    const a = fx.xmark > 1800 ? Math.max(0, 1-(fx.xmark-1800)/600) : 1;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = '#b13e53';
+    for (let i=-L; i<=L; i+=2){
+      ctx.fillRect(cx+i-1, cy+i-1, 3, 3);
+      ctx.fillRect(cx+i-1, cy-i-1, 3, 3);
+    }
+    ctx.fillStyle = '#ffcd75';
+    for (let i=-L; i<=L; i+=2){
+      ctx.fillRect(cx+i, cy+i, 2, 2);
+      ctx.fillRect(cx+i, cy-i, 2, 2);
+    }
+    ctx.globalAlpha = 1;
+  }
+  // 煙
+  for (const p of fx.smoke){
+    const k = 1 - p.life/p.max;
+    ctx.globalAlpha = Math.max(0, k*0.75);
+    ctx.fillStyle = (p.life < 400) ? '#f4f4f4' : (p.life < 900 ? '#e0e2ea' : '#94b0c2');
+    ctx.fillRect(Math.round(p.x), Math.round(p.y), p.s, p.s);
+  }
+  ctx.globalAlpha = 1;
+  // 「ポワン」
+  if (fx.poof >= 0 && fx.poof < 1500){
+    const k = fx.poof/1500;
+    ctx.globalAlpha = Math.max(0, 1 - k*k);
+    ctx.font = F16; ctx.textBaseline = 'top';
+    ctx.fillStyle = '#0a0a12'; ctx.fillText('ポワン', GROIN_X + 15, GROIN_Y - 22 - k*26 + 1);
+    ctx.fillStyle = '#ffcd75'; ctx.fillText('ポワン', GROIN_X + 14, GROIN_Y - 22 - k*26);
+    ctx.globalAlpha = 1;
+  }
+}
+
+/* 中央テロップ（─── ３年後 ───） */
+const teleUI = { active:false, text:'', a:0 };
+
+/* ============================================================
+   アクション（スクリプトの1コマ）
+   ============================================================ */
+const A = {
+  run(fn){ return { update(){ fn(); return true; } }; },
+  wait(ms){ let t=0; return { update(dt){ t+=dt; return t>=ms; } }; },
+  fade(color, from, to, ms){
+    let t=0;
+    return {
+      start(){ fx.fadeColor = color; fx.fadeA = from; },
+      update(dt){ t+=dt; const k=Math.min(1,t/ms); fx.fadeA = from + (to-from)*k; return k>=1; }
+    };
+  },
+  flashShake(ms, amp){
+    return { update(){ fx.flash = 1; fx.shakeT = ms; fx.shakeAmp = amp || 4; return true; } };
+  },
+  smoke(){ return { update(){ startSmoke(); return true; } }; },
+  demonTo(to, ms, blocking){
+    let t = 0;
+    return {
+      start(){ tweenDemon(to, ms); },
+      update(dt){ if (!blocking) return true; t+=dt; return t>=ms; }
+    };
+  },
+  tele(text, ms){
+    let t = 0;
+    return {
+      start(){ teleUI.active = true; teleUI.text = text; teleUI.a = 0; ui.active = false; },
+      update(dt){
+        t += dt;
+        const fin = 600, fout = 600;
+        if (t < fin) teleUI.a = t/fin;
+        else if (t > ms - fout) teleUI.a = Math.max(0, (ms - t)/fout);
+        else teleUI.a = 1;
+        if (t >= ms){ teleUI.active = false; return true; }
+        return false;
+      }
+    };
+  },
+  pause(ms){ // 無音・無演出の「間」
+    let t = 0;
+    return {
+      start(){ ui.active = true; ui.blank = true; ui.name=''; ui.waiting = false; clearInput(); },
+      update(dt){ t += dt; clearInput(); if (t >= ms){ ui.blank = false; return true; } return false; }
+    };
+  },
+  say(name, text, opt){
+    opt = opt || {};
+    return {
+      start(){
+        ui.active = true; ui.blank = false;
+        ui.name = name; ui.pages = paginate(wrapText(text));
+        ui.page = 0; ui.shown = 0; ui.t = 0; ui.waiting = false;
+        ui.speed = opt.speed || 45;
+        ui.noSkip = !!opt.noSkip;
+        ui.silent = !!opt.silent;
+        clearInput();
+      },
+      update(dt){
+        const page = ui.pages[ui.page];
+        const len = pageLen(page);
+        const ok = takeOk();
+        if (!ui.waiting){
+          ui.t += dt;
+          while (ui.t >= ui.speed && ui.shown < len){
+            ui.t -= ui.speed;
+            ui.shown++;
+            if (!ui.silent && ui.shown % 2 === 0) sfx('tick');
+          }
+          if (ok && !ui.noSkip) ui.shown = len;
+          if (ui.shown >= len){ ui.shown = len; ui.waiting = true; }
+        } else if (ok){
+          sfx('ok');
+          if (ui.page < ui.pages.length - 1){
+            ui.page++; ui.shown = 0; ui.t = 0; ui.waiting = false;
+          } else {
+            ui.waiting = false;   // 「間」の最中に▼を点滅させない
+            return true;
+          }
+        }
+        return false;
+      }
+    };
+  },
+  choice(opts){
+    const act = {
+      result: 0,
+      start(){ choiceUI.active = true; choiceUI.opts = opts; choiceUI.idx = 0; clearInput(); },
+      update(){
+        if (takeUp())   { choiceUI.idx = (choiceUI.idx + opts.length - 1) % opts.length; sfx('move'); }
+        if (takeDown()) { choiceUI.idx = (choiceUI.idx + 1) % opts.length; sfx('move'); }
+        if (takeOk()){
+          sfx('ok');
+          act.result = choiceUI.idx;
+          choiceUI.active = false;
+          return true;
+        }
+        return false;
+      }
+    };
+    return act;
+  }
+};
+
+/* ============================================================
+   シナリオ
+   ============================================================ */
+function* scriptMain(){
+  yield A.run(function(){
+    bgId = 'cave'; hero.visible = true; hero.dark = false; hero.blank = false;
+    demon.alpha = 0; demon.adur = 0;
+    fx.smoke = []; fx.mosaic = 0; fx.xmark = -1; fx.poof = -1;
+  });
+  yield A.fade('#000', 1, 0, 700);
+
+  /* --- 導入（ギャグ） --- */
+  yield A.say('', 'ここは うすぐらい洞窟。', {speed:42});
+  yield A.say('', 'あなたは とくに用も無く\n散歩をしていた。', {speed:42});
+  yield A.say('', 'そして とくに用も無く\n悪魔と出会った。', {speed:42});
+
+  yield A.run(function(){ sfx('appear'); });
+  yield A.demonTo(1, 1100, true);
+  yield A.wait(250);
+
+  yield A.say('悪魔', 'くっくっく…\nお前のナニをよこせ。\n代わりに10億円くれてやろう', {speed:38});
+  yield A.say('主人公', '……ナニ？', {speed:70});
+  yield A.say('悪魔', 'ナニだ。', {speed:70});
+  yield A.say('主人公', 'ナニっスか。', {speed:60});
+  yield A.say('悪魔', 'ナニだよ。', {speed:70});
+  yield A.say('', 'さあ、究極の選択だ。', {speed:45});
+
+  const c = yield A.choice(['10億円もらう', 'ことわる']);
+  if (c === 0) yield* routeA();
+  else         yield* routeB();
+}
+
+/* --- ルートA：10億円もらう --- */
+function* routeA(){
+  yield A.run(function(){ ui.active = false; sfx('boom'); });
+  yield A.flashShake(750, 5);
+  yield A.wait(320);
+  yield A.smoke();
+  yield A.wait(1100);
+
+  yield A.say('悪魔', '契約成立だ。\n……ほれ、10億', {speed:45});
+  yield A.run(function(){ sfx('coin'); });
+  yield A.say('', '10億円を手に入れた！', {speed:34});
+  yield A.say('', '※ ナニかを失った', {speed:78});
+
+  // 暗転 → 背景B・主人公を暗い色調＆表情なしへ
+  yield A.run(function(){ ui.active = false; });
+  yield A.fade('#000', 0, 1, 1000);
+  yield A.run(function(){
+    bgId = 'city';
+    hero.dark = true; hero.blank = true;
+    demon.alpha = 0; demon.adur = 0;
+    fx.smoke = []; fx.mosaic = 0; fx.xmark = -1; fx.poof = -1;
+  });
+  yield A.tele('─── ３年後 ───', 2600);
+  yield A.fade('#000', 1, 0, 1400);
+  yield A.wait(600);
+
+  yield A.say('', 'タワーマンションの最上階。', {speed:72});
+  yield A.say('', '時計を買った。車を買った。', {speed:62});
+  yield A.say('', '島も買った。', {speed:62});
+  yield A.say('', '欲しいものは、全部買った。', {speed:66});
+  yield A.wait(450);
+  yield A.say('', 'もう、欲しいものが無い。', {speed:100});
+  yield A.wait(800);
+
+  yield A.run(function(){ sfx('appear'); });
+  yield A.demonTo(1, 1600, true);
+  yield A.say('悪魔', 'よう。……幸せか？', {speed:72});
+  yield A.say('主人公', '……', {speed:420});
+  yield A.wait(500);
+  yield A.say('悪魔', '言ったろ。値札のついてるモンはな、', {speed:56});
+  yield A.say('悪魔', 'ぜんぶ『その程度』なんだよ', {speed:56});
+  yield A.wait(1000);
+
+  // ここは極端に遅く、1文字ずつ間を置いて（スキップ不可・無音）
+  yield A.say('', '心は、満たされなかった。', {speed:330, noSkip:true, silent:true});
+  yield A.wait(2000);
+
+  yield A.run(function(){ ui.active = false; });
+  yield A.fade('#2a0510', 0, 1, 2200);
+  yield A.run(function(){ setEnd('bad'); });
+}
+
+/* --- ルートB：ことわる --- */
+function* routeB(){
+  yield A.say('主人公', '……いらねえ', {speed:85});
+  yield A.say('悪魔', 'ほう？　10億だぞ。人生変わるぞ', {speed:46});
+  yield A.say('主人公', '変わっちまうから、いらねえんだよ', {speed:58});
+  yield A.wait(400);
+
+  yield A.say('悪魔', 'くっくっく……', {speed:115});
+  yield A.say('悪魔', 'なあ、知ってるか', {speed:70});
+  yield A.say('悪魔', 'これまで9999人に、同じ話をした', {speed:56});
+  yield A.say('悪魔', '断ったのは──お前で3人目だ', {speed:66});
+
+  // 1.5秒の無音・無演出の「間」
+  yield A.pause(1500);
+
+  // ゆっくり半透明化しながら退場（セリフと並行）
+  yield A.run(function(){ sfx('vanish'); });
+  yield A.demonTo(0.30, 3200, false);
+  yield A.say('悪魔', 'やはり、男のブツには', {speed:72});
+  yield A.say('悪魔', '値がつかんらしい', {speed:72});
+  yield A.demonTo(0, 1900, true);
+  yield A.wait(700);
+
+  yield A.say('', '所持金：32円', {speed:72});
+  yield A.say('', 'だが、失ったものは何もない。', {speed:78});
+  yield A.wait(900);
+
+  yield A.run(function(){ ui.active = false; });
+  yield A.fade('#f2f2ee', 0, 1, 2800);
+  yield A.run(function(){ setEnd('true'); });
+}
+
+/* ============================================================
+   スクリプト駆動
+   ============================================================ */
+let gen = null, cur = null, pending;
+function startScript(g){ gen = g; cur = null; pending = undefined; }
+function advance(dt){
+  let guard = 0;
+  while (gen && guard++ < 300){
+    if (!cur){
+      const r = gen.next(pending);
+      pending = undefined;
+      if (r.done){ gen = null; break; }
+      cur = r.value;
+      if (!cur) continue;
+      if (cur.start) cur.start();
+    }
+    const act = cur;
+    if (act.update(dt)){
+      pending = act.result;
+      if (cur === act) cur = null;
+      dt = 0;
+      continue;
+    }
+    break;
+  }
+}
+
+/* ============================================================
+   ステート
+   ============================================================ */
+let state = 'title';       // 'title' | 'game' | 'end'
+let endData = null, endT = 0;
+
+function setEnd(kind){
+  state = 'end';
+  endT = 0;
+  endData = (kind === 'bad')
+    ? { bg:'#2a0510', fg:'#ffb8b8', sub:'#e4879a', tag:'── BAD END ──',  title:'「10億円と、空っぽの夜」' }
+    : { bg:'#f2f2ee', fg:'#2e2e38', sub:'#6b6b7a', tag:'── TRUE END ──', title:'「値札のつかないもの」' };
+  gen = null; cur = null;
+  ui.active = false; choiceUI.active = false;
+}
+function gotoTitle(){
+  state = 'title';
+  gen = null; cur = null;
+  ui.active = false; ui.blank = false; choiceUI.active = false; teleUI.active = false;
+  bgId = 'cave';
+  hero.visible = false; hero.dark = false; hero.blank = false;
+  demon.alpha = 0; demon.adur = 0;
+  fx.fadeA = 0; fx.fadeColor = '#000'; fx.flash = 0; fx.shakeT = 0;
+  fx.smoke = []; fx.mosaic = 0; fx.xmark = -1; fx.poof = -1;
+  clearInput();
+}
+function startGame(){
+  state = 'game';
+  fx.fadeColor = '#000'; fx.fadeA = 1;
+  startScript(scriptMain());
+  clearInput();
+}
+
+/* ============================================================
+   描画
+   ============================================================ */
+function drawScene(t){
+  if (bgId === 'cave') drawCave(t); else drawCity(t);
+
+  // 悪魔（ふわふわ浮遊）
+  if (demon.alpha > 0.001){
+    const bob = Math.round(Math.sin(t/620) * 2);
+    drawSprite(DEMON, 120, GROUND - DEMON.length*DOT + bob, demon.alpha, bgId === 'city');
+  }
+  // 主人公
+  if (hero.visible){
+    const breath = (Math.floor(t/700) % 2 === 0) ? 0 : 1;
+    const rows = hero.blank ? HERO_BLANK : HERO;
+    drawSprite(rows, 16, GROUND - rows.length*DOT + breath, 1, hero.dark);
+  }
+  drawSmokeFx(t);
+}
+
+function drawTitle(t){
+  drawCave(t);
+  ctx.fillStyle = 'rgba(5,5,12,0.55)';
+  ctx.fillRect(0,0,W,H);
+
+  // 悪魔のシルエット（うっすら）
+  drawSprite(DEMON, 120, GROUND - DEMON.length*DOT + Math.round(Math.sin(t/620)*2), 0.14, false);
+
+  ctx.textBaseline = 'top';
+  ctx.font = F32;
+  const title = '究極の選択';
+  const tw = ctx.measureText(title).width;
+  ctx.fillStyle = '#5d275d'; ctx.fillText(title, (W-tw)/2 + 2, 54 + 2);
+  ctx.fillStyle = '#b13e53'; ctx.fillText(title, (W-tw)/2 + 1, 54 + 1);
+  ctx.fillStyle = '#ffcd75'; ctx.fillText(title, (W-tw)/2, 54);
+
+  ctx.font = F12;
+  const sub = '- ULTIMATE CHOICE -';
+  const sw = ctx.measureText(sub).width;
+  ctx.fillStyle = '#94b0c2'; ctx.fillText(sub, (W-sw)/2, 96);
+
+  if (Math.floor(t/500) % 2 === 0){
+    ctx.font = F16;
+    const p = 'Ｚキーでスタート';
+    const pw = ctx.measureText(p).width;
+    ctx.fillStyle = '#f4f4f4'; ctx.fillText(p, (W-pw)/2, 156);
+  }
+  ctx.font = F12;
+  const cr = '↑↓ えらぶ ／ Ｚ・Ｅｎｔｅｒ けってい';
+  const cw = ctx.measureText(cr).width;
+  ctx.fillStyle = '#566c86'; ctx.fillText(cr, (W-cw)/2, 200);
+}
+
+function drawEnd(t){
+  ctx.fillStyle = endData.bg; ctx.fillRect(0,0,W,H);
+
+  const a1 = Math.min(1, endT/900);
+  ctx.textBaseline = 'top';
+  ctx.globalAlpha = a1;
+  ctx.font = F16;
+  let tw = ctx.measureText(endData.tag).width;
+  ctx.fillStyle = endData.sub; ctx.fillText(endData.tag, (W-tw)/2, 78);
+  ctx.globalAlpha = 1;
+
+  if (endT > 900){
+    const a2 = Math.min(1, (endT-900)/1200);
+    ctx.globalAlpha = a2;
+    ctx.font = F16;
+    tw = ctx.measureText(endData.title).width;
+    ctx.fillStyle = endData.fg; ctx.fillText(endData.title, (W-tw)/2, 108);
+    ctx.globalAlpha = 1;
+  }
+  if (endT > 2600 && Math.floor(t/500) % 2 === 0){
+    ctx.font = F16;
+    const m = 'もういちど';
+    const mw = ctx.measureText(m).width;
+    triangle((W-mw)/2 - 16, 176, 9, 12, endData.sub, 'right');
+    ctx.fillStyle = endData.sub; ctx.fillText(m, (W-mw)/2, 174);
+  }
+}
+
+/* ============================================================
+   メインループ
+   ============================================================ */
+let last = 0;
+function frame(now){
+  if (!last) last = now;
+  let dt = now - last; last = now;
+  if (dt > 100) dt = 100;
+  const t = now;
+
+  /* --- 更新 --- */
+  if (state === 'title'){
+    if (takeOk()){ sfx('start'); startGame(); }
+  } else if (state === 'game'){
+    updateDemonTween(dt);
+    updateFx(dt, t);
+    advance(dt);
+  } else if (state === 'end'){
+    endT += dt;
+    updateFx(dt, t);
+    if (endT <= 2600) clearInput();          // 余韻の途中では入力を受け付けない
+    else if (takeOk()){ sfx('ok'); gotoTitle(); }
+  }
+
+  /* --- 描画 --- */
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,W,H);
+
+  if (state === 'end'){
+    drawEnd(t);
+  } else {
+    // シェイク
+    let sx = 0, sy = 0;
+    if (fx.shakeT > 0){
+      const k = fx.shakeT / 750;
+      sx = Math.round((Math.random()*2-1) * fx.shakeAmp * k);
+      sy = Math.round((Math.random()*2-1) * fx.shakeAmp * k);
+    }
+    ctx.save();
+    ctx.translate(sx, sy);
+    if (state === 'title') drawTitle(t);
+    else                    drawScene(t);
+    ctx.restore();
+
+    // フラッシュ
+    if (fx.flash > 0){
+      ctx.fillStyle = 'rgba(244,244,244,' + (fx.flash*0.9).toFixed(3) + ')';
+      ctx.fillRect(0,0,W,H);
+    }
+    // UI
+    if (state === 'game'){
+      drawMessage(t);
+      drawChoice(t);
+    }
+    // フェード
+    if (fx.fadeA > 0.001){
+      ctx.globalAlpha = Math.min(1, fx.fadeA);
+      ctx.fillStyle = fx.fadeColor;
+      ctx.fillRect(0,0,W,H);
+      ctx.globalAlpha = 1;
+    }
+    // 中央テロップ
+    if (teleUI.active && teleUI.a > 0.001){
+      ctx.globalAlpha = teleUI.a;
+      ctx.font = F16; ctx.textBaseline = 'top';
+      const tw = ctx.measureText(teleUI.text).width;
+      ctx.fillStyle = '#f4f4f4';
+      ctx.fillText(teleUI.text, Math.round((W-tw)/2), 104);
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  requestAnimationFrame(frame);
+}
+
+/* ============================================================
+   起動（フォント読み込みを待ってから）
+   ============================================================ */
+// デバッグ用の覗き窓（動作確認用・ゲーム本体には影響しない）
+window.__game = {
+  get state(){ return state; },
+  get choice(){ return { active: choiceUI.active, idx: choiceUI.idx }; },
+  get msg(){ return { active: ui.active, blank: ui.blank, shown: ui.shown, name: ui.name, page: (ui.pages[ui.page]||[]).join('') }; },
+  get demon(){ return { alpha: demon.alpha, adur: demon.adur }; },
+  get bg(){ return bgId; }
+};
+
+function boot(){
+  gotoTitle();
+  requestAnimationFrame(frame);
+}
+if (document.fonts && document.fonts.load){
+  Promise.race([
+    Promise.all([
+      document.fonts.load('16px "DotGothic16"', '究極の選択あア亜'),
+      document.fonts.load('32px "DotGothic16"', '究極の選択')
+    ]),
+    new Promise(function(res){ setTimeout(res, 2500); })
+  ]).then(boot, boot);
+} else {
+  boot();
+}
+
+})();
+</script>
+</body>
+</html>
