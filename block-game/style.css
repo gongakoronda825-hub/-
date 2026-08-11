@@ -70,19 +70,23 @@ html, body {
 
 /* ── 操作ボタン ───────────────────────────────── */
 
+/* 右手の親指が届く範囲に、2列 × 3段のゆるいグリッドで並べる。
+   列A = 画面端寄り / 列B = その左隣。段は下から 18 / 106 / 194px。 */
+
 .action {
   position: fixed;
   z-index: 4;
-  bottom: calc(20px + var(--safe-b));
-  width: 92px;
-  height: 92px;
+  width: 78px;
+  height: 78px;
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.9);
   background: rgba(14, 19, 28, 0.55);
   color: #fff;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.04em;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  white-space: pre-line;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
   touch-action: none;
   -webkit-backdrop-filter: blur(2px);
@@ -95,8 +99,86 @@ html, body {
   background: rgba(255, 255, 255, 0.5);
 }
 
-#break-button { right: calc(132px + var(--safe-r)); }
-#place-button { right: calc(24px + var(--safe-r)); bottom: calc(66px + var(--safe-b)); }
+/* 飛行中のジャンプボタン（＝解除ボタン）は点いていることが分かるようにする */
+.action.active {
+  background: rgba(255, 208, 92, 0.85);
+  border-color: #fff;
+  color: #23180a;
+  text-shadow: none;
+}
+
+.action.hidden { display: none; }
+
+/* 上下ボタンは補助なので少し小さく */
+.action.fly {
+  width: 66px;
+  height: 66px;
+  font-size: 20px;
+}
+
+#place-button { right: calc(18px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); }
+#break-button { right: calc(106px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); }
+#jump-button { right: calc(18px + var(--safe-r)); bottom: calc(106px + var(--safe-b)); }
+#down-button { right: calc(112px + var(--safe-r)); bottom: calc(102px + var(--safe-b)); }
+#up-button { right: calc(112px + var(--safe-r)); bottom: calc(172px + var(--safe-b)); }
+
+/* ── インベントリ（ホットバー） ─────────────── */
+
+#hotbar {
+  position: fixed;
+  z-index: 4;
+  left: 50%;
+  bottom: calc(14px + var(--safe-b));
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 7px;
+  border-radius: 12px;
+  background: rgba(14, 19, 28, 0.5);
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  touch-action: none;
+}
+
+#hotbar .slot {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.25);
+  touch-action: none;
+  transition: transform 0.06s ease-out, border-color 0.06s ease-out;
+}
+
+#hotbar .slot .icon {
+  position: absolute;
+  inset: 4px;
+  border-radius: 4px;
+  background-size: cover;
+  /* 16×16 のドット絵なので、拡大してもぼかさない */
+  image-rendering: pixelated;
+}
+
+#hotbar .slot .name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 2px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 1px 2px #000, 0 0 4px #000;
+}
+
+#hotbar .slot.selected {
+  border-color: #fff;
+  transform: translateY(-4px);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.45), 0 4px 10px rgba(0, 0, 0, 0.4);
+}
+
+#hotbar .slot.pressed { transform: scale(0.94); }
 
 /* ── 照準 ─────────────────────────────────────── */
 

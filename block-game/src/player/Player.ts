@@ -1,7 +1,10 @@
 import * as THREE from 'three';
 import {
   COLLISION_EPSILON,
+  FLY_MOVE_SPEED,
+  FLY_VERTICAL_SPEED,
   GRAVITY,
+  JUMP_SPEED,
   MOVE_SPEED,
   PLAYER_DEPTH,
   PLAYER_HEIGHT,
@@ -31,6 +34,12 @@ export class Player {
   readonly velocity = new THREE.Vector3();
   onGround = false;
 
+  /** 飛行中は重力が効かず、上下は verticalInput で操作する。 */
+  flying = false;
+
+  /** 飛行中の上下入力。+1 が上昇、-1 が下降、0 でその高さに留まる。 */
+  verticalInput = 0;
+
   constructor(private readonly world: World) {}
 
   /**
@@ -38,13 +47,36 @@ export class Player {
    * @param move 水平方向の移動入力。長さ 0〜1 のワールド方向ベクトル
    */
   update(dt: number, move: THREE.Vector3): void {
-    this.velocity.x = move.x * MOVE_SPEED;
-    this.velocity.z = move.z * MOVE_SPEED;
-    this.velocity.y += GRAVITY * dt;
+    const speed = this.flying ? FLY_MOVE_SPEED : MOVE_SPEED;
+    this.velocity.x = move.x * speed;
+    this.velocity.z = move.z * speed;
+
+    if (this.flying) {
+      // 重力の代わりに上下入力をそのまま速度にする（慣性なしのホバー）
+      this.velocity.y = this.verticalInput * FLY_VERTICAL_SPEED;
+    } else {
+      this.velocity.y += GRAVITY * dt;
+    }
 
     this.moveHorizontal('x', this.velocity.x * dt);
     this.moveVertical(this.velocity.y * dt);
     this.moveHorizontal('z', this.velocity.z * dt);
+  }
+
+  /** ジャンプ。接地しているときだけ跳べる（空中で二段ジャンプはしない）。 */
+  jump(): void {
+    if (this.flying || !this.onGround) return;
+    this.velocity.y = JUMP_SPEED;
+    this.onGround = false;
+  }
+
+  /** 飛行の切り替え。入りも抜けも速度をリセットする。 */
+  setFlying(flying: boolean): void {
+    this.flying = flying;
+    this.velocity.y = 0;
+    this.verticalInput = 0;
+    // 飛び始めた瞬間は宙に浮くので、接地はいったん外す
+    if (flying) this.onGround = false;
   }
 
   /** 指定セルにブロックを置いたらプレイヤーと重なるか（設置の可否判定）。 */
@@ -106,9 +138,8 @@ export class Player {
     const beforeStop = this.position[axis];
     this.position[axis] = stopped;
 
-    // 1ブロックぶんの段差なら自動で登る。ジャンプ操作が無いので、
-    // これが無いと足元にブロックを置いた時点で身動きが取れなくなる。
-    if (this.onGround) this.tryStepUp(axis, beforeStop);
+    // 1ブロックぶんの段差は歩いたまま登る。飛行中は▲で越えればよいので効かせない。
+    if (this.onGround && !this.flying) this.tryStepUp(axis, beforeStop);
   }
 
   /** 段差の自動昇り。上に隙間があるときだけ持ち上げる。 */

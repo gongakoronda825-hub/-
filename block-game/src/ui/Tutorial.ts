@@ -16,10 +16,13 @@ export class Tutorial {
         <ul>
           <li><b>移動</b><span>左下のスティックを倒す</span></li>
           <li><b>見まわす</b><span>画面の右半分をなぞる</span></li>
+          <li><b>ジャンプ</b><span>「ジャンプ」を1回タップ</span></li>
+          <li><b>とぶ</b><span>「ジャンプ」を2回連打。▲▼で上下</span></li>
           <li><b>こわす</b><span>中央の ＋ を合わせて「こわす」</span></li>
-          <li><b>おく</b><span>面を狙って「おく」。となりに積まれる</span></li>
+          <li><b>おく</b><span>下のブロックを選んで「おく」</span></li>
         </ul>
-        <p class="note">とどく範囲は5ブロックまで。遠すぎると何も起きません。</p>
+        <p class="note">とどく範囲は5ブロックまで。遠すぎると何も起きません。<br>
+        飛行はもう一度2回連打で解除します。</p>
         <button type="button" id="start-button">はじめる</button>
       </div>
     `;

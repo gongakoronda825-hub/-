@@ -2,12 +2,14 @@ import * as THREE from 'three';
 import { Renderer } from './core/Renderer';
 import { EYE_HEIGHT, MAX_DELTA, SPAWN } from './core/config';
 import { ActionButtons } from './input/ActionButtons';
+import { FlightControls } from './input/FlightControls';
 import { Joystick } from './input/Joystick';
 import { LookControls } from './input/LookControls';
 import { BlockInteraction } from './interaction/BlockInteraction';
 import { FirstPersonCamera } from './player/FirstPersonCamera';
 import { Player } from './player/Player';
 import { DebugHud } from './ui/DebugHud';
+import { Inventory } from './ui/Inventory';
 import { createCrosshair } from './ui/Crosshair';
 import { Tutorial } from './ui/Tutorial';
 import { World, buildInitialWorld } from './world/World';
@@ -27,13 +29,25 @@ buildInitialWorld(world);
 
 const player = new Player(world);
 const view = new FirstPersonCamera(renderer.camera);
-const interaction = new BlockInteraction(world, player, renderer.camera, renderer.scene);
+const inventory = new Inventory(element('hotbar'));
+const interaction = new BlockInteraction(
+  world,
+  player,
+  renderer.camera,
+  renderer.scene,
+  () => inventory.current,
+);
 
 const joystick = new Joystick(element('joystick-zone'));
 new LookControls(element('look-zone'), view);
 new ActionButtons(element('break-button'), element('place-button'), {
   onBreak: () => interaction.breakBlock(),
   onPlace: () => interaction.placeBlock(),
+});
+new FlightControls(player, {
+  jump: element('jump-button'),
+  up: element('up-button'),
+  down: element('down-button'),
 });
 
 createCrosshair(ui);
@@ -75,7 +89,7 @@ function frame(now: number): void {
 
   view.apply(player.position.x, player.position.y + EYE_HEIGHT, player.position.z);
   interaction.update();
-  hud.update(dt, player, world);
+  hud.update(dt, player, world, inventory.current);
 
   renderer.render();
 }

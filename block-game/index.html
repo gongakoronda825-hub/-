@@ -20,6 +20,14 @@
 
   <button type="button" id="break-button" class="action">こわす</button>
   <button type="button" id="place-button" class="action">おく</button>
+  <button type="button" id="jump-button" class="action">ジャンプ</button>
+
+  <!-- 飛行中だけ現れる上下ボタン -->
+  <button type="button" id="up-button" class="action fly hidden">▲</button>
+  <button type="button" id="down-button" class="action fly hidden">▼</button>
+
+  <!-- 「おく」で使うブロックを選ぶ。中身は Inventory が組み立てる -->
+  <div id="hotbar"></div>
 
   <!-- 照準・デバッグ表示・操作説明はここに差し込まれる -->
   <div id="ui"></div>

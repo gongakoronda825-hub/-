@@ -12,6 +12,21 @@ export const GRAVITY = -25;
 /** 水平移動速度（units/s）。 */
 export const MOVE_SPEED = 4;
 
+/**
+ * ジャンプの初速（units/s）。重力 -25 との組み合わせで 8²/(2×25) = 1.28 ブロック上がる。
+ * 1ブロックの段差を余裕をもって越えられて、2段は登れない高さ。
+ */
+export const JUMP_SPEED = 8;
+
+/** 飛行中の水平移動速度。歩きより少し速い。 */
+export const FLY_MOVE_SPEED = 6;
+
+/** 飛行中に▲▼で上下する速度（units/s）。 */
+export const FLY_VERTICAL_SPEED = 5;
+
+/** 2回連打とみなす間隔（ミリ秒）。 */
+export const DOUBLE_TAP_MS = 300;
+
 /** プレイヤーAABBのサイズ。位置は「足元の中心」で保持する。 */
 export const PLAYER_WIDTH = 0.6;
 export const PLAYER_HEIGHT = 1.8;

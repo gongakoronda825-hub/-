@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { REACH } from '../core/config';
 import type { Player } from '../player/Player';
-import { PLACEABLE_BLOCK } from '../world/blocks';
+import type { BlockType } from '../world/blocks';
 import { World, type BlockPos } from '../world/World';
 
 /** レイキャストの結果。狙っているブロックと、置くならどこか。 */
@@ -33,6 +33,8 @@ export class BlockInteraction {
     private readonly player: Player,
     private readonly camera: THREE.PerspectiveCamera,
     scene: THREE.Scene,
+    /** インベントリで選ばれているブロック。設置のたびに読む。 */
+    private readonly selectedBlock: () => BlockType,
   ) {
     this.raycaster.far = REACH;
 
@@ -93,7 +95,7 @@ export class BlockInteraction {
     // (b) 自分の体と重なる場所には置かない（置いた瞬間に埋まるのを防ぐ）
     if (this.player.intersectsBlock(x, y, z)) return false;
 
-    this.world.setBlock(x, y, z, PLACEABLE_BLOCK);
+    this.world.setBlock(x, y, z, this.selectedBlock());
     return true;
   }
 

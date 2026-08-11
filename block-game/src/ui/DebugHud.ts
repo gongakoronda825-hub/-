@@ -22,7 +22,7 @@ export class DebugHud {
     parent.appendChild(this.element);
   }
 
-  update(dt: number, player: Player, world: World): void {
+  update(dt: number, player: Player, world: World, selected: string): void {
     this.frames++;
     this.elapsed += dt;
     if (this.elapsed < 0.25) return;
@@ -35,7 +35,8 @@ export class DebugHud {
     this.element.textContent =
       `${this.fps.toFixed(0)} fps  ` +
       `xyz ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}  ` +
-      `${player.onGround ? '接地' : '落下中'}  ` +
-      `blocks ${world.blockCount}`;
+      `${player.flying ? '飛行' : player.onGround ? '接地' : '落下中'}  ` +
+      `blocks ${world.blockCount}  ` +
+      `hold ${selected}`;
   }
 }
