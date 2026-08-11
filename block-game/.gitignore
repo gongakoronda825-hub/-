@@ -1,6 +1,4 @@
 node_modules/
 
-# vite の中間出力。配布用の1ファイル dist/play.html だけは追跡する。
-dist/index.html
-dist/assets/
-dist/artifact.html
+# vite の中間出力。公開されるのは play/index.html（npm run single が生成する）。
+dist/

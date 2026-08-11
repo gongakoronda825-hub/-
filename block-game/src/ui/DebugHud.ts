@@ -15,6 +15,8 @@ export class DebugHud {
     this.element = document.createElement('div');
     this.element.id = 'debug';
     this.element.textContent = '…';
+    // 遊ぶ側には要らないので、既定では薄く。タップすれば読める濃さに戻る。
+    this.element.classList.add('dim');
     this.element.addEventListener('pointerdown', (e) => {
       e.stopPropagation();
       this.element.classList.toggle('dim');
