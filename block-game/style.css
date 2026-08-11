@@ -1,0 +1,238 @@
+/* 横画面・全画面前提。スクロールとピンチズームは全部止める（計画書 §3.6, §8）。 */
+
+:root {
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  /* 100vh は iOS Safari のアドレスバーでズレるので dvh を使う */
+  height: 100dvh;
+  overflow: hidden;
+  background: #87ceeb;
+  font-family: system-ui, -apple-system, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  color: #fff;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ── 入力ゾーン ───────────────────────────────── */
+
+#joystick-zone,
+#look-zone {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  touch-action: none;
+}
+
+#joystick-zone { left: 0; }
+#look-zone { right: 0; }
+
+/* nipplejs が描くスティック（v1 のルート要素は .joystick）。
+   既定の白半透明だと草の上で見えないので、輪郭を足してコントラストを上げる。
+   色はインラインで書き込まれるので !important が要る。 */
+.joystick { z-index: 3 !important; }
+
+.joystick .back {
+  background: rgba(12, 18, 28, 0.32) !important;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-sizing: border-box;
+  opacity: 1 !important;
+}
+
+.joystick .front {
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 0 2px rgba(12, 18, 28, 0.4);
+  opacity: 1 !important;
+}
+
+/* ── 操作ボタン ───────────────────────────────── */
+
+.action {
+  position: fixed;
+  z-index: 4;
+  bottom: calc(20px + var(--safe-b));
+  width: 92px;
+  height: 92px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: rgba(14, 19, 28, 0.55);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  touch-action: none;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  transition: transform 0.06s ease-out, background 0.06s ease-out;
+}
+
+.action.pressed {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+#break-button { right: calc(132px + var(--safe-r)); }
+#place-button { right: calc(24px + var(--safe-r)); bottom: calc(66px + var(--safe-b)); }
+
+/* ── 照準 ─────────────────────────────────────── */
+
+#ui {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 26px;
+  height: 26px;
+  transform: translate(-50%, -50%);
+}
+
+#crosshair .bar {
+  position: absolute;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45);
+}
+
+#crosshair .h { left: 0; top: 50%; width: 100%; height: 2px; margin-top: -1px; }
+#crosshair .v { top: 0; left: 50%; height: 100%; width: 2px; margin-left: -1px; }
+
+/* ── デバッグ表示 ─────────────────────────────── */
+
+#debug {
+  position: absolute;
+  top: calc(8px + var(--safe-t));
+  left: calc(10px + var(--safe-l));
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: nowrap;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#debug.dim { opacity: 0.12; }
+
+/* ── 操作説明 ─────────────────────────────────── */
+
+#tutorial {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(12px + var(--safe-t)) calc(12px + var(--safe-r)) calc(12px + var(--safe-b)) calc(12px + var(--safe-l));
+  background: rgba(8, 14, 22, 0.78);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#tutorial .panel {
+  width: min(440px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  text-align: center;
+}
+
+#tutorial h1 {
+  margin: 0 0 14px;
+  font-size: 22px;
+  letter-spacing: 0.06em;
+}
+
+#tutorial ul {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+#tutorial li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: center;
+}
+
+#tutorial li b {
+  flex: 0 0 5.5em;
+  text-align: right;
+  color: #ffe08a;
+}
+
+#tutorial li span {
+  flex: 0 0 auto;
+  text-align: left;
+  min-width: 15em;
+}
+
+#tutorial .note {
+  margin: 0 0 18px;
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+#start-button {
+  padding: 12px 40px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  touch-action: none;
+}
+
+/* ── 縦持ちの案内 ─────────────────────────────── */
+
+#rotate-hint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  background: #0d1420;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+
+/* 縦長のときだけ出す。デスクトップの縦長ウィンドウでは邪魔なので、
+   タッチ端末（ホバーできない）に限る。 */
+@media (orientation: portrait) and (hover: none) {
+  #rotate-hint { display: flex; }
+}

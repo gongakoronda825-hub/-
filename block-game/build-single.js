@@ -1,0 +1,45 @@
+/*
+ * vite build の出力を、単体で開ける1枚の HTML にまとめる。
+ *
+ * dist/index.html は ./assets/bundle.js と ./assets/index.css を参照するので、
+ * file:// で直接開いたり、1ファイルだけ配ったりすることができない。
+ * ここで中身をインライン化して dist/play.html を作る。
+ *
+ *   npm run single   （= vite build && node build-single.js）
+ */
+import { readFileSync, writeFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const dist = join(dirname(fileURLToPath(import.meta.url)), 'dist');
+
+const html = readFileSync(join(dist, 'index.html'), 'utf8');
+const css = readFileSync(join(dist, 'assets', 'index.css'), 'utf8');
+const js = readFileSync(join(dist, 'assets', 'bundle.js'), 'utf8');
+
+const replace = (source, pattern, replacement, label) => {
+  if (!pattern.test(source)) throw new Error(`置換パターンが見つかりません: ${label}`);
+  return source.replace(pattern, () => replacement);
+};
+
+let out = html;
+out = replace(
+  out,
+  /<link rel="stylesheet"[^>]*href="[^"]*index\.css"[^>]*>/,
+  `<style>\n${css}\n</style>`,
+  'stylesheet',
+);
+out = replace(
+  out,
+  /<script type="module"[^>]*src="[^"]*bundle\.js"[^>]*><\/script>/,
+  `<script type="module">\n${js}\n</script>`,
+  'bundle',
+);
+
+// data: の favicon 以外に外部参照が残っていないことを確認する
+if (/assets\/|src="[^"]|href="(?!data:)/.test(out)) {
+  throw new Error('外部参照が残っています');
+}
+
+writeFileSync(join(dist, 'play.html'), out);
+console.log(`dist/play.html を生成しました (${out.length} bytes)`);
