@@ -1,20 +1,107 @@
 import * as THREE from 'three';
 
-/** 初期版のブロック種別（仕様書 §6）。草・土・石の3種。 */
-export type BlockType = 'grass' | 'dirt' | 'stone';
+/**
+ * ブロック種別。チャンクは Uint8Array なので、実体は数値ID。
+ * 0 は空気。
+ */
+export const AIR = 0;
+export const GRASS = 1;
+export const DIRT = 2;
+export const STONE = 3;
+export const WOOD = 4;
+export const LEAVES = 5;
 
-/** インベントリに並べる順。 */
-export const BLOCK_TYPES: readonly BlockType[] = ['grass', 'dirt', 'stone'];
+export type BlockId = number;
 
-export const BLOCK_LABELS: Record<BlockType, string> = {
-  grass: 'くさ',
-  dirt: 'つち',
-  stone: 'いし',
+/** インベントリに並べる、置けるブロック。 */
+export const PLACEABLE: ReadonlyArray<{ id: BlockId; key: string; label: string }> = [
+  { id: GRASS, key: 'grass', label: 'くさ' },
+  { id: DIRT, key: 'dirt', label: 'つち' },
+  { id: STONE, key: 'stone', label: 'いし' },
+  { id: WOOD, key: 'wood', label: 'き' },
+  { id: LEAVES, key: 'leaves', label: 'はっぱ' },
+];
+
+const KEYS: Record<BlockId, string> = {
+  [AIR]: 'air',
+  [GRASS]: 'grass',
+  [DIRT]: 'dirt',
+  [STONE]: 'stone',
+  [WOOD]: 'wood',
+  [LEAVES]: 'leaves',
 };
 
-const TEX_SIZE = 16;
+export const blockKey = (id: BlockId): string => KEYS[id] ?? '?';
 
-type Draw = (ctx: CanvasRenderingContext2D) => void;
+/** 当たり判定があるか。葉も乗れる（マイクラと同じ）。 */
+export const isSolid = (id: BlockId): boolean => id !== AIR;
+
+/**
+ * 向こう側が見えないか。面カリングの判定に使う。
+ *
+ * 「隣が不透明でなければ面を描く」の1条件だけで、
+ *   ・空気に面した面は描く
+ *   ・葉に面した固体の面は描く（葉ごしに中が見えるので消してはいけない）
+ *   ・葉同士の面も描く（アルファテストの穴から中が抜けて見えないように）
+ * が同時に満たせる。
+ */
+export const isOpaque = (id: BlockId): boolean => id !== AIR && id !== LEAVES;
+
+/** 半透明パス（アルファテスト）で描くか。 */
+export const isTransparent = (id: BlockId): boolean => id === LEAVES;
+
+// ── テクスチャアトラス ────────────────────────────────
+//
+// チャンクを1つの BufferGeometry にまとめる以上、マテリアルも1つに束ねる必要がある。
+// 16×16 のタイルを 4×2 に並べた 64×32 のアトラスをその場で描き、UV で引く。
+
+const TILE = 16;
+const ATLAS_COLS = 4;
+const ATLAS_ROWS = 2;
+
+export const TILE_GRASS_TOP = 0;
+export const TILE_GRASS_SIDE = 1;
+export const TILE_DIRT = 2;
+export const TILE_STONE = 3;
+export const TILE_WOOD_TOP = 4;
+export const TILE_WOOD_SIDE = 5;
+export const TILE_LEAVES = 6;
+
+/**
+ * ブロックごとの面のタイル。並びは ChunkMesher の FACES と同じ
+ * [-X, +X, -Y, +Y, -Z, +Z]。
+ */
+const T = TILE_GRASS_TOP;
+const S = TILE_GRASS_SIDE;
+const D = TILE_DIRT;
+const ST = TILE_STONE;
+const WT = TILE_WOOD_TOP;
+const WS = TILE_WOOD_SIDE;
+const L = TILE_LEAVES;
+
+const BLOCK_TILES: Record<BlockId, readonly number[]> = {
+  [AIR]: [0, 0, 0, 0, 0, 0],
+  [GRASS]: [S, S, D, T, S, S],
+  [DIRT]: [D, D, D, D, D, D],
+  [STONE]: [ST, ST, ST, ST, ST, ST],
+  [WOOD]: [WS, WS, WT, WT, WS, WS],
+  [LEAVES]: [L, L, L, L, L, L],
+};
+
+export const tileOf = (id: BlockId, face: number): number => BLOCK_TILES[id][face];
+
+/** タイル番号から UV の左下と1タイルぶんの大きさを求める。 */
+export function tileUv(tile: number): { u0: number; v0: number; du: number; dv: number } {
+  const col = tile % ATLAS_COLS;
+  const row = Math.floor(tile / ATLAS_COLS);
+  return {
+    u0: col / ATLAS_COLS,
+    // テクスチャの原点は左下。タイルは左上から数えているので反転する
+    v0: 1 - (row + 1) / ATLAS_ROWS,
+    du: 1 / ATLAS_COLS,
+    dv: 1 / ATLAS_ROWS,
+  };
+}
 
 /** 決定的な擬似乱数。同じ見た目を毎回再現するため Math.random は使わない。 */
 function mulberry32(seed: number): () => number {
@@ -29,116 +116,172 @@ function mulberry32(seed: number): () => number {
 
 const clamp255 = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
 
-/** ベース色にドット単位のムラを乗せた面を描く。 */
-function noiseFill(
+type Painter = (ctx: CanvasRenderingContext2D, ox: number, oy: number) => void;
+
+/** ベース色にドット単位のムラを乗せる。 */
+function noise(
   ctx: CanvasRenderingContext2D,
+  ox: number,
+  oy: number,
   seed: number,
   base: [number, number, number],
   spread: number,
 ): void {
   const rand = mulberry32(seed);
-  for (let y = 0; y < TEX_SIZE; y++) {
-    for (let x = 0; x < TEX_SIZE; x++) {
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
       const d = (rand() - 0.5) * 2 * spread;
       ctx.fillStyle = `rgb(${clamp255(base[0] + d)},${clamp255(base[1] + d)},${clamp255(base[2] + d)})`;
-      ctx.fillRect(x, y, 1, 1);
+      ctx.fillRect(ox + x, oy + y, 1, 1);
     }
   }
 }
 
-const drawGrassTop: Draw = (ctx) => noiseFill(ctx, 11, [106, 170, 74], 22);
+const PAINTERS: Painter[] = [];
 
-const drawDirt: Draw = (ctx) => noiseFill(ctx, 22, [134, 96, 67], 20);
+PAINTERS[TILE_GRASS_TOP] = (ctx, ox, oy) => noise(ctx, ox, oy, 11, [106, 170, 74], 22);
+PAINTERS[TILE_DIRT] = (ctx, ox, oy) => noise(ctx, ox, oy, 22, [134, 96, 67], 20);
 
-const drawStone: Draw = (ctx) => {
-  noiseFill(ctx, 44, [128, 128, 128], 18);
-  // ひび割れ風の暗いドットを散らす
+PAINTERS[TILE_STONE] = (ctx, ox, oy) => {
+  noise(ctx, ox, oy, 44, [128, 128, 128], 18);
   const rand = mulberry32(55);
   for (let i = 0; i < 18; i++) {
     ctx.fillStyle = 'rgba(70,70,70,0.55)';
-    ctx.fillRect(Math.floor(rand() * TEX_SIZE), Math.floor(rand() * TEX_SIZE), 1, 1);
+    ctx.fillRect(ox + Math.floor(rand() * TILE), oy + Math.floor(rand() * TILE), 1, 1);
   }
 };
 
-const drawGrassSide: Draw = (ctx) => {
-  drawDirt(ctx);
-  // 上端に草のフチを作る。境目をギザギザにするとドット絵らしく見える
+PAINTERS[TILE_GRASS_SIDE] = (ctx, ox, oy) => {
+  noise(ctx, ox, oy, 22, [134, 96, 67], 20);
   const rand = mulberry32(33);
-  for (let x = 0; x < TEX_SIZE; x++) {
+  for (let x = 0; x < TILE; x++) {
     const depth = 3 + Math.floor(rand() * 3);
     for (let y = 0; y < depth; y++) {
       const d = (rand() - 0.5) * 40;
       ctx.fillStyle = `rgb(${clamp255(106 + d)},${clamp255(170 + d)},${clamp255(74 + d)})`;
-      ctx.fillRect(x, y, 1, 1);
+      ctx.fillRect(ox + x, oy + y, 1, 1);
     }
   }
 };
 
-/**
- * 16×16 のドット絵をその場で描く。
- * 外部アセットを読まないので、ファイルを開くだけで動く / CSPにも引っかからない。
- */
-function canvasOf(draw: Draw): HTMLCanvasElement {
-  const canvas = document.createElement('canvas');
-  canvas.width = TEX_SIZE;
-  canvas.height = TEX_SIZE;
-  draw(canvas.getContext('2d')!);
-  return canvas;
-}
-
-function textureOf(draw: Draw): THREE.Texture {
-  const texture = new THREE.CanvasTexture(canvasOf(draw));
-  texture.magFilter = THREE.NearestFilter;
-  texture.minFilter = THREE.NearestMipmapNearestFilter;
-  texture.colorSpace = THREE.SRGBColorSpace;
-  return texture;
-}
-
-/**
- * BoxGeometry の material 配列の並びは [+X, -X, +Y, -Y, +Z, -Z]。
- * 草だけ上面/側面/底面を描き分ける。
- */
-function buildMaterials(): Record<BlockType, THREE.Material[]> {
-  const lambert = (draw: Draw) => new THREE.MeshLambertMaterial({ map: textureOf(draw) });
-
-  const grassTop = lambert(drawGrassTop);
-  const grassSide = lambert(drawGrassSide);
-  const dirt = lambert(drawDirt);
-  const stone = lambert(drawStone);
-
-  return {
-    grass: [grassSide, grassSide, grassTop, dirt, grassSide, grassSide],
-    dirt: [dirt, dirt, dirt, dirt, dirt, dirt],
-    stone: [stone, stone, stone, stone, stone, stone],
-  };
-}
-
-let materials: Record<BlockType, THREE.Material[]> | null = null;
-
-/** 種別ごとのマテリアル。全ブロックで共有する（Mesh ごとに作らない）。 */
-export function materialsFor(type: BlockType): THREE.Material[] {
-  materials ??= buildMaterials();
-  return materials[type];
-}
-
-/** インベントリのアイコンに使う面。草は側面のほうが草と土の両方が見えて分かりやすい。 */
-const ICON_DRAW: Record<BlockType, Draw> = {
-  grass: drawGrassSide,
-  dirt: drawDirt,
-  stone: drawStone,
+PAINTERS[TILE_WOOD_SIDE] = (ctx, ox, oy) => {
+  noise(ctx, ox, oy, 66, [104, 78, 48], 12);
+  // 縦の木目
+  const rand = mulberry32(77);
+  for (let x = 0; x < TILE; x++) {
+    if (rand() > 0.45) continue;
+    ctx.fillStyle = 'rgba(60,44,26,0.5)';
+    ctx.fillRect(ox + x, oy, 1, TILE);
+  }
 };
 
-const iconCache = new Map<BlockType, string>();
+PAINTERS[TILE_WOOD_TOP] = (ctx, ox, oy) => {
+  noise(ctx, ox, oy, 88, [140, 108, 68], 10);
+  // 年輪
+  ctx.strokeStyle = 'rgba(80,58,34,0.7)';
+  ctx.lineWidth = 1;
+  for (const r of [2.5, 5.5]) {
+    ctx.beginPath();
+    ctx.arc(ox + 8, oy + 8, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+};
+
+PAINTERS[TILE_LEAVES] = (ctx, ox, oy) => {
+  noise(ctx, ox, oy, 99, [58, 130, 52], 26);
+  // アルファテストで抜くための穴。抜きすぎると幹が透けるので控えめに。
+  const rand = mulberry32(111);
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      if (rand() < 0.12) ctx.clearRect(ox + x, oy + y, 1, 1);
+    }
+  }
+};
+
+let atlas: THREE.Texture | null = null;
+
+/** 全チャンクで共有するアトラステクスチャ。 */
+export function blockAtlas(): THREE.Texture {
+  if (atlas) return atlas;
+
+  const canvas = document.createElement('canvas');
+  canvas.width = TILE * ATLAS_COLS;
+  canvas.height = TILE * ATLAS_ROWS;
+  const ctx = canvas.getContext('2d')!;
+
+  for (let tile = 0; tile < PAINTERS.length; tile++) {
+    const painter = PAINTERS[tile];
+    if (!painter) continue;
+    const col = tile % ATLAS_COLS;
+    const row = Math.floor(tile / ATLAS_COLS);
+    painter(ctx, col * TILE, row * TILE);
+  }
+
+  atlas = new THREE.CanvasTexture(canvas);
+  atlas.magFilter = THREE.NearestFilter;
+  // ミップマップを作るとタイルの端が隣とにじむ（アトラスの宿命）。
+  // 距離のちらつきよりにじみのほうが目立つので、ミップマップは持たない。
+  atlas.minFilter = THREE.NearestFilter;
+  atlas.generateMipmaps = false;
+  atlas.colorSpace = THREE.SRGBColorSpace;
+  return atlas;
+}
+
+let opaqueMaterial: THREE.Material | null = null;
+let transparentMaterial: THREE.Material | null = null;
+
+export function opaqueBlockMaterial(): THREE.Material {
+  opaqueMaterial ??= new THREE.MeshLambertMaterial({ map: blockAtlas() });
+  return opaqueMaterial;
+}
+
+export function transparentBlockMaterial(): THREE.Material {
+  // alphaTest なら透明パスの描画順を気にしなくてよい。
+  // 葉は内側の面も描くので DoubleSide。
+  transparentMaterial ??= new THREE.MeshLambertMaterial({
+    map: blockAtlas(),
+    alphaTest: 0.5,
+    side: THREE.DoubleSide,
+  });
+  return transparentMaterial;
+}
+
+// ── インベントリ用アイコン ────────────────────────────
+
+const ICON_TILE: Record<BlockId, number> = {
+  [AIR]: 0,
+  [GRASS]: TILE_GRASS_SIDE,
+  [DIRT]: TILE_DIRT,
+  [STONE]: TILE_STONE,
+  [WOOD]: TILE_WOOD_SIDE,
+  [LEAVES]: TILE_LEAVES,
+};
+
+const iconCache = new Map<BlockId, string>();
 
 /** インベントリのスロットに敷く画像（data URL）。 */
-export function blockIcon(type: BlockType): string {
-  let url = iconCache.get(type);
+export function blockIcon(id: BlockId): string {
+  let url = iconCache.get(id);
   if (!url) {
-    url = canvasOf(ICON_DRAW[type]).toDataURL();
-    iconCache.set(type, url);
+    const canvas = document.createElement('canvas');
+    canvas.width = TILE;
+    canvas.height = TILE;
+    const ctx = canvas.getContext('2d')!;
+
+    // 葉は clearRect で穴を空けるので、直接描くと下地まで消える。
+    // いったん別のキャンバスに描いてから、濃い緑の上に合成する。
+    const layer = document.createElement('canvas');
+    layer.width = TILE;
+    layer.height = TILE;
+    PAINTERS[ICON_TILE[id]](layer.getContext('2d')!, 0, 0);
+
+    if (id === LEAVES) {
+      ctx.fillStyle = '#2c5c28';
+      ctx.fillRect(0, 0, TILE, TILE);
+    }
+    ctx.drawImage(layer, 0, 0);
+    url = canvas.toDataURL();
+    iconCache.set(id, url);
   }
   return url;
 }
-
-/** 全ブロックで共有するジオメトリ。原点中心の 1×1×1。 */
-export const BLOCK_GEOMETRY = new THREE.BoxGeometry(1, 1, 1);

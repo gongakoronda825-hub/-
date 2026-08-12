@@ -131,7 +131,7 @@ html, body {
   bottom: calc(14px + var(--safe-b));
   transform: translateX(-50%);
   display: flex;
-  gap: 8px;
+  gap: 6px;
   padding: 7px;
   border-radius: 12px;
   background: rgba(14, 19, 28, 0.5);
@@ -142,8 +142,8 @@ html, body {
 
 #hotbar .slot {
   position: relative;
-  width: 52px;
-  height: 52px;
+  width: 46px;
+  height: 46px;
   padding: 0;
   border: 2px solid rgba(255, 255, 255, 0.35);
   border-radius: 8px;

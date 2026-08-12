@@ -1,15 +1,28 @@
 import type { Player } from '../player/Player';
 import type { World } from '../world/World';
 
+/** HUD に出す情報。呼び出し側が毎フレーム詰める。 */
+export interface HudStats {
+  player: Player;
+  world: World;
+  /** 手に持っているブロックの名前。 */
+  hold: string;
+  /** 読み込み済みチャンク数。 */
+  chunks: number;
+  /** 生きている動物の数。 */
+  mobs: number;
+  /** いちばん近い動物までの距離。いなければ null。 */
+  nearestMob: number | null;
+}
+
 /**
- * 座標・FPS・接地状態の簡易表示（計画書 §6）。
- * 実機で挙動を追うためのもの。タップで表示を切り替えられる。
+ * 座標・FPS・接地状態などの簡易表示。
+ * 実機で挙動を追うためのもの。タップで表示の濃さを切り替えられる。
  */
 export class DebugHud {
   private readonly element: HTMLElement;
   private frames = 0;
   private elapsed = 0;
-  private fps = 0;
 
   constructor(parent: HTMLElement) {
     this.element = document.createElement('div');
@@ -24,21 +37,26 @@ export class DebugHud {
     parent.appendChild(this.element);
   }
 
-  update(dt: number, player: Player, world: World, selected: string): void {
+  update(dt: number, stats: HudStats): void {
     this.frames++;
     this.elapsed += dt;
     if (this.elapsed < 0.25) return;
 
-    this.fps = this.frames / this.elapsed;
+    const fps = this.frames / this.elapsed;
     this.frames = 0;
     this.elapsed = 0;
 
-    const p = player.position;
+    const p = stats.player.position;
+    const state = stats.player.flying ? '飛行' : stats.player.onGround ? '接地' : '落下中';
+
     this.element.textContent =
-      `${this.fps.toFixed(0)} fps  ` +
+      `${fps.toFixed(0)} fps  ` +
       `xyz ${p.x.toFixed(1)} ${p.y.toFixed(1)} ${p.z.toFixed(1)}  ` +
-      `${player.flying ? '飛行' : player.onGround ? '接地' : '落下中'}  ` +
-      `blocks ${world.blockCount}  ` +
-      `hold ${selected}`;
+      `${state}  ` +
+      `hold ${stats.hold}  ` +
+      `chunks ${stats.chunks}  ` +
+      `mobs ${stats.mobs}  ` +
+      `near ${stats.nearestMob === null ? '-' : stats.nearestMob.toFixed(1)}  ` +
+      `edits ${stats.world.edits}`;
   }
 }

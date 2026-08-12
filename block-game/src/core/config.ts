@@ -53,5 +53,84 @@ export const STEP_HEIGHT = 1.0;
 /** 1フレームのデルタタイム上限（秒）。タブ復帰時に大きく飛んですり抜けるのを防ぐ。 */
 export const MAX_DELTA = 0.05;
 
-/** プレイヤーの初期位置（足元）。 */
-export const SPAWN = { x: 0.5, y: 1, z: 6.5 } as const;
+/** プレイヤーの初期位置（水平のみ。高さは地形から求める）。 */
+export const SPAWN = { x: 8.5, z: 8.5 } as const;
+
+// ── ワールド ─────────────────────────────────────
+
+/** ワールド生成のシード。同じ値なら毎回まったく同じ地形になる。 */
+export const WORLD_SEED = 20260812;
+
+/** チャンクの水平サイズ（列数）とワールドの高さ。 */
+export const CHUNK_SIZE = 16;
+export const WORLD_HEIGHT = 64;
+
+/** プレイヤーの周囲いくつのチャンクを描くか。モバイルを考えて欲張らない。 */
+export const RENDER_RADIUS = 5;
+
+/** 起動時に同期生成する半径。ここまでは「はじめる」を押した時点で出来ている。 */
+export const INITIAL_RADIUS = 3;
+
+/** 1フレームでチャンクの生成・メッシュ化に使ってよい時間（ミリ秒）。 */
+export const CHUNK_BUDGET_MS = 6;
+
+/** 距離フォグ。チャンクのポップインを隠す。 */
+export const FOG_NEAR = 42;
+export const FOG_FAR = 78;
+
+// ── 地形 ────────────────────────────────────────
+
+/** 地表の基準高さと、そこからの起伏の振幅。 */
+export const TERRAIN_BASE = 30;
+export const TERRAIN_AMPLITUDE = 20;
+
+/** ノイズの基本スケール（ブロック単位。大きいほど なだらか）。 */
+export const TERRAIN_SCALE = 96;
+
+/** fBm のオクターブ数。 */
+export const TERRAIN_OCTAVES = 4;
+
+/** 表面の下、土の層の厚さ。それより下は石。 */
+export const DIRT_DEPTH = 3;
+
+// ── 木 ──────────────────────────────────────────
+
+/** 草の地表1マスあたりに木が生える確率。 */
+export const TREE_DENSITY = 0.015;
+
+/** 木同士の最小間隔（ブロック）。 */
+export const TREE_SPACING = 6;
+
+/** 幹の高さの範囲と、葉が広がる水平半径。 */
+export const TREE_TRUNK_MIN = 4;
+export const TREE_TRUNK_MAX = 6;
+export const TREE_LEAF_RADIUS = 2;
+
+// ── 動物 ────────────────────────────────────────
+
+/** 読み込み範囲内に保つ動物の上限。 */
+export const MOB_CAP = 14;
+
+/** 1つの群れの頭数。 */
+export const HERD_MIN = 2;
+export const HERD_MAX = 4;
+
+/** 湧きを試みる間隔（秒）と、プレイヤーからの距離の範囲。 */
+export const SPAWN_INTERVAL = 2.5;
+export const SPAWN_MIN_DISTANCE = 16;
+export const SPAWN_MAX_DISTANCE = 48;
+
+/** この距離より遠い動物は消える。 */
+export const DESPAWN_DISTANCE = 72;
+
+/** 動物の歩く速さ。プレイヤーより遅い。 */
+export const ANIMAL_SPEED = 1.2;
+
+/** うろつき・立ち止まりの持続時間（秒）。 */
+export const WANDER_MIN = 2;
+export const WANDER_MAX = 5;
+export const IDLE_MIN = 1;
+export const IDLE_MAX = 3;
+
+/** AI が次の判断をするまでの間隔（秒）。物理は毎フレーム、判断はこの間隔。 */
+export const AI_TICK = 0.4;

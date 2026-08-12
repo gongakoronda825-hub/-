@@ -1,29 +1,34 @@
 import * as THREE from 'three';
 import { REACH } from '../core/config';
 import type { Player } from '../player/Player';
-import type { BlockType } from '../world/blocks';
-import { World, type BlockPos } from '../world/World';
+import type { World } from '../world/World';
+import { AIR, type BlockId } from '../world/blocks';
 
 /** レイキャストの結果。狙っているブロックと、置くならどこか。 */
 interface Target {
-  /** 当たったブロック（＝「壊す」の対象）。 */
-  block: BlockPos;
-  /** 当たった面の隣のセル（＝「置く」の対象）。 */
-  adjacent: BlockPos;
+  block: THREE.Vector3;
+  adjacent: THREE.Vector3;
   distance: number;
 }
 
 /**
- * 画面中央からのレイキャストによる破壊・設置（計画書 §3.5）。
+ * 画面中央からのレイキャストによる破壊・設置。
  *
- * 一人称なので照準は常に画面中央。`raycaster.far = REACH` にしてあり、
- * リーチ外や空を向いているときは交差が無く、何も起きない。
+ * チャンクを1メッシュに結合したので、初期版の「Mesh ごとに座標を持たせる」
+ * 方式はもう使えない。**ヒット点を面の法線ぶん押し込んで floor する**方式に変えた。
+ *   壊す: floor(point - n * 0.5)
+ *   置く: floor(point + n * 0.5)
+ * 0.5 動かすのは、ヒット点がちょうど境界にあって floor が揺れるのを避けるため。
+ *
+ * `raycaster.far = REACH` なので、リーチ外や空を向いているときは交差が無く、
+ * 何も起きない。
  */
 export class BlockInteraction {
   private readonly raycaster = new THREE.Raycaster();
   private readonly center = new THREE.Vector2(0, 0);
   private readonly normalMatrix = new THREE.Matrix3();
   private readonly worldNormal = new THREE.Vector3();
+  private readonly meshes: THREE.Object3D[] = [];
 
   /** 狙っているブロックを縁取る枠。当たっていないときは非表示。 */
   private readonly highlight: THREE.Group;
@@ -34,7 +39,7 @@ export class BlockInteraction {
     private readonly camera: THREE.PerspectiveCamera,
     scene: THREE.Scene,
     /** インベントリで選ばれているブロック。設置のたびに読む。 */
-    private readonly selectedBlock: () => BlockType,
+    private readonly selectedBlock: () => BlockId,
   ) {
     this.raycaster.far = REACH;
 
@@ -72,16 +77,22 @@ export class BlockInteraction {
     );
   }
 
-  /** 完成条件④: 狙ったブロックを壊す。 */
+  /** 狙ったブロックを壊す。 */
   breakBlock(): boolean {
     const target = this.pick();
     if (!target) return false;
 
     const { x, y, z } = target.block;
-    return this.world.removeBlock(x, y, z);
+    // 岩盤（y=0）は抜けてしまうので壊せない
+    if (y <= 0) return false;
+    if (this.world.getBlock(x, y, z) === AIR) return false;
+
+    if (!this.world.setBlock(x, y, z, AIR)) return false;
+    this.world.edits++;
+    return true;
   }
 
-  /** 完成条件⑤: 狙った面の隣に置く。 */
+  /** 狙った面の隣に置く。 */
   placeBlock(): boolean {
     const target = this.pick();
     if (!target) return false;
@@ -91,11 +102,12 @@ export class BlockInteraction {
     // (c) リーチ以内か。raycaster.far で担保されているが明示しておく
     if (target.distance > REACH) return false;
     // (a) すでにブロックがある場所には置かない
-    if (this.world.isSolid(x, y, z)) return false;
+    if (this.world.getBlock(x, y, z) !== AIR) return false;
     // (b) 自分の体と重なる場所には置かない（置いた瞬間に埋まるのを防ぐ）
     if (this.player.intersectsBlock(x, y, z)) return false;
 
-    this.world.setBlock(x, y, z, this.selectedBlock());
+    if (!this.world.setBlock(x, y, z, this.selectedBlock())) return false;
+    this.world.edits++;
     return true;
   }
 
@@ -103,25 +115,30 @@ export class BlockInteraction {
   private pick(): Target | null {
     this.raycaster.setFromCamera(this.center, this.camera);
 
-    const hits = this.raycaster.intersectObjects(this.world.meshList, false);
+    const hits = this.raycaster.intersectObjects(this.world.collectMeshes(this.meshes), false);
     for (const hit of hits) {
-      const block = World.blockOf(hit.object);
-      if (!block || !hit.face) continue;
+      if (!hit.face) continue;
 
-      // face.normal はローカル座標なのでワールドへ変換する（計画書 §8）。
-      // 回転していない箱なら一致するが、将来 Mesh を回しても壊れないようにしておく。
+      // face.normal はローカル座標なのでワールドへ変換する
       this.normalMatrix.getNormalMatrix(hit.object.matrixWorld);
       this.worldNormal.copy(hit.face.normal).applyMatrix3(this.normalMatrix).normalize();
 
-      return {
-        block,
-        adjacent: {
-          x: block.x + Math.round(this.worldNormal.x),
-          y: block.y + Math.round(this.worldNormal.y),
-          z: block.z + Math.round(this.worldNormal.z),
-        },
-        distance: hit.distance,
-      };
+      const block = new THREE.Vector3(
+        Math.floor(hit.point.x - this.worldNormal.x * 0.5),
+        Math.floor(hit.point.y - this.worldNormal.y * 0.5),
+        Math.floor(hit.point.z - this.worldNormal.z * 0.5),
+      );
+      const adjacent = new THREE.Vector3(
+        Math.floor(hit.point.x + this.worldNormal.x * 0.5),
+        Math.floor(hit.point.y + this.worldNormal.y * 0.5),
+        Math.floor(hit.point.z + this.worldNormal.z * 0.5),
+      );
+
+      // 葉は DoubleSide なので、内側の面に当たると法線が裏返って
+      // 空気を指すことがある。その場合は次の交差を見る。
+      if (this.world.getBlock(block.x, block.y, block.z) === AIR) continue;
+
+      return { block, adjacent, distance: hit.distance };
     }
 
     return null;

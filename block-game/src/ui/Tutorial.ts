@@ -22,7 +22,8 @@ export class Tutorial {
           <li><b>おく</b><span>下のブロックを選んで「おく」</span></li>
         </ul>
         <p class="note">とどく範囲は5ブロックまで。遠すぎると何も起きません。<br>
-        飛行はもう一度2回連打で解除します。</p>
+        飛行はもう一度2回連打で解除します。歩けば地面はどこまでも続きます。<br>
+        牛と羊がうろついています。手は出せません。</p>
         <button type="button" id="start-button">はじめる</button>
       </div>
     `;

@@ -1,125 +1,171 @@
 import * as THREE from 'three';
-import { BLOCK_GEOMETRY, materialsFor, type BlockType } from './blocks';
-
-/** ブロック座標。1ブロックは [x, x+1) × [y, y+1) × [z, z+1) を占める。 */
-export interface BlockPos {
-  x: number;
-  y: number;
-  z: number;
-}
-
-const key = (x: number, y: number, z: number) => `${x},${y},${z}`;
+import { CHUNK_SIZE, WORLD_HEIGHT } from '../core/config';
+import { generateTerrain } from '../worldgen/TerrainGenerator';
+import { generateTrees } from '../worldgen/TreeGenerator';
+import { Chunk, chunkKey, toChunkCoord } from './Chunk';
+import { AIR, GRASS, type BlockId, isSolid as blockIsSolid } from './blocks';
 
 /**
- * 固定・小規模ワールドのボクセルデータ。
+ * チャンクの集合を束ねる窓口。
  *
- * 計画書 §3.1 に従い `Map<"x,y,z", BlockType>` で持つ。隣接セルの参照が O(1) になり、
- * 当たり判定・設置位置の判定がそのまま書ける。
- *
- * 描画は計画書 §3.2 の方針どおり「1ブロック = 1 Mesh」。Raycaster がそのまま効き、
- * 破壊/設置が Mesh の出し入れだけで済む。
+ * ワールド座標での読み書きだけを外に見せ、チャンクの分割は中に隠す。
+ * プレイヤーも動物もレイキャストも、ここだけを見ればよい。
  */
 export class World {
-  /** 全ブロックの Mesh をぶら下げるグループ。レイキャストの対象でもある。 */
-  readonly group = new THREE.Group();
+  readonly chunks = new Map<string, Chunk>();
 
-  private readonly blocks = new Map<string, BlockType>();
-  private readonly meshes = new Map<string, THREE.Mesh>();
+  /** プレイヤーが壊した/置いた回数。デバッグ表示に出す。 */
+  edits = 0;
 
-  constructor(scene: THREE.Scene) {
-    scene.add(this.group);
+  constructor(readonly scene: THREE.Scene) {}
+
+  chunkAt(cx: number, cz: number): Chunk | undefined {
+    return this.chunks.get(chunkKey(cx, cz));
   }
 
-  /** レイキャスト対象の Mesh 一覧。 */
-  get meshList(): THREE.Object3D[] {
-    return this.group.children;
+  /** まだ無ければ作る。データは空のまま（生成は ChunkManager が行う）。 */
+  ensureChunk(cx: number, cz: number): Chunk {
+    const key = chunkKey(cx, cz);
+    let chunk = this.chunks.get(key);
+    if (!chunk) {
+      chunk = new Chunk(cx, cz);
+      this.chunks.set(key, chunk);
+    }
+    return chunk;
   }
 
-  getBlock(x: number, y: number, z: number): BlockType | undefined {
-    return this.blocks.get(key(x, y, z));
+  /** 地形と木を書き込む。ここまでは隣チャンクを一切参照しない。 */
+  generate(chunk: Chunk): void {
+    if (chunk.generated) return;
+    generateTerrain(chunk);
+    generateTrees(chunk);
+    chunk.generated = true;
+    chunk.dirty = true;
+  }
+
+  /** 未生成のチャンクや範囲外は空気。 */
+  getBlock(x: number, y: number, z: number): BlockId {
+    if (y < 0 || y >= WORLD_HEIGHT) return AIR;
+    const chunk = this.chunkAt(toChunkCoord(x), toChunkCoord(z));
+    if (!chunk || !chunk.generated) return AIR;
+    return chunk.get(x - chunk.originX, y, z - chunk.originZ);
   }
 
   isSolid(x: number, y: number, z: number): boolean {
-    return this.blocks.has(key(x, y, z));
+    return blockIsSolid(this.getBlock(Math.floor(x), Math.floor(y), Math.floor(z)));
   }
 
-  setBlock(x: number, y: number, z: number, type: BlockType): void {
-    const k = key(x, y, z);
-    if (this.blocks.has(k)) return;
+  /**
+   * ブロックを書き換える。チャンクを dirty にし、端なら隣も dirty にする
+   * （隣の面カリング結果が変わるので、再メッシュしないと穴が残る）。
+   */
+  setBlock(x: number, y: number, z: number, id: BlockId): boolean {
+    if (y < 0 || y >= WORLD_HEIGHT) return false;
 
-    const mesh = new THREE.Mesh(BLOCK_GEOMETRY, materialsFor(type));
-    // Mesh は原点中心なので、セルの中心に置く。
-    mesh.position.set(x + 0.5, y + 0.5, z + 0.5);
-    mesh.userData.block = { x, y, z } satisfies BlockPos;
+    const cx = toChunkCoord(x);
+    const cz = toChunkCoord(z);
+    const chunk = this.chunkAt(cx, cz);
+    if (!chunk || !chunk.generated) return false;
 
-    this.blocks.set(k, type);
-    this.meshes.set(k, mesh);
-    this.group.add(mesh);
-  }
+    const lx = x - chunk.originX;
+    const lz = z - chunk.originZ;
+    if (chunk.get(lx, y, lz) === id) return false;
 
-  removeBlock(x: number, y: number, z: number): boolean {
-    const k = key(x, y, z);
-    if (!this.blocks.has(k)) return false;
+    chunk.set(lx, y, lz, id);
+    chunk.dirty = true;
 
-    const mesh = this.meshes.get(k);
-    if (mesh) this.group.remove(mesh);
+    if (lx === 0) this.markDirty(cx - 1, cz);
+    if (lx === CHUNK_SIZE - 1) this.markDirty(cx + 1, cz);
+    if (lz === 0) this.markDirty(cx, cz - 1);
+    if (lz === CHUNK_SIZE - 1) this.markDirty(cx, cz + 1);
 
-    this.blocks.delete(k);
-    this.meshes.delete(k);
     return true;
   }
 
-  /** Mesh からブロック座標を取り出す。 */
-  static blockOf(object: THREE.Object3D): BlockPos | undefined {
-    return object.userData.block as BlockPos | undefined;
+  private markDirty(cx: number, cz: number): void {
+    const chunk = this.chunkAt(cx, cz);
+    if (chunk?.generated) chunk.dirty = true;
   }
 
-  get blockCount(): number {
-    return this.blocks.size;
-  }
-}
+  /**
+   * その列で立てる高さ（足元の y）。生成済みチャンクの実データから探す。
+   * 見つからなければ null。
+   */
+  standingHeight(x: number, z: number): number | null {
+    const bx = Math.floor(x);
+    const bz = Math.floor(z);
+    const chunk = this.chunkAt(toChunkCoord(bx), toChunkCoord(bz));
+    if (!chunk || !chunk.generated) return null;
 
-const GROUND_RADIUS = 12;
-
-/**
- * 初期ワールドを組み立てる。
- *
- * 自動地形生成は仕様書 §12 で禁止されているので、地面を敷いて数個積むだけの
- * ハードコードにしてある。
- */
-export function buildInitialWorld(world: World): void {
-  // 地面: y=0 が草、y=-1 と y=-2 が土/石。落ちても抜けないよう3層ぶん敷く。
-  for (let x = -GROUND_RADIUS; x < GROUND_RADIUS; x++) {
-    for (let z = -GROUND_RADIUS; z < GROUND_RADIUS; z++) {
-      world.setBlock(x, 0, z, 'grass');
-      world.setBlock(x, -1, z, 'dirt');
-      world.setBlock(x, -2, z, 'stone');
+    for (let y = WORLD_HEIGHT - 1; y >= 0; y--) {
+      if (blockIsSolid(chunk.get(bx - chunk.originX, y, bz - chunk.originZ))) return y + 1;
     }
+    return null;
   }
 
-  // 目印になる小さな塔（登り降りと設置の練習台）
-  const tower: Array<[number, number, number]> = [
-    [-3, 1, -3], [-3, 2, -3], [-3, 3, -3],
-    [-2, 1, -3], [-2, 2, -3],
-    [-3, 1, -2], [-3, 2, -2],
-    [-2, 1, -2],
-  ];
-  for (const [x, y, z] of tower) world.setBlock(x, y, z, 'stone');
+  /**
+   * 開けた場所を探す。地表が草で、頭上と**まわり `margin` マスぶん**が空いている列。
+   *
+   * 地形は決定論なので、木がちょうど湧き位置に生えていると毎回そこに埋まる。
+   * 真上が空いているだけでは足りない（隣に幹があると視界が塞がる）ので、
+   * 周囲もまとめて見る。近い列から順に探し、最初に見つかった場所を返す。
+   */
+  findOpenColumn(
+    x: number,
+    z: number,
+    radius: number,
+    clearance: number,
+    margin: number,
+  ): { x: number; z: number; y: number } | null {
+    for (let r = 0; r <= radius; r++) {
+      for (let dz = -r; dz <= r; dz++) {
+        for (let dx = -r; dx <= r; dx++) {
+          // 外周だけ見る（内側は前の r で見終わっている）
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue;
 
-  // 階段状の土の段差
-  for (let i = 0; i < 4; i++) {
-    for (let y = 1; y <= i + 1; y++) {
-      world.setBlock(3 + i, y, 2, 'dirt');
+          const cx = Math.floor(x) + dx;
+          const cz = Math.floor(z) + dz;
+          const y = this.standingHeight(cx, cz);
+          if (y === null) continue;
+          if (this.getBlock(cx, y - 1, cz) !== GRASS) continue;
+
+          if (this.isClearAround(cx, y, cz, clearance, margin)) {
+            return { x: cx + 0.5, z: cz + 0.5, y };
+          }
+        }
+      }
     }
+    return null;
   }
 
-  // 正面の壁。破壊の的にちょうどよい
-  for (let x = -1; x <= 1; x++) {
-    for (let y = 1; y <= 3; y++) {
-      world.setBlock(x, y, -5, x === 0 && y === 2 ? 'grass' : 'stone');
+  private isClearAround(
+    cx: number,
+    y: number,
+    cz: number,
+    clearance: number,
+    margin: number,
+  ): boolean {
+    for (let mz = -margin; mz <= margin; mz++) {
+      for (let mx = -margin; mx <= margin; mx++) {
+        for (let dy = 0; dy < clearance; dy++) {
+          if (this.getBlock(cx + mx, y + dy, cz + mz) !== AIR) return false;
+        }
+      }
     }
+    return true;
   }
 
-  // 浮いたブロック（重力が効かないことの確認と、下面への設置テスト用）
-  world.setBlock(2, 4, -2, 'grass');
+  /** レイキャストの対象になるメッシュ一覧。 */
+  collectMeshes(target: THREE.Object3D[]): THREE.Object3D[] {
+    target.length = 0;
+    for (const chunk of this.chunks.values()) {
+      if (chunk.opaqueMesh) target.push(chunk.opaqueMesh);
+      if (chunk.transparentMesh) target.push(chunk.transparentMesh);
+    }
+    return target;
+  }
+
+  get chunkCount(): number {
+    return this.chunks.size;
+  }
 }
