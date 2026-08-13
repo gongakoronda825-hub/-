@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#9fd2ef">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>ピンポンダッシュ</title>
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <!-- 入力ゾーン。左半分＝移動、右半分＝視点。ボタンはこれらの兄弟にして、
+       押しても視点操作に取られないようにしている。 -->
+  <div id="joystick-zone"></div>
+  <div id="look-zone"></div>
+
+  <!-- インターホンに近づいたときだけ現れる。押した瞬間にピンポンする -->
+  <button type="button" id="ping-button" class="action ping hidden">ピンポン</button>
+  <button type="button" id="dash-button" class="action">ダッシュ</button>
+
+  <!-- スコア・危険度・スタミナ・視認ゲージ・演出はここに差し込まれる -->
+  <div id="ui"></div>
+
+  <!-- 縦持ちのときだけ出る案内（CSS のみ） -->
+  <div id="rotate-hint"><p>横向きにしてください</p></div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

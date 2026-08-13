@@ -1,0 +1,4 @@
+node_modules/
+
+# vite の中間出力。公開されるのは play/index.html（npm run single が生成する）。
+dist/

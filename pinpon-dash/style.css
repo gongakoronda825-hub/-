@@ -1,0 +1,474 @@
+/* 横画面・全画面前提。スクロールとピンチズームは全部止める。 */
+
+:root {
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-t: env(safe-area-inset-top, 0px);
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  /* 100vh は iOS Safari のアドレスバーでズレるので dvh を使う */
+  height: 100dvh;
+  overflow: hidden;
+  background: #9fd2ef;
+  font-family: system-ui, -apple-system, 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', sans-serif;
+  color: #fff;
+  touch-action: none;
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+}
+
+#scene {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ── 入力ゾーン ───────────────────────────────── */
+
+#joystick-zone,
+#look-zone {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  touch-action: none;
+}
+
+#joystick-zone { left: 0; }
+#look-zone { right: 0; }
+
+/* nipplejs が描くスティック（v1 のルート要素は .joystick）。
+   既定の白半透明だと道路の上で見えないので、輪郭を足してコントラストを上げる。
+   色はインラインで書き込まれるので !important が要る。 */
+.joystick { z-index: 3 !important; }
+
+.joystick .back {
+  background: rgba(12, 18, 28, 0.32) !important;
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-sizing: border-box;
+  opacity: 1 !important;
+}
+
+.joystick .front {
+  background: rgba(255, 255, 255, 0.95) !important;
+  box-shadow: 0 0 0 2px rgba(12, 18, 28, 0.4);
+  opacity: 1 !important;
+}
+
+/* ── 操作ボタン ───────────────────────────────── */
+
+.action {
+  position: fixed;
+  z-index: 4;
+  width: 82px;
+  height: 82px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: rgba(14, 19, 28, 0.55);
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: 0.02em;
+  white-space: pre-line;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  touch-action: none;
+  -webkit-backdrop-filter: blur(2px);
+  backdrop-filter: blur(2px);
+  transition: transform 0.06s ease-out, background 0.06s ease-out;
+}
+
+.action.pressed {
+  transform: scale(0.92);
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.action.hidden { display: none; }
+
+#dash-button { right: calc(18px + var(--safe-r)); bottom: calc(18px + var(--safe-b)); }
+
+/* ピンポンボタンは主役。近づいたときだけ出て、目立つ色で誘ってくる */
+#ping-button {
+  right: calc(112px + var(--safe-r));
+  bottom: calc(58px + var(--safe-b));
+  width: 96px;
+  height: 96px;
+  font-size: 17px;
+  background: rgba(255, 96, 96, 0.86);
+  border-color: #fff;
+  box-shadow: 0 0 0 0 rgba(255, 120, 120, 0.55);
+  animation: ping-pulse 1.4s ease-out infinite;
+}
+
+@keyframes ping-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(255, 120, 120, 0.55); }
+  70%  { box-shadow: 0 0 0 18px rgba(255, 120, 120, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 120, 120, 0); }
+}
+
+/* スタミナ切れのダッシュボタンは押せないことが分かるように沈める */
+#dash-button.empty {
+  opacity: 0.4;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+/* ── HUD ─────────────────────────────────────── */
+
+#ui {
+  position: fixed;
+  inset: 0;
+  z-index: 5;
+  pointer-events: none;
+}
+
+#hud {
+  position: absolute;
+  top: calc(10px + var(--safe-t));
+  left: calc(12px + var(--safe-l));
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
+}
+
+#hud .score {
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+#hud .score .unit {
+  font-size: 13px;
+  font-weight: 700;
+  opacity: 0.85;
+  margin-left: 4px;
+}
+
+/* スコアが増えた瞬間だけ跳ねる */
+#hud .score.bump { animation: score-bump 0.22s ease-out; }
+
+@keyframes score-bump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+
+#hud .pings {
+  font-size: 11px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+#hud .meter {
+  width: 148px;
+}
+
+#hud .meter .label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+  opacity: 0.9;
+}
+
+#hud .meter .bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(10, 16, 24, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  overflow: hidden;
+}
+
+#hud .meter .fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 999px;
+  transition: width 0.12s linear, background 0.3s ease;
+}
+
+#hud .danger .fill { background: #ffd166; }
+#hud .stamina .fill { background: #7fd4ff; }
+
+/* ── 視認ゲージ（見られている間だけ画面中央に出る） ── */
+
+#watch {
+  position: absolute;
+  left: 50%;
+  top: 16%;
+  transform: translateX(-50%);
+  width: min(230px, 56vw);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+#watch.on { opacity: 1; }
+
+#watch .eye {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 4px #000;
+}
+
+#watch .bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(10, 16, 24, 0.55);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  overflow: hidden;
+}
+
+#watch .fill {
+  height: 100%;
+  width: 0%;
+  background: #ff5b5b;
+  transition: width 0.08s linear;
+}
+
+/* 見つかりかけると画面のふちが赤く脈打つ */
+#vignette {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: radial-gradient(ellipse at center, rgba(255, 0, 0, 0) 45%, rgba(200, 0, 0, 0.75) 100%);
+  transition: opacity 0.12s linear;
+}
+
+/* ── 演出テロップ ─────────────────────────────── */
+
+#toasts {
+  position: absolute;
+  left: 50%;
+  top: 30%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+#toasts .toast {
+  padding: 6px 16px;
+  border-radius: 999px;
+  background: rgba(14, 19, 28, 0.72);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  white-space: nowrap;
+  animation: toast-in 0.9s ease-out forwards;
+}
+
+#toasts .toast.good { background: rgba(38, 120, 58, 0.78); }
+#toasts .toast.bad { background: rgba(160, 32, 32, 0.8); }
+
+@keyframes toast-in {
+  0%   { transform: translateY(10px) scale(0.85); opacity: 0; }
+  18%  { transform: translateY(0) scale(1.1); opacity: 1; }
+  30%  { transform: scale(1); }
+  75%  { opacity: 1; }
+  100% { transform: translateY(-16px); opacity: 0; }
+}
+
+/* 獲得ポイントはピンポンボタンのあたりから跳ね上げる */
+#gains {
+  position: absolute;
+  right: calc(150px + var(--safe-r));
+  bottom: calc(150px + var(--safe-b));
+}
+
+#gains .gain {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  font-size: 22px;
+  font-weight: 800;
+  color: #ffe08a;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  animation: gain-up 0.85s ease-out forwards;
+}
+
+@keyframes gain-up {
+  0%   { transform: translateY(6px) scale(0.8); opacity: 0; }
+  20%  { transform: translateY(0) scale(1.15); opacity: 1; }
+  100% { transform: translateY(-54px) scale(1); opacity: 0; }
+}
+
+/* ── タイトル / ゲームオーバー ─────────────────── */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: calc(12px + var(--safe-t)) calc(12px + var(--safe-r)) calc(12px + var(--safe-b)) calc(12px + var(--safe-l));
+  background: rgba(8, 14, 22, 0.8);
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.overlay .panel {
+  width: min(460px, 100%);
+  max-height: 100%;
+  overflow: auto;
+  text-align: center;
+}
+
+.overlay h1 {
+  margin: 0 0 4px;
+  font-size: 26px;
+  letter-spacing: 0.08em;
+}
+
+.overlay .sub {
+  margin: 0 0 14px;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.overlay ul {
+  margin: 0 0 10px;
+  padding: 0;
+  list-style: none;
+  font-size: 13px;
+  line-height: 1.9;
+}
+
+.overlay li {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  justify-content: center;
+}
+
+.overlay li b {
+  flex: 0 0 6em;
+  text-align: right;
+  color: #ffe08a;
+}
+
+.overlay li span {
+  flex: 0 0 auto;
+  text-align: left;
+  min-width: 15em;
+}
+
+.overlay .note {
+  margin: 0 0 18px;
+  font-size: 11px;
+  opacity: 0.7;
+  line-height: 1.7;
+}
+
+.overlay button {
+  padding: 12px 40px;
+  border: 2px solid #fff;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  touch-action: none;
+}
+
+/* ゲームオーバーの成績表 */
+#result .lines {
+  margin: 0 0 18px;
+  padding: 0;
+  list-style: none;
+  font-size: 14px;
+  line-height: 2;
+  font-variant-numeric: tabular-nums;
+}
+
+#result .lines li {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  max-width: 260px;
+  margin: 0 auto;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.2);
+}
+
+#result .lines b {
+  flex: 0 0 auto;
+  text-align: left;
+  color: #cfe4ff;
+  font-weight: 600;
+}
+
+#result .lines span {
+  flex: 0 0 auto;
+  font-weight: 800;
+}
+
+#result .final {
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 2px 0 14px;
+}
+
+#result .best { color: #ffe08a; }
+
+/* ── 縦持ちの案内 ─────────────────────────────── */
+
+#rotate-hint {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  align-items: center;
+  justify-content: center;
+  background: #0d1420;
+  font-size: 16px;
+  letter-spacing: 0.08em;
+}
+
+/* 縦長のときだけ出す。デスクトップの縦長ウィンドウでは邪魔なので、
+   タッチ端末（ホバーできない）に限る。 */
+@media (orientation: portrait) and (hover: none) {
+  #rotate-hint { display: flex; }
+}
+
+/* ── 調整用の数値表示 ─────────────────────────── */
+
+#debug {
+  position: absolute;
+  right: calc(10px + var(--safe-r));
+  top: calc(8px + var(--safe-t));
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.5;
+  white-space: pre-line;
+  text-align: right;
+  pointer-events: auto;
+  touch-action: none;
+}
+
+#debug.dim { opacity: 0.12; }
