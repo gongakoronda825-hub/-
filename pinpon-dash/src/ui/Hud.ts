@@ -13,6 +13,9 @@ import type { GameState } from '../core/GameState';
 export class Hud {
   private readonly scoreEl: HTMLElement;
   private readonly pingsEl: HTMLElement;
+  private readonly comboEl: HTMLElement;
+  private readonly comboCount: HTMLElement;
+  private readonly townEl: HTMLElement;
   private readonly dangerFill: HTMLElement;
   private readonly dangerLabel: HTMLElement;
   private readonly staminaFill: HTMLElement;
@@ -25,6 +28,8 @@ export class Hud {
   private lastScore = -1;
   private lastPings = -1;
   private lastTier = '';
+  private lastCombo = -1;
+  private lastTown = -1;
 
   constructor(parent: HTMLElement) {
     const root = document.createElement('div');
@@ -32,6 +37,7 @@ export class Hud {
       <div id="hud">
         <div class="score">0<span class="unit">pt</span></div>
         <div class="pings">ピンポン 0回</div>
+        <div class="town">街の住民 0人</div>
         <div class="meter danger">
           <div class="label"><span>危険度</span><span class="tier">しずか</span></div>
           <div class="bar"><div class="fill"></div></div>
@@ -41,6 +47,7 @@ export class Hud {
           <div class="bar"><div class="fill"></div></div>
         </div>
       </div>
+      <div id="combo"><b class="count">2</b><span class="label">COMBO</span></div>
       <div id="watch">
         <div class="eye">みられている</div>
         <div class="bar"><div class="fill"></div></div>
@@ -59,6 +66,9 @@ export class Hud {
 
     this.scoreEl = find('#hud .score');
     this.pingsEl = find('#hud .pings');
+    this.townEl = find('#hud .town');
+    this.comboEl = find('#combo');
+    this.comboCount = find('#combo .count');
     this.dangerFill = find('#hud .danger .fill');
     this.dangerLabel = find('#hud .danger .tier');
     this.staminaFill = find('#hud .stamina .fill');
@@ -69,7 +79,7 @@ export class Hud {
     this.gains = find('#gains');
   }
 
-  update(state: GameState, stamina: number, gauge: number): void {
+  update(state: GameState, stamina: number, gauge: number, townResidents: number): void {
     if (state.score !== this.lastScore) {
       this.scoreEl.innerHTML = `${state.score}<span class="unit">pt</span>`;
       this.lastScore = state.score;
@@ -82,6 +92,26 @@ export class Hud {
     if (state.pings !== this.lastPings) {
       this.pingsEl.textContent = `ピンポン ${state.pings}回`;
       this.lastPings = state.pings;
+    }
+
+    // 街を何人が歩いているか。増えていくのが見えるだけで緊張感が変わる
+    if (townResidents !== this.lastTown) {
+      this.townEl.textContent = `街の住民 ${townResidents}人`;
+      this.townEl.classList.toggle('busy', townResidents >= 3);
+      this.lastTown = townResidents;
+    }
+
+    // コンボは2連続目から出す。1回目から出ていると「連続」だと伝わらない
+    if (state.combo !== this.lastCombo) {
+      const showing = state.combo >= 2;
+      this.comboEl.classList.toggle('on', showing);
+      if (showing) {
+        this.comboCount.textContent = String(state.combo);
+        this.comboEl.classList.remove('bump');
+        void this.comboEl.offsetWidth;
+        this.comboEl.classList.add('bump');
+      }
+      this.lastCombo = state.combo;
     }
 
     const tier = state.tier;
@@ -124,6 +154,9 @@ export class Hud {
     this.lastScore = -1;
     this.lastPings = -1;
     this.lastTier = '';
+    this.lastCombo = -1;
+    this.lastTown = -1;
+    this.comboEl.classList.remove('on');
     this.toasts.replaceChildren();
     this.gains.replaceChildren();
     this.vignette.style.opacity = '0';

@@ -4,6 +4,7 @@ import {
   CATCH_RANGE,
   CHASE_THRESHOLD,
   LOST_GRACE,
+  PATROL_ARRIVE,
   RESIDENT_DOOR_DELAY,
   WANDER_RETARGET,
   WATCH_RATE_FAR,
@@ -11,21 +12,37 @@ import {
   WATCH_GAUGE_MAX,
 } from '../core/config';
 import type { ColliderSet } from '../physics/Collision';
+import type { Cell, Town } from '../town/Town';
 import { yawFromDirection } from '../town/layout';
 import { buildResident, type ResidentModel } from './models/buildResident';
 import type { ResidentType } from './residentTypes';
 
 /**
- * 住民の状態（指示書 §9）。
+ * 住民の状態（指示書 §9 / 追加仕様 §6）。
  *
  *   NORMAL     … 家の中。玄関が開くまでの間だけこの状態でいる
- *   SUSPICIOUS … 出てきて周囲を確認している
+ *   SUSPICIOUS … 出てきて家の前を確認している
  *   DETECTED   … プレイヤーを視認。視認ゲージが溜まっていく
  *   CHASE      … 追跡。見えている間は最後に見た位置を更新し続ける
  *   SEARCH     … 見失った。最後に見た場所の周りを捜す
- *   RETURN     … 諦めて家へ帰る。着いたら消える
+ *   PATROL     … 諦めた。家に帰らず街を歩き回る
+ *   RETURN     … 徘徊にも飽きた。家へ帰る。着いたら消える
+ *
+ * DETECTED は追加仕様 §6 の一覧には無いが、§11 で「視認システムはこれまでの
+ * 仕様を維持する」とあるので残してある。見た瞬間に CHASE に入る作りにすると、
+ * 視認ゲージが意味を持たなくなるため。
+ *
+ * 逃げ切っても相手は消えない（PATROL へ抜ける）。街に住民が溜まっていくのが
+ * このゲームの後半の主役で、RETURN はその掃除役でしかない。
  */
-export type ResidentState = 'NORMAL' | 'SUSPICIOUS' | 'DETECTED' | 'CHASE' | 'SEARCH' | 'RETURN';
+export type ResidentState =
+  | 'NORMAL'
+  | 'SUSPICIOUS'
+  | 'DETECTED'
+  | 'CHASE'
+  | 'SEARCH'
+  | 'PATROL'
+  | 'RETURN';
 
 /** 追跡は「今いる場所」ではなく「最後に見た場所」へ向かう。角を曲がれば振り切れる。 */
 interface Point {
@@ -51,6 +68,9 @@ export class Resident {
   /** 追跡に入った瞬間だけ true。ResidentManager が読んで false に戻す。 */
   chaseStarted = false;
 
+  /** 追跡を諦めて徘徊に移った瞬間だけ true。「まいた」の判定に使う。 */
+  gaveUp = false;
+
   private readonly model: ResidentModel;
 
   /** モデルの向き（ラジアン）。移動方向や視線の向きへ、なめらかに追従させる。 */
@@ -69,6 +89,10 @@ export class Resident {
   private lostTimer = 0;
   private wanderTarget: Point | null = null;
   private wanderTimer = 0;
+
+  /** 徘徊で向かっている地点と、直前にいた区画（来た道を覚えておく）。 */
+  private patrolFrom: Cell | null = null;
+  private patrolPoint: Point | null = null;
 
   constructor(
     readonly type: ResidentType,
@@ -106,7 +130,7 @@ export class Resident {
   /**
    * 1フレーム分の更新。戻り値が true ならプレイヤーを捕まえた。
    */
-  update(dt: number, player: THREE.Vector3, colliders: ColliderSet): boolean {
+  update(dt: number, player: THREE.Vector3, colliders: ColliderSet, town: Town): boolean {
     if (this.state === 'NORMAL') {
       this.timer -= dt;
       if (this.timer > 0) return false;
@@ -128,6 +152,9 @@ export class Resident {
         break;
       case 'SEARCH':
         this.updateSearch(dt, visible, colliders);
+        break;
+      case 'PATROL':
+        this.updatePatrol(dt, visible, colliders, town);
         break;
       case 'RETURN':
         this.updateReturn(dt, colliders);
@@ -207,7 +234,8 @@ export class Resident {
 
     this.timer -= dt;
     if (this.timer <= 0) {
-      this.state = 'RETURN';
+      // 何も見つからなくても家には戻らない。そのまま近所を歩きはじめる
+      this.enterPatrol();
       return;
     }
 
@@ -269,7 +297,7 @@ export class Resident {
     // 使い切ったらその場で諦める（指示書 §8 の「一定時間で追跡を諦める」）。
     this.chaseElapsed += dt;
     if (this.chaseElapsed >= this.type.chaseStamina) {
-      this.state = 'RETURN';
+      this.enterPatrol();
       return;
     }
 
@@ -306,12 +334,75 @@ export class Resident {
 
     this.timer -= dt;
     if (this.timer <= 0) {
-      this.state = 'RETURN';
+      this.enterPatrol();
       return;
     }
 
     const center = this.lastSeen ?? this.home;
     this.wanderAround(dt, center, 6, this.type.walkSpeed, colliders);
+  }
+
+  /**
+   * 追跡・警戒を切り上げて、街を歩き回る状態に入る（追加仕様 §5, §12）。
+   *
+   * 家に帰らないのがこの仕様の要。「逃げ切った＝安全」にはせず、
+   * さっき追ってきた相手が、別の道でまた出てくるようにする。
+   */
+  private enterPatrol(): void {
+    if (this.everChased && this.state !== 'PATROL') this.gaveUp = true;
+    this.state = 'PATROL';
+    this.timer = this.type.patrolTime;
+    this.gauge = 0;
+    this.patrolPoint = null;
+    this.chaseElapsed = 0; // 息を整える。次に見つけたらまた追える
+  }
+
+  /**
+   * 徘徊。区画をひとつずつ渡り歩く（追加仕様 §7, §10）。
+   *
+   * ワープはしない。道路と路地の上を実際に歩くので、プレイヤーは
+   * 「どの家で鳴らすか」だけでなく「そこまでどう行くか」を考えることになる。
+   */
+  private updatePatrol(
+    dt: number,
+    visible: boolean,
+    colliders: ColliderSet,
+    town: Town,
+  ): void {
+    if (visible) {
+      // 歩いている途中でプレイヤーを見つけた。ここからまた始まる
+      this.state = 'DETECTED';
+      return;
+    }
+
+    this.timer -= dt;
+    if (this.timer <= 0) {
+      this.state = 'RETURN';
+      return;
+    }
+
+    const here = town.cellAt(this.position.x, this.position.z);
+    if (!here) {
+      // 街の外に出てしまった（ふつうは起きない）。家の方へ戻す
+      this.moveTowards(dt, this.home.x, this.home.z, this.type.patrolSpeed, colliders);
+      return;
+    }
+
+    const arrived =
+      this.patrolPoint === null ||
+      Math.hypot(this.patrolPoint.x - this.position.x, this.patrolPoint.z - this.position.z) <
+        PATROL_ARRIVE;
+
+    if (arrived) {
+      const next = town.patrolStep(here, this.patrolFrom);
+      if (!next) return;
+      this.patrolFrom = here;
+      this.patrolPoint = next;
+    }
+
+    if (this.patrolPoint) {
+      this.moveTowards(dt, this.patrolPoint.x, this.patrolPoint.z, this.type.patrolSpeed, colliders);
+    }
   }
 
   /** 諦めて帰る。帰り道ではもう周りを見ていない。 */

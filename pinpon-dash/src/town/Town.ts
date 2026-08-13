@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { PATROL_BACKTRACK } from '../core/config';
 import { createRandom, pick } from '../core/rng';
 import { ColliderSet } from '../physics/Collision';
 import { MeshBuilder } from './MeshBuilder';
@@ -35,6 +36,12 @@ const FRONT_YARD = 3.4;
 
 /** インターホンの高さ。 */
 const DOORBELL_HEIGHT = 1.25;
+
+/** 地図の升目。徘徊の行き先はこの単位で決める。 */
+export interface Cell {
+  readonly col: number;
+  readonly row: number;
+}
 
 export interface House {
   readonly id: number;
@@ -112,6 +119,52 @@ export class Town {
   /** 家がいくつあるか（デバッグと README 用）。 */
   get houseCount(): number {
     return this.houses.length;
+  }
+
+  // ── 徘徊のための道案内 ───────────────────────────
+
+  /**
+   * その座標がどの区画かを返す。街の外なら null。
+   */
+  cellAt(x: number, z: number): Cell | null {
+    const col = Math.round(x / CELL + (this.grid.width - 1) / 2);
+    const row = Math.round(z / CELL + (this.grid.depth - 1) / 2);
+    if (col < 0 || row < 0 || col >= this.grid.width || row >= this.grid.depth) return null;
+    return { col, row };
+  }
+
+  /**
+   * 徘徊する住民の、次の行き先（追加仕様 §10）。
+   *
+   * いまいる区画から、通れる隣の区画をひとつ選んで、その中心を返す。
+   * **隣の区画しか選ばない**のがこの実装の肝で、
+   *
+   *   ・必ずたどり着ける（経路探索が要らない）
+   *   ・道と路地の上だけを歩く（家や塀の中を突っ切らない）
+   *   ・区画をまたぐたびに選び直すので、街全体へ広がっていく
+   *
+   * が同時に満たせる。来た道へ引き返す確率は PATROL_BACKTRACK で決める
+   * （行き止まりでは引き返すしかないので、そこだけは無条件で許す）。
+   */
+  patrolStep(from: Cell, previous: Cell | null): { x: number; z: number } | null {
+    const options: Cell[] = [];
+    let back: Cell | null = null;
+
+    for (const neighbor of NEIGHBORS) {
+      const col = from.col + neighbor.dcol;
+      const row = from.row + neighbor.drow;
+      if (!this.grid.walkable(col, row)) continue;
+
+      if (previous && previous.col === col && previous.row === row) back = { col, row };
+      else options.push({ col, row });
+    }
+
+    // 行き止まりなら引き返すしかない
+    const pool = options.length === 0 || (back && Math.random() < PATROL_BACKTRACK) ? [back!] : options;
+    const cell = pool[Math.floor(Math.random() * pool.length)];
+    if (!cell) return null;
+
+    return this.grid.center(cell.col, cell.row);
   }
 
   // ── 地面 ───────────────────────────────────────

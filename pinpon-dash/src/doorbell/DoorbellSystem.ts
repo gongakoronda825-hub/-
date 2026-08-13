@@ -3,7 +3,6 @@ import {
   DOORBELL_COOLDOWN,
   DOORBELL_FACING,
   DOORBELL_RANGE,
-  SAME_HOUSE_DANGER_MULTIPLIER,
 } from '../core/config';
 import type { GameState } from '../core/GameState';
 import type { House, Town } from '../town/Town';
@@ -16,6 +15,8 @@ const ACTIVE_COLOR = 0xfff36a;
 
 export interface PingResult {
   readonly points: number;
+  /** 何連続目か。 */
+  readonly combo: number;
   /** その家から住民が出てきたか。 */
   readonly spawned: boolean;
   /** つられて別の家からも出てきたか。 */
@@ -23,11 +24,13 @@ export interface PingResult {
 }
 
 /**
- * ピンポンの中核（指示書 §5）。
+ * ピンポンの中核（指示書 §5 / 追加仕様 §1〜§4）。
  *
  * 「近づく → ボタンが出る → 押した瞬間に鳴る」だけ。確認画面も長押しも無い。
  * ここに一拍でも入れると、このゲームでいちばん大事な
  *「もう一回押したい」という手癖が育たなくなる。
+ *
+ * ポイントとコンボの計算は GameState、誰が出てくるかはここが決める。
  */
 export class DoorbellSystem {
   /** いま押せるインターホン。無ければ null。 */
@@ -47,6 +50,15 @@ export class DoorbellSystem {
   /** ボタンを出すかどうか。UI はこれを見るだけでよい。 */
   get available(): House | null {
     return this.target;
+  }
+
+  /** コンボが乗っている家までの距離。乗っていなければ null（コンボ保持の判定用）。 */
+  distanceToCombo(position: THREE.Vector3): number | null {
+    const id = this.state.comboHouseId;
+    if (id === null) return null;
+    const house = this.town.houses[id];
+    if (!house) return null;
+    return Math.hypot(house.doorbell.x - position.x, house.doorbell.z - position.z);
   }
 
   /**
@@ -77,11 +89,7 @@ export class DoorbellSystem {
     const limit = Math.cos((DOORBELL_FACING * Math.PI) / 360);
 
     for (const house of this.town.houses) {
-      this.toDoorbell.set(
-        house.doorbell.x - position.x,
-        0,
-        house.doorbell.z - position.z,
-      );
+      this.toDoorbell.set(house.doorbell.x - position.x, 0, house.doorbell.z - position.z);
       const distance = this.toDoorbell.length();
       if (distance > bestDistance) continue;
 
@@ -106,7 +114,8 @@ export class DoorbellSystem {
   /**
    * ピンポンする。押せる状態でなければ null を返す。
    *
-   * ポイントと危険度は GameState、住民を出すかどうかは危険度の段（DANGER_TIERS）が決める。
+   * 同じ家を続けて鳴らすほどポイントが跳ね上がる（GameState 側）。
+   * その代わり、住民の出てくる確率もコンボの分だけ上がる。
    */
   ping(): PingResult | null {
     const house = this.target;
@@ -114,15 +123,14 @@ export class DoorbellSystem {
 
     this.cooldowns.set(house.id, DOORBELL_COOLDOWN);
 
-    // 住民がすでに出ている家をもう一度鳴らすのは、いちばん頭の悪い行為なので
-    // その分だけ危険度が跳ねる。ポイントは変わらない。
-    const sameHouse = this.residents.isOccupied(house.id);
     const tier = this.state.tier;
-    const points = this.state.ping(sameHouse ? SAME_HOUSE_DANGER_MULTIPLIER : 1);
+    const chance = this.state.spawnChance();
+    const { points, combo } = this.state.ping(house.id);
 
     let spawned = false;
-    if (Math.random() < tier.spawnChance) {
+    if (Math.random() < chance) {
       spawned = this.residents.spawn(house, pickResidentType(tier.weights)) !== null;
+      if (spawned) this.state.onResidentAppeared(house.id);
     }
 
     // 危険度が高いと近所も騒ぎ出す。逃げ道を塞がれるのがここから始まる
@@ -134,13 +142,13 @@ export class DoorbellSystem {
       }
     }
 
-    return { points, spawned, extra };
+    return { points, combo, spawned, extra };
   }
 
-  /** 鳴らした家の近所で、まだ誰も出ていない家を1軒選ぶ。 */
+  /** 鳴らした家の近所で、いま住民を出せる家を1軒選ぶ。 */
   private pickNeighborHouse(house: House): House | null {
     const candidates = this.town.houses.filter((other) => {
-      if (other.id === house.id || this.residents.isOccupied(other.id)) return false;
+      if (other.id === house.id || !this.residents.canSpawnFrom(other.id)) return false;
       const distance = Math.hypot(
         other.center.x - house.center.x,
         other.center.z - house.center.z,

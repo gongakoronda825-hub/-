@@ -46,8 +46,8 @@ export class DebugHud {
     const tier = state.tier;
     this.element.textContent = [
       `${this.fps}fps  x${player.position.x.toFixed(1)} z${player.position.z.toFixed(1)} ${Math.round(((-yaw * 180) / Math.PI + 360) % 360)}°`,
-      `危険度 ${state.danger.toFixed(1)} [${tier.label}] ${tier.points}pt`,
-      `出現率 ${Math.round(tier.spawnChance * 100)}%  住民 ${residents.count}人`,
+      `危険度 ${state.danger.toFixed(1)} [${tier.label}] ×${tier.pointMultiplier}`,
+      `コンボ ${state.combo}  出現率 ${Math.round(state.spawnChance() * 100)}%  住民 ${residents.count}人`,
       `視認 ${gauge.toFixed(2)}  ${residents.describeStates()}`,
     ].join('\n');
   }

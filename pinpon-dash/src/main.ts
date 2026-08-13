@@ -38,7 +38,7 @@ player.place(town.spawn.x, town.spawn.z);
 
 const view = new FirstPersonCamera(renderer.camera);
 
-const residents = new ResidentManager(renderer.scene, town.colliders, {
+const residents = new ResidentManager(renderer.scene, town.colliders, town, {
   onAppear: (resident) => {
     hud.toast(resident.type.shout, 'bad');
     sfx.door();
@@ -48,7 +48,8 @@ const residents = new ResidentManager(renderer.scene, town.colliders, {
     sfx.alert();
   },
   onEscape: (resident) => {
-    // 追ってきた相手をまいた。危険な住民ほど見返りが大きい（指示書 §8）
+    // 追ってきた相手をまいた。危険な住民ほど見返りが大きい（指示書 §8）。
+    // ただし相手は消えず、このあとも街を歩き続ける（追加仕様 §12）。
     const bonus = Math.round(ESCAPE_BONUS_BASE * resident.type.escapeMultiplier);
     state.addScore(bonus);
     hud.toast(`まいた！ +${bonus}`, 'good');
@@ -128,6 +129,7 @@ function gameOver(cause: string): void {
   result.show({
     score: state.score,
     pings: state.pings,
+    bestCombo: state.bestCombo,
     highscore,
     newRecord,
     cause,
@@ -170,7 +172,7 @@ function step(dt: number): void {
 
   // 住民 → 危険度 → インターホン の順。住民の状態を見てから危険度を更新する
   const caught = residents.update(dt, player.position);
-  state.update(dt, residents.anyChasing);
+  state.update(dt, residents.anyChasing, doorbells.distanceToCombo(player.position));
   doorbells.update(dt, player.position, forward);
 
   // PC で確認するとき用のキー操作
@@ -181,7 +183,7 @@ function step(dt: number): void {
   dash.setEmpty(!player.canDash);
 
   const gauge = residents.maxGauge;
-  hud.update(state, player.staminaRatio, gauge);
+  hud.update(state, player.staminaRatio, gauge, residents.count);
   debug.update(dt, state, player, residents, gauge, view.yaw);
 
   if (caught) {

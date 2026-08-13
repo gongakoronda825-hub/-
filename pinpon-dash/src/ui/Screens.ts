@@ -33,10 +33,11 @@ export class TitleScreen {
           <li><b>ピンポン</b><span>門に近づくと出るボタンを押す</span></li>
         </ul>
         <p class="note">
-          鳴らすほどポイントは増えますが、危険度も上がって住民が出てきます。<br>
+          <b>同じ家で続けて鳴らすほど、ポイントが跳ね上がります。</b>
+          10 → 15 → 25 → 40 → 65 …。別の家に移ると 10 に戻ります。<br>
+          粘るほど住民が出てきます。<b>逃げ切っても住民は家に帰らず、街を歩き続けます。</b><br>
           塀は越えられません。逃げ道は道と路地と物陰だけ。<br>
-          見つかっても即アウトではありません。<b>3秒</b>見られ続けるか、捕まると終わりです。<br>
-          角を曲がって視線を切れば、相手はあなたを見失います。
+          見つかっても即アウトではありません。角を曲がって視線を切れば見失います。
         </p>
         <button type="button" id="start-button">はじめる</button>
       </div>
@@ -62,6 +63,8 @@ export class TitleScreen {
 export interface Result {
   readonly score: number;
   readonly pings: number;
+  /** 1回のプレイで到達した最高コンボ。このゲームの腕前はほぼこの数字で決まる。 */
+  readonly bestCombo: number;
   readonly highscore: number;
   readonly newRecord: boolean;
   /** 何にやられたか（テキストで出すだけ）。 */
@@ -88,6 +91,7 @@ export class ResultScreen {
         <div class="final">${result.score}<span style="font-size:16px"> pt</span></div>
         <ul class="lines">
           <li><b>ピンポン回数</b><span>${result.pings} 回</span></li>
+          <li><b>最高コンボ</b><span>${result.bestCombo} 連続</span></li>
           <li><b>ハイスコア</b><span class="best">${result.highscore} pt</span></li>
         </ul>
         ${result.newRecord ? '<p class="sub">自己ベスト更新</p>' : ''}

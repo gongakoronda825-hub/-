@@ -53,6 +53,18 @@ export interface ResidentType {
   readonly chaseTime: number;
   readonly searchTime: number;
 
+  /**
+   * 諦めたあと、家に帰らずに街を歩き回る時間（追加仕様 §5〜§7）。
+   *
+   * これがこのゲームの後半を作る。長くするほど街に住民が溜まり、
+   * 家から家への移動そのものが危険になる。0 にすると、逃げ切った時点で
+   * 相手が消える昔の仕様に戻る。
+   */
+  readonly patrolTime: number;
+
+  /** 徘徊中の歩く速さ。警戒中よりゆっくり歩かせると、街に馴染んで見える。 */
+  readonly patrolSpeed: number;
+
   /** まいたときのボーナス倍率（ESCAPE_BONUS_BASE に掛ける）。 */
   readonly escapeMultiplier: number;
 
@@ -95,6 +107,8 @@ export const RESIDENT_TYPES: Readonly<Record<ResidentKey, ResidentType>> = {
     chaseStamina: 5,
     chaseTime: 4,
     searchTime: 3,
+    patrolTime: 30,
+    patrolSpeed: 1.4,
     escapeMultiplier: 1,
     radius: 0.35,
     shout: 'はて…？',
@@ -116,6 +130,8 @@ export const RESIDENT_TYPES: Readonly<Record<ResidentKey, ResidentType>> = {
     chaseStamina: 13,
     chaseTime: 9,
     searchTime: 6,
+    patrolTime: 55,
+    patrolSpeed: 1.7,
     escapeMultiplier: 2,
     radius: 0.38,
     shout: 'こら待てーっ！',
@@ -137,6 +153,8 @@ export const RESIDENT_TYPES: Readonly<Record<ResidentKey, ResidentType>> = {
     chaseStamina: 28,
     chaseTime: 16,
     searchTime: 10,
+    patrolTime: 90,
+    patrolSpeed: 2.0,
     escapeMultiplier: 4,
     radius: 0.42,
     shout: 'みつけたぞぉ',

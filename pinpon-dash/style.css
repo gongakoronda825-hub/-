@@ -472,3 +472,59 @@ html, body {
 }
 
 #debug.dim { opacity: 0.12; }
+
+/* ── コンボ（同じ家での連続ピンポン） ─────────── */
+
+/* このゲームの主役なので、画面のまんなか上に大きく出す。
+   スコアより目立たせて「もう1回この家で押したい」と思わせる。 */
+#combo {
+  position: absolute;
+  left: 50%;
+  top: 6%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  opacity: 0;
+  transition: opacity 0.18s ease;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+#combo.on { opacity: 1; }
+
+#combo .count {
+  font-size: 46px;
+  font-weight: 800;
+  line-height: 1;
+  color: #ffd75e;
+  font-variant-numeric: tabular-nums;
+}
+
+#combo .label {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: #fff3cf;
+}
+
+/* 伸びた瞬間だけ跳ねる */
+#combo.bump { animation: combo-bump 0.26s cubic-bezier(0.2, 1.6, 0.4, 1); }
+
+@keyframes combo-bump {
+  0%   { transform: translateX(-50%) scale(1); }
+  45%  { transform: translateX(-50%) scale(1.28); }
+  100% { transform: translateX(-50%) scale(1); }
+}
+
+/* 街の住民が増えてきたら、その行だけ赤くして気づかせる */
+#hud .town {
+  font-size: 11px;
+  opacity: 0.85;
+  font-variant-numeric: tabular-nums;
+}
+
+#hud .town.busy {
+  color: #ffb4a8;
+  opacity: 1;
+  font-weight: 700;
+}
