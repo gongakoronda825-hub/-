@@ -432,18 +432,38 @@ const CONFIG = {
     fadeMs:            600, // シーン間クロスフェード時間
   },
 
-  // Scene 1: プロフィール
+  // ------------------------------------------------------------------
+  // 手持ちの写真を13スロット全部に使い回す設定です。
+  // assets/ に下記の名前で置いてください（無い分はプレースホルダーのまま）。
+  //   photo-1  … 椅子で顔をのせている（横）
+  //   photo-2  … 布団のそばで横になっている（横）
+  //   photo-3  … カエルの帽子（縦・顔がはっきり）
+  //   photo-4  … ベッドでおすわり（縦・全身）
+  //   photo-5  … ソファでおすわり（横・全身）
+  //   photo-6  … フィルム風・ビーズクッションで寝ている（縦）
+  //   photo-7  … お腹を出して寝ている寄り（横）
+  //   photo-8  … 部屋の引き・犬は右下（横）
+  //   photo-9  … 窓の光・部屋の引き（縦）※photo-10 とほぼ同じ構図
+  //   photo-10 … 窓の光・部屋の引き 明るめ（縦）※未使用
+  //
+  // 割り当ての考え方：
+  //   顔が分かる写真 → プロフィール（小さく切り抜かれるため）
+  //   横位置の写真   → 背景スライドと More Like This（16:9 で切り抜かれるため）
+  //   縦位置の引き   → 背景に使うと上下が切れて犬が消えるので使っていません
+  // ------------------------------------------------------------------
+
+  // Scene 1: プロフィール（顔が分かる写真が向いています）
   title: 'Happy wedding',
   bottomTag: 'MEMORIES FAVORITE',
   profiles: [
-    { name: "yoshito's story", img: 'assets/profile-1.jpg' },
-    { name: "Chisato's Story", img: 'assets/profile-2.jpg', target: true }, // ← 自動選択
-    { name: 'Our Story',       img: 'assets/profile-3.jpg' },
-    { name: 'How we met',      img: 'assets/profile-4.jpg' },
+    { name: "yoshito's story", img: 'assets/photo-3.jpg' },
+    { name: "Chisato's Story", img: 'assets/photo-4.jpg', target: true }, // ← 自動選択
+    { name: 'Our Story',       img: 'assets/photo-1.jpg' },
+    { name: 'How we met',      img: 'assets/photo-5.jpg' },
   ],
 
-  // Scene 2: ローディング
-  loadingThumb: 'assets/loading-thumb.jpg',
+  // Scene 2: ローディング（縦位置・雰囲気重視。モノクロ寄りで表示されます）
+  loadingThumb: 'assets/photo-6.jpg',
 
   // Scene 3: 作品詳細ページ
   detail: {
@@ -457,9 +477,12 @@ const CONFIG = {
       'そして今日、妻が育った大切な場所で、これからの人生を誓うように、一枚の写真を残します。',
     ],
     nav: ['Vlogs', 'TV Shows', 'Movies'],
-    heroSlides: ['assets/hero-1.jpg','assets/hero-2.jpg','assets/hero-3.jpg','assets/hero-4.jpg'],
+    // 背景スライド（横位置のみ。photo-8 は犬が右下にいるので、
+    // 左側に乗るあらすじや再生ボタンと重なりません）
+    heroSlides: ['assets/photo-8.jpg','assets/photo-2.jpg','assets/photo-7.jpg','assets/photo-1.jpg'],
     heroSlideMs: 2000, // 1枚あたりの表示時間（クロスフェード）
-    moreLikeThis: ['assets/thumb-1.jpg','assets/thumb-2.jpg','assets/thumb-3.jpg','assets/thumb-4.jpg'],
+    // More Like This（横位置。隣同士と背景で並びが被らないようにずらしています）
+    moreLikeThis: ['assets/photo-7.jpg','assets/photo-5.jpg','assets/photo-8.jpg','assets/photo-2.jpg'],
   },
 
   // Scene 4: 本編
