@@ -433,37 +433,30 @@ const CONFIG = {
   },
 
   // ------------------------------------------------------------------
-  // 手持ちの写真を13スロット全部に使い回す設定です。
-  // assets/ に下記の名前で置いてください（無い分はプレースホルダーのまま）。
-  //   photo-1  … 椅子で顔をのせている（横）
-  //   photo-2  … 布団のそばで横になっている（横）
-  //   photo-3  … カエルの帽子（縦・顔がはっきり）
-  //   photo-4  … ベッドでおすわり（縦・全身）
-  //   photo-5  … ソファでおすわり（横・全身）
-  //   photo-6  … フィルム風・ビーズクッションで寝ている（縦）
-  //   photo-7  … お腹を出して寝ている寄り（横）
-  //   photo-8  … 部屋の引き・犬は右下（横）
-  //   photo-9  … 窓の光・部屋の引き（縦）※photo-10 とほぼ同じ構図
-  //   photo-10 … 窓の光・部屋の引き 明るめ（縦）※未使用
+  // assets/ にある4枚を13スロット全部に使い回しています。
+  // 4枚とも横位置（5712x4284）なので、縦枠に入るプロフィールとローディングは
+  // pos で切り抜き位置を顔に寄せています。
+  //   IMG_8431 … 伏せて右を向いている（顔は右寄り）
+  //   IMG_8432 … 正面を向いている（顔は中央）
+  //   IMG_8433 … 伏せて正面向き（顔は左寄り）
+  //   IMG_8434 … 伏せて右上を見ている（顔は右寄り）
   //
-  // 割り当ての考え方：
-  //   顔が分かる写真 → プロフィール（小さく切り抜かれるため）
-  //   横位置の写真   → 背景スライドと More Like This（16:9 で切り抜かれるため）
-  //   縦位置の引き   → 背景に使うと上下が切れて犬が消えるので使っていません
+  // 背景スライドは左側にあらすじと再生ボタンが乗るので、
+  // 犬が右寄りの IMG_8431 / IMG_8434 を先に出しています。
   // ------------------------------------------------------------------
 
-  // Scene 1: プロフィール（顔が分かる写真が向いています）
+  // Scene 1: プロフィール（縦4:5に切り抜かれるので pos で顔に寄せる）
   title: 'Happy wedding',
   bottomTag: 'MEMORIES FAVORITE',
   profiles: [
-    { name: "yoshito's story", img: 'assets/photo-3.jpg' },
-    { name: "Chisato's Story", img: 'assets/photo-4.jpg', target: true }, // ← 自動選択
-    { name: 'Our Story',       img: 'assets/photo-1.jpg' },
-    { name: 'How we met',      img: 'assets/photo-5.jpg' },
+    { name: "yoshito's story", img: 'assets/IMG_8433.jpeg', pos: '38% 45%' },
+    { name: "Chisato's Story", img: 'assets/IMG_8432.jpeg', pos: '56% 45%', target: true }, // ← 自動選択
+    { name: 'Our Story',       img: 'assets/IMG_8431.jpeg', pos: '62% 45%' },
+    { name: 'How we met',      img: 'assets/IMG_8434.jpeg', pos: '72% 45%' },
   ],
 
-  // Scene 2: ローディング（縦位置・雰囲気重視。モノクロ寄りで表示されます）
-  loadingThumb: 'assets/photo-6.jpg',
+  // Scene 2: ローディング（縦枠・モノクロ寄りで表示されます）
+  loadingThumb: { img: 'assets/IMG_8432.jpeg', pos: '56% 42%' },
 
   // Scene 3: 作品詳細ページ
   detail: {
@@ -477,12 +470,21 @@ const CONFIG = {
       'そして今日、妻が育った大切な場所で、これからの人生を誓うように、一枚の写真を残します。',
     ],
     nav: ['Vlogs', 'TV Shows', 'Movies'],
-    // 背景スライド（横位置のみ。photo-8 は犬が右下にいるので、
-    // 左側に乗るあらすじや再生ボタンと重なりません）
-    heroSlides: ['assets/photo-8.jpg','assets/photo-2.jpg','assets/photo-7.jpg','assets/photo-1.jpg'],
+    // 背景スライド（犬が右寄りのものから順に）
+    heroSlides: [
+      'assets/IMG_8431.jpeg',
+      'assets/IMG_8434.jpeg',
+      'assets/IMG_8432.jpeg',
+      'assets/IMG_8433.jpeg',
+    ],
     heroSlideMs: 2000, // 1枚あたりの表示時間（クロスフェード）
-    // More Like This（横位置。隣同士と背景で並びが被らないようにずらしています）
-    moreLikeThis: ['assets/photo-7.jpg','assets/photo-5.jpg','assets/photo-8.jpg','assets/photo-2.jpg'],
+    // More Like This（背景と並びが被らないようにずらしています）
+    moreLikeThis: [
+      'assets/IMG_8433.jpeg',
+      'assets/IMG_8432.jpeg',
+      'assets/IMG_8434.jpeg',
+      'assets/IMG_8431.jpeg',
+    ],
   },
 
   // Scene 4: 本編
@@ -551,20 +553,32 @@ window.addEventListener('orientationchange', refit);
 if (window.visualViewport) window.visualViewport.addEventListener('resize', refit);
 fit();
 
-/* ---------- 画像スロット生成（プレースホルダー付き） ---------- */
-function fillSlot(slotEl, src, label){
+/* ---------- 画像スロット生成（プレースホルダー付き） ----------
+   CONFIG の各スロットは、次のどちらの書き方でも受け付ける。
+     パスの文字列だけ
+     { img: パス, pos: '70% 40%' }
+   pos は切り抜き位置（CSS の object-position）。横位置の写真を縦枠に
+   入れるときなど、被写体が切れないように寄せるために使う。 */
+function resolveSlot(entry){
+  if (!entry) return { src: '', pos: '' };
+  if (typeof entry === 'string') return { src: entry, pos: '' };
+  return { src: entry.img || '', pos: entry.pos || '' };
+}
+function fillSlot(slotEl, entry, label){
+  const { src, pos } = resolveSlot(entry);
   slotEl.dataset.ph = label;
   const img = document.createElement('img');
   img.alt = '';
+  if (pos) img.style.objectPosition = pos;
   img.addEventListener('error', () => { img.classList.add('failed'); });
   if (src) { img.src = src; } else { img.classList.add('failed'); }
   slotEl.appendChild(img);
   return slotEl;
 }
-function makeSlot(src, label, className){
+function makeSlot(entry, label, className){
   const d = document.createElement('div');
   d.className = 'slot' + (className ? ' ' + className : '');
-  return fillSlot(d, src, label);
+  return fillSlot(d, entry, label);
 }
 
 /* =========================================================================
@@ -581,7 +595,7 @@ let targetProfileEl = null;
 CONFIG.profiles.forEach((p, i) => {
   const el = document.createElement('div');
   el.className = 'profile';
-  const icon = makeSlot(p.img, 'PROFILE ' + (i + 1), 'icon');
+  const icon = makeSlot(p, 'PROFILE ' + (i + 1), 'icon');
   const name = document.createElement('div');
   name.className = 'name';
   name.textContent = p.name;

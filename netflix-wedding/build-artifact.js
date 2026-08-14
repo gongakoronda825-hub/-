@@ -36,10 +36,41 @@ if (/https?:\/\//.test(out.replace(/xmlns="[^"]*"/g, ''))) {
   throw new Error('外部URLへの参照が残っています');
 }
 
-// 3. Artifact には assets/ を同梱できないため、素材は必ずプレースホルダーになる。
-//    そのことが分かるように、ページ内に一行だけ注記を出す。
+// 3. assets/ のファイルをデータURIとして本文に埋め込む。
+//    Artifact は1ファイルしか公開できないため、これをやらないと素材が出ない。
+//    ファイルが無いスロットはそのまま残し、プレースホルダー表示に任せる。
+const MIME = {
+  '.jpg':'image/jpeg', '.jpeg':'image/jpeg', '.png':'image/png',
+  '.gif':'image/gif',  '.webp':'image/webp',
+  '.mp4':'video/mp4',  '.webm':'video/webm', '.mov':'video/quicktime',
+};
+// 同じ写真が複数のスロットで使い回されるので、データURIは1枚につき1回だけ持ち、
+// 各スロットからはそれを参照する。そうしないとファイルが数倍に膨らむ。
+const dataUris = new Map();   // ファイル名 → データURI
+const missing  = new Set();
+out = out.replace(/(['"])assets\/([^'"]+)\1/g, (whole, quote, file) => {
+  const abs = path.join(__dirname, 'assets', file);
+  const mime = MIME[path.extname(file).toLowerCase()];
+  if (!mime || !fs.existsSync(abs)) { missing.add(file); return whole; }
+  if (!dataUris.has(file)) {
+    dataUris.set(file, 'data:' + mime + ';base64,' + fs.readFileSync(abs).toString('base64'));
+  }
+  return '__ASSETS[' + JSON.stringify(file) + ']';
+});
+const assetScript = dataUris.size
+  ? '<script>\n/* assets/ の中身をデータURIとして埋め込んだもの（1枚につき1回だけ） */\n'
+    + 'const __ASSETS = {\n'
+    + [...dataUris].map(([k, v]) => JSON.stringify(k) + ':' + JSON.stringify(v)).join(',\n')
+    + '\n};\n</script>\n'
+  : '';
+console.log('埋め込み: ' + dataUris.size + ' 件' +
+            (missing.size ? ' / 未設置: ' + [...missing].join(', ') : ''));
+
+// 4. 画面下に一行だけ注記を出す（タップで再生し直せること、未設置の素材があること）
+const noteText = 'タップで最初から再生'
+  + (missing.size ? '　／　' + [...missing].join('・') + ' は未設置のためプレースホルダー表示です' : '');
 const NOTE = `
-<div id="artifact-note">タップで最初から再生　／　写真・動画は未設定のためプレースホルダー表示です</div>
+<div id="artifact-note">${noteText}</div>
 <style>
 #artifact-note{
   position:fixed; left:0; right:0; bottom:0; z-index:200;
@@ -50,7 +81,8 @@ const NOTE = `
 }
 </style>
 `;
-out = out.replace(/<script>/, NOTE + '<script>');
+// 素材の定義はメインのスクリプトより前に置く必要がある
+out = out.replace(/<script>/, NOTE + assetScript + '<script>');
 
 fs.mkdirSync(path.join(__dirname, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(__dirname, 'dist', 'artifact.html'), out);
