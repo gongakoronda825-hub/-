@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Happy wedding — オープニングUI</title>
+<style>
+/* =========================================================================
+   Netflix風ウェディング オープニングUI
+   - 外部依存なし（CDN・Webフォント・ライブラリ一切なし）
+   - 1920x1080 のデザイン座標で組み、JSで transform:scale して画面に合わせる
+   - 画像・動画が1枚も無くてもプレースホルダーで最後まで再生できる
+   ========================================================================= */
+
+:root{
+  /* --- カラートークン（仕様書 4） --- */
+  --bg:        #141414;
+  --black:     #000000;
+  --red:       #E50914;
+  --white:     #FFFFFF;
+  --grey:      #B3B3B3;
+  --grey-dim:  #808080;
+  --thumb-bg:  #2A2A2A;
+  --scrim:     rgba(0,0,0,0.75);
+
+  /* --- フォント（システムフォントのみ） --- */
+  --ui:     "Helvetica Neue", Helvetica, Arial, "Segoe UI", sans-serif;
+  --serif:  Georgia, "Times New Roman", "Hiragino Mincho ProN", "Yu Mincho", serif;
+  --jp:     "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", Meiryo, sans-serif;
+
+  /* --- 画面切替のフェード時間（JSが CONFIG.timeline.fadeMs で上書き） --- */
+  --fade: 600ms;
+
+  /* --- 偽カーソルのサイズ（ホットスポット計算にJSからも参照される） --- */
+  --cursor-size: 52px;
+
+  --radius: 4px;
+}
+
+*{ box-sizing:border-box; }
+html,body{
+  margin:0; padding:0; width:100%; height:100%;
+  background:var(--black); overflow:hidden;
+  font-family:var(--ui); color:var(--white);
+  -webkit-font-smoothing:antialiased;
+}
+
+/* デザイン基準 1920x1080 の固定ステージ。JSが scale して画面にフィットさせる */
+#stage{
+  position:fixed; left:50%; top:50%;
+  width:1920px; height:1080px;
+  transform-origin:50% 50%;
+  transform:translate(-50%,-50%) scale(1);
+  background:var(--bg);
+  overflow:hidden;
+}
+
+/* ---------- シーン共通 ---------- */
+.scene{
+  position:absolute; inset:0;
+  opacity:0; pointer-events:none;
+  transition:opacity var(--fade) ease;
+}
+.scene.on{ opacity:1; }
+
+/* ---------- 画像スロット（プレースホルダー方式） ----------
+   .slot がグレーの下地＋ラベルを持ち、その上に img を重ねる。
+   画像が読めない／未設定なら img を非表示にして下地が見える。 */
+.slot{
+  position:relative; overflow:hidden;
+  background:var(--thumb-bg);
+  /* 中の img の z-index をスロット内に閉じ込める。
+     これが無いと背景ヒーロー画像が上部バーや本文より前面に出てしまう。 */
+  isolation:isolate;
+}
+.slot::after{
+  content:attr(data-ph);
+  position:absolute; inset:0;
+  display:flex; align-items:center; justify-content:center;
+  color:#666; font-family:var(--ui);
+  font-size:14px; letter-spacing:2px; text-align:center;
+  padding:8px;
+}
+.slot > img{
+  position:relative; z-index:1;
+  width:100%; height:100%; object-fit:cover; display:block;
+}
+.slot > img.failed{ display:none; }
+
+/* =========================================================================
+   Scene 1 — プロフィール選択
+   ========================================================================= */
+#scene1{ background:var(--bg); }
+#scene1 .wrap{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+}
+#scene1 .title{
+  font-family:var(--serif); font-weight:400; font-size:84px;
+  letter-spacing:1px; color:var(--white);
+  margin:0 0 132px;
+}
+#scene1 .profiles{
+  display:flex; align-items:flex-start; justify-content:center;
+  gap:150px;
+}
+.profile{ width:250px; text-align:center; cursor:default; }
+.profile .icon{
+  width:250px; height:312px;             /* 参考画像に合わせた縦位置（4:5） */
+  border-radius:18px; overflow:hidden;
+  box-shadow:0 6px 26px rgba(0,0,0,.55);
+  outline:0 solid rgba(255,255,255,0);
+  transition:transform 320ms cubic-bezier(.2,.7,.3,1),
+             outline-color 320ms ease, outline-width 320ms ease;
+}
+.profile .name{
+  margin-top:28px;
+  font-family:var(--serif); font-size:28px; letter-spacing:.5px;
+  color:var(--grey-dim);
+  transition:color 320ms ease;
+}
+/* 実マウスのホバーでも自動選択でも同じ見た目にする */
+.profile:hover .icon,
+.profile.selected .icon{
+  transform:scale(1.1);
+  outline:3px solid rgba(255,255,255,.95);
+  outline-offset:6px;
+}
+.profile:hover .name,
+.profile.selected .name{ color:var(--white); }
+/* クリックの押し込み */
+.profile.pressed .icon{
+  transform:scale(1.02);
+  transition:transform 120ms ease;
+}
+#scene1 .tag{
+  margin-top:120px;
+  font-family:var(--serif); font-weight:700; font-size:27px;
+  letter-spacing:6px; color:#cfcfcf;
+}
+
+/* =========================================================================
+   Scene 2 — ローディング
+   ========================================================================= */
+#scene2{ background:var(--black); }
+#scene2 .wrap{
+  position:absolute; inset:0;
+  display:flex; flex-direction:column;
+  align-items:center; justify-content:center;
+}
+#scene2 .thumb{
+  width:158px; height:262px;             /* 小さめ・縦位置 */
+  border-radius:var(--radius);
+  filter:grayscale(.4) contrast(1.05);
+}
+#scene2 .spinner{
+  margin-top:56px;
+  width:46px; height:46px; border-radius:50%;
+  border:3px solid rgba(255,255,255,.18);
+  border-top-color:rgba(255,255,255,.9);
+  animation:spin 1s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* =========================================================================
+   Scene 3 — 作品詳細ページ
+   ========================================================================= */
+#scene3{ background:var(--black); }
+
+/* 背景ヒーロー（クロスフェード・枚数可変） */
+#hero{ position:absolute; inset:0; }
+#hero .layer{
+  position:absolute; inset:0;
+  opacity:0; transition:opacity 1200ms ease;
+}
+#hero .layer.on{ opacity:1; }
+
+/* オーバーレイ：左→右、下→上のダークグラデ */
+#scene3 .scrim-l{
+  position:absolute; inset:0;
+  background:linear-gradient(to right, rgba(0,0,0,.88) 0%, rgba(0,0,0,.55) 32%, rgba(0,0,0,0) 62%);
+}
+#scene3 .scrim-b{
+  position:absolute; inset:0;
+  background:linear-gradient(to top, rgba(0,0,0,.92) 0%, rgba(0,0,0,.55) 22%, rgba(0,0,0,0) 52%);
+}
+#scene3 .scrim-t{
+  position:absolute; inset:0;
+  background:linear-gradient(to bottom, rgba(0,0,0,.6) 0%, rgba(0,0,0,0) 16%);
+}
+
+/* 上部バー */
+#topbar{
+  position:absolute; left:0; right:0; top:0; height:150px;
+  display:flex; align-items:center; padding:0 66px;
+}
+#topbar .badge{
+  width:26px; height:34px; border-radius:3px;
+  background:var(--red); position:relative; flex:none;
+}
+#topbar .badge::after{
+  content:''; position:absolute; left:50%; top:6px; bottom:6px;
+  width:4px; margin-left:-2px; background:rgba(255,255,255,.92); border-radius:2px;
+}
+#topbar nav{
+  margin-left:auto; display:flex; align-items:center; gap:110px;
+  font-size:30px; color:var(--grey); letter-spacing:.5px;
+}
+
+/* 左側コンテンツ */
+#detail{
+  position:absolute; left:66px; top:150px; width:1100px;
+}
+#detail .logo{
+  font-family:var(--serif); font-style:italic; font-weight:700;
+  font-size:76px; letter-spacing:.5px; color:var(--white);
+  text-shadow:0 3px 18px rgba(0,0,0,.7);
+  margin:22px 0 0;
+}
+#detail .synopsis{
+  margin-top:26px;
+  font-family:var(--jp); font-size:34px; line-height:2.1;
+  color:var(--white); text-shadow:0 2px 12px rgba(0,0,0,.75);
+}
+#detail .buttons{
+  margin-top:36px; display:flex; align-items:center; gap:18px;
+}
+.btn{
+  display:inline-flex; align-items:center; gap:12px;
+  height:70px; padding:0 40px; border-radius:var(--radius);
+  font-family:var(--jp); font-size:30px; font-weight:700; color:var(--white);
+  transition:filter 200ms ease, transform 120ms ease;
+}
+.btn .ico{ font-size:28px; line-height:1; }
+.btn.play{ background:var(--red); }
+.btn.list{ background:rgba(109,109,110,.7); }
+.btn.hover{ filter:brightness(1.18); }
+.btn.pressed{ transform:scale(.97); }
+
+/* More Like This */
+#more{
+  position:absolute; left:66px; right:66px; bottom:74px;
+}
+#more h2{
+  margin:0 0 26px;
+  font-size:40px; font-weight:700; letter-spacing:.3px; color:var(--white);
+  text-shadow:0 2px 12px rgba(0,0,0,.7);
+}
+#more .row{ display:flex; gap:34px; }
+#more .row .slot{
+  flex:1 1 0; aspect-ratio:16/9; border-radius:6px;
+  box-shadow:0 8px 26px rgba(0,0,0,.5);
+}
+
+/* 詳細ページの入場アニメーション */
+.rise{ opacity:0; transform:translateY(26px); }
+#scene3.on .rise{
+  opacity:1; transform:none;
+  transition:opacity 900ms ease, transform 900ms cubic-bezier(.2,.7,.3,1);
+}
+#scene3.on #detail .logo{ transition-delay:120ms; }
+#scene3.on #detail .synopsis{ transition-delay:240ms; }
+#scene3.on #detail .buttons{ transition-delay:360ms; }
+#scene3.on #more{ transition-delay:480ms; }
+
+/* =========================================================================
+   Scene 4 — 本編再生
+   ========================================================================= */
+#scene4{ background:#0b0b0b; }
+#scene4 .slot{ position:absolute; inset:0; background:#0b0b0b; }
+#scene4 .slot::after{
+  color:#4a4a4a; font-size:20px; letter-spacing:6px;
+}
+#scene4 video{
+  position:absolute; inset:0; z-index:1;
+  width:100%; height:100%; object-fit:cover; display:block;
+  background:#0b0b0b;
+}
+#scene4 video.failed{ display:none; }
+#subtitle{
+  position:absolute; left:0; right:0; bottom:96px; z-index:2;
+  text-align:center;
+  font-family:var(--jp); font-size:40px; font-weight:500; letter-spacing:1px;
+  color:var(--white);
+  text-shadow:0 2px 10px rgba(0,0,0,.9), 0 0 30px rgba(0,0,0,.6);
+  opacity:0; transition:opacity 700ms ease;
+}
+#subtitle.on{ opacity:1; }
+
+/* =========================================================================
+   偽カーソル
+   ========================================================================= */
+#cursor{
+  position:absolute; z-index:90;
+  /* 初期位置は右下の枠外（1920x1080 + 60px）。JS 起動前に左上へ映り込まないように */
+  left:1980px; top:1140px;
+  width:var(--cursor-size); height:var(--cursor-size);
+  pointer-events:none;
+  /* 矢印の先端（viewBox上 4,2.5）を変形の原点＝ホットスポットにする */
+  transform-origin:16.67% 10.42%;
+  filter:drop-shadow(0 3px 6px rgba(0,0,0,.6));
+  transition:left var(--cursor-move,2000ms) cubic-bezier(.5,0,.2,1),
+             top  var(--cursor-move,2000ms) cubic-bezier(.5,0,.2,1),
+             opacity 300ms ease;
+}
+#cursor svg{ width:100%; height:100%; display:block; }
+#cursor.no-anim{ transition:none; }
+#cursor.hidden{ opacity:0; }
+#cursor.click{ animation:cursorClick 260ms ease; }
+@keyframes cursorClick{
+  0%{ transform:scale(1); } 40%{ transform:scale(.8); } 100%{ transform:scale(1); }
+}
+
+/* 透かし（CONFIG.watermark.show が true のときだけ表示） */
+#watermark{
+  position:absolute; right:40px; bottom:32px; z-index:95;
+  font-size:24px; color:rgba(255,255,255,.75);
+  text-shadow:0 2px 8px rgba(0,0,0,.8);
+  display:none;
+}
+</style>
+</head>
+<body>
+
+<div id="stage">
+  <!-- Scene 1: プロフィール選択 -->
+  <section class="scene" id="scene1">
+    <div class="wrap">
+      <h1 class="title" id="s1title"></h1>
+      <div class="profiles" id="profiles"></div>
+      <div class="tag" id="s1tag"></div>
+    </div>
+  </section>
+
+  <!-- Scene 2: ローディング -->
+  <section class="scene" id="scene2">
+    <div class="wrap">
+      <div class="slot thumb" id="loadThumb" data-ph="LOADING"></div>
+      <div class="spinner"></div>
+    </div>
+  </section>
+
+  <!-- Scene 3: 作品詳細ページ -->
+  <section class="scene" id="scene3">
+    <div id="hero"></div>
+    <div class="scrim-l"></div>
+    <div class="scrim-b"></div>
+    <div class="scrim-t"></div>
+
+    <header id="topbar">
+      <div class="badge"></div>
+      <nav id="nav"></nav>
+    </header>
+
+    <div id="detail">
+      <div class="logo rise" id="logoText"></div>
+      <div class="synopsis rise" id="synopsis"></div>
+      <div class="buttons rise">
+        <div class="btn play" id="btnPlay"><span class="ico">&#9654;</span><span>再生</span></div>
+        <div class="btn list"><span class="ico">&#43;</span><span>マイリスト</span></div>
+      </div>
+    </div>
+
+    <div id="more" class="rise">
+      <h2>More Like This</h2>
+      <div class="row" id="moreRow"></div>
+    </div>
+  </section>
+
+  <!-- Scene 4: 本編再生 -->
+  <section class="scene" id="scene4">
+    <div class="slot" id="videoSlot" data-ph="本編動画"></div>
+    <div id="subtitle"></div>
+  </section>
+
+  <!-- 偽カーソル -->
+  <div id="cursor">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 2.5 L4 18 L8 14 L11 20.5 L13.5 19.3 L10.5 13 L16 13 Z"
+            fill="#fff" stroke="#000" stroke-width="1" stroke-linejoin="round"/>
+    </svg>
+  </div>
+
+  <div id="watermark"></div>
+</div>
+
+<script>
+/* =========================================================================
+   CONFIG — 差し替えはここだけ触ればよい
+   ========================================================================= */
+const CONFIG = {
+  // 全体タイムライン（ミリ秒）。ここを変えるだけで尺・間を調整できる
+  timeline: {
+    holdMs:          800,   // 開始待機
+    cursorMoveMs:   2000,   // カーソル移動時間（Scene1）
+    hoverAtMs:      2800,   // ホバー演出発火（＝移動到着）
+    clickAtMs:      3300,   // クリック演出
+    loadingStartMs: 3600,   // ローディング開始（黒転）
+    loadingDurMs:   1400,   // ローディング表示時間（= detailStartMs - loadingStartMs）
+    detailStartMs:  5000,   // 詳細ページ表示開始
+    playCursorMs:  11500,   // カーソルが「再生」へ移動開始
+    playClickMs:   12800,   // 「再生」クリック
+    playbackMs:    13000,   // 本編再生に切替
+    endMs:         15000,   // 終了（このあとは本編ホールド）
+
+    // 補助（演出の質感まわり）
+    playCursorMoveMs: 1100, // Scene3 でカーソルが再生ボタンへ移動する時間
+    fadeMs:            600, // シーン間クロスフェード時間
+  },
+
+  // Scene 1: プロフィール
+  title: 'Happy wedding',
+  bottomTag: 'MEMORIES FAVORITE',
+  profiles: [
+    { name: "yoshito's story", img: 'assets/profile-1.jpg' },
+    { name: "Chisato's Story", img: 'assets/profile-2.jpg', target: true }, // ← 自動選択
+    { name: 'Our Story',       img: 'assets/profile-3.jpg' },
+    { name: 'How we met',      img: 'assets/profile-4.jpg' },
+  ],
+
+  // Scene 2: ローディング
+  loadingThumb: 'assets/loading-thumb.jpg',
+
+  // Scene 3: 作品詳細ページ
+  detail: {
+    logoText: "Chisato's story",
+    synopsis: [
+      '始まりは何気ない出逢い',
+      '見た目も年齢も違うからこそ惹かれ合った二人',
+      '沢山の思い出を重ねて今日、夫婦になります',
+    ],
+    nav: ['Vlogs', 'TV Shows', 'Movies'],
+    heroSlides: ['assets/hero-1.jpg','assets/hero-2.jpg','assets/hero-3.jpg','assets/hero-4.jpg'],
+    heroSlideMs: 2000, // 1枚あたりの表示時間（クロスフェード）
+    moreLikeThis: ['assets/thumb-1.jpg','assets/thumb-2.jpg','assets/thumb-3.jpg','assets/thumb-4.jpg'],
+  },
+
+  // Scene 4: 本編
+  playback: {
+    video: 'assets/main-video.mp4',
+    subtitle: '生まれ育った場所から、今日まで。',
+  },
+
+  // 透かし（お手本の @yoof568 は他人の作品なので使わない。自分の名前か、非表示に）
+  watermark: { show: false, handle: '@yourname' },
+
+  // 再生方法
+  loop: false,   // true にすると自動でループ（再撮り用）
+};
+
+/* =========================================================================
+   ここから下は基本的に触らなくてよい
+   ========================================================================= */
+(function(){
+'use strict';
+
+const DESIGN_W = 1920, DESIGN_H = 1080;
+const T = CONFIG.timeline;
+const $ = (id) => document.getElementById(id);
+
+const stage    = $('stage');
+const scenes   = { 1:$('scene1'), 2:$('scene2'), 3:$('scene3'), 4:$('scene4') };
+const cursor   = $('cursor');
+const subtitle = $('subtitle');
+
+/* ---------- 画面フィット（1920x1080 を transform:scale で収める） ---------- */
+let scaleK = 1;
+function fit(){
+  scaleK = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
+  stage.style.transform = 'translate(-50%,-50%) scale(' + scaleK + ')';
+}
+window.addEventListener('resize', fit);
+fit();
+
+/* ---------- 画像スロット生成（プレースホルダー付き） ---------- */
+function fillSlot(slotEl, src, label){
+  slotEl.dataset.ph = label;
+  const img = document.createElement('img');
+  img.alt = '';
+  img.addEventListener('error', () => { img.classList.add('failed'); });
+  if (src) { img.src = src; } else { img.classList.add('failed'); }
+  slotEl.appendChild(img);
+  return slotEl;
+}
+function makeSlot(src, label, className){
+  const d = document.createElement('div');
+  d.className = 'slot' + (className ? ' ' + className : '');
+  return fillSlot(d, src, label);
+}
+
+/* =========================================================================
+   DOM の組み立て（すべて CONFIG から）
+   ========================================================================= */
+
+// --- Scene 1 ---
+$('s1title').textContent = CONFIG.title;
+$('s1tag').textContent   = CONFIG.bottomTag;
+
+const profilesEl = $('profiles');
+const profileEls = [];
+let targetProfileEl = null;
+CONFIG.profiles.forEach((p, i) => {
+  const el = document.createElement('div');
+  el.className = 'profile';
+  const icon = makeSlot(p.img, 'PROFILE ' + (i + 1), 'icon');
+  const name = document.createElement('div');
+  name.className = 'name';
+  name.textContent = p.name;
+  el.appendChild(icon);
+  el.appendChild(name);
+  profilesEl.appendChild(el);
+  profileEls.push(el);
+  if (p.target && !targetProfileEl) targetProfileEl = el;
+});
+if (!targetProfileEl) targetProfileEl = profileEls[Math.min(1, profileEls.length - 1)];
+
+// --- Scene 2 ---
+fillSlot($('loadThumb'), CONFIG.loadingThumb, 'LOADING');
+
+// --- Scene 3 ---
+$('nav').innerHTML = '';
+CONFIG.detail.nav.forEach(label => {
+  const s = document.createElement('span');
+  s.textContent = label;
+  $('nav').appendChild(s);
+});
+
+$('logoText').textContent = CONFIG.detail.logoText;
+
+const synEl = $('synopsis');
+CONFIG.detail.synopsis.forEach(line => {
+  const d = document.createElement('div');
+  d.textContent = line;
+  synEl.appendChild(d);
+});
+
+// ヒーロー背景（枚数可変。0枚ならプレースホルダー1枚）
+const heroEl = $('hero');
+const heroSrcs = (CONFIG.detail.heroSlides && CONFIG.detail.heroSlides.length)
+  ? CONFIG.detail.heroSlides : [null];
+const heroLayers = heroSrcs.map((src, i) => {
+  const layer = makeSlot(src, 'HERO ' + (i + 1), 'layer');
+  heroEl.appendChild(layer);
+  return layer;
+});
+
+// More Like This
+const moreRow = $('moreRow');
+(CONFIG.detail.moreLikeThis || []).forEach((src, i) => {
+  moreRow.appendChild(makeSlot(src, 'THUMB ' + (i + 1)));
+});
+
+// --- Scene 4 ---
+const videoSlot = $('videoSlot');
+let videoEl = null;
+if (CONFIG.playback.video){
+  videoEl = document.createElement('video');
+  videoEl.muted = true;
+  videoEl.defaultMuted = true;
+  videoEl.loop = true;
+  videoEl.playsInline = true;
+  videoEl.setAttribute('muted', '');
+  videoEl.setAttribute('playsinline', '');
+  videoEl.setAttribute('preload', 'auto');
+  videoEl.addEventListener('error', () => videoEl.classList.add('failed'));
+  videoEl.src = CONFIG.playback.video;
+  scenes[4].insertBefore(videoEl, subtitle);
+}
+subtitle.textContent = CONFIG.playback.subtitle;
+
+// --- 透かし ---
+if (CONFIG.watermark && CONFIG.watermark.show){
+  $('watermark').textContent = CONFIG.watermark.handle;
+  $('watermark').style.display = 'block';
+}
+
+// --- CSS 変数へタイムライン値を反映（ハードコードしない） ---
+stage.style.setProperty('--fade', T.fadeMs + 'ms');
+
+// loadingDurMs は loadingStartMs と detailStartMs の差と一致している必要がある。
+// 秒数を調整したときの取りこぼしに気づけるよう、ズレていたら警告する。
+if (T.loadingStartMs + T.loadingDurMs !== T.detailStartMs){
+  console.warn(
+    '[CONFIG.timeline] loadingDurMs が detailStartMs - loadingStartMs と一致していません。' +
+    ' 実際のローディング表示時間は ' + (T.detailStartMs - T.loadingStartMs) + 'ms です。'
+  );
+}
+
+/* =========================================================================
+   偽カーソル
+   ========================================================================= */
+const CURSOR_PX  = parseFloat(getComputedStyle(document.documentElement)
+                     .getPropertyValue('--cursor-size')) || 52;
+// SVG viewBox(24) 上の矢印先端 (4, 2.5) を実サイズに換算したホットスポット
+const HOT_X = CURSOR_PX * 4   / 24;
+const HOT_Y = CURSOR_PX * 2.5 / 24;
+
+// 開始位置：画面右下の枠外
+const HOME_X = DESIGN_W + 60;
+const HOME_Y = DESIGN_H + 60;
+
+function cursorTo(x, y, durationMs){
+  cursor.style.setProperty('--cursor-move', durationMs + 'ms');
+  cursor.style.left = (x - HOT_X) + 'px';
+  cursor.style.top  = (y - HOT_Y) + 'px';
+}
+function cursorHome(){
+  cursor.classList.add('no-anim');
+  cursor.classList.remove('hidden', 'click');
+  cursor.style.left = HOME_X + 'px';
+  cursor.style.top  = HOME_Y + 'px';
+  void cursor.offsetWidth;           // 強制リフロー（次の移動でアニメが効くように）
+  cursor.classList.remove('no-anim');
+}
+function cursorClick(){
+  cursor.classList.remove('click');
+  void cursor.offsetWidth;
+  cursor.classList.add('click');
+}
+
+// 要素中心をデザイン座標（1920x1080）で取得
+function centerOf(el){
+  const r = el.getBoundingClientRect();
+  const s = stage.getBoundingClientRect();
+  return {
+    x: (r.left + r.width  / 2 - s.left) / scaleK,
+    y: (r.top  + r.height / 2 - s.top ) / scaleK
+  };
+}
+
+/* =========================================================================
+   ヒーロー背景のスライドショー
+   ========================================================================= */
+let heroIdx = 0, heroTimer = null;
+function startHero(){
+  stopHero();
+  heroIdx = 0;
+  heroLayers.forEach((l, i) => l.classList.toggle('on', i === 0));
+  if (heroLayers.length > 1){
+    heroTimer = setInterval(() => {
+      heroLayers[heroIdx].classList.remove('on');
+      heroIdx = (heroIdx + 1) % heroLayers.length;
+      heroLayers[heroIdx].classList.add('on');
+    }, CONFIG.detail.heroSlideMs);
+  }
+}
+function stopHero(){
+  if (heroTimer){ clearInterval(heroTimer); heroTimer = null; }
+}
+
+/* =========================================================================
+   シーン制御
+   ========================================================================= */
+function showScene(n){
+  for (const k in scenes) scenes[k].classList.toggle('on', Number(k) === n);
+}
+
+/* =========================================================================
+   タイムライン（すべて CONFIG.timeline 参照）
+   ========================================================================= */
+let timers = [];
+function at(ms, fn){ timers.push(setTimeout(fn, ms)); }
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+
+function reset(){
+  clearTimers();
+  stopHero();
+
+  profileEls.forEach(el => el.classList.remove('selected', 'pressed'));
+  $('btnPlay').classList.remove('hover', 'pressed');
+  subtitle.classList.remove('on');
+  heroLayers.forEach(l => l.classList.remove('on'));
+
+  if (videoEl){ try{ videoEl.pause(); videoEl.currentTime = 0; }catch(e){} }
+
+  // rise 系の入場アニメをやり直せるように scene3 を一旦オフに
+  showScene(1);
+  cursorHome();
+}
+
+function play(){
+  reset();
+
+  // 0ms — Scene1 表示（reset 済み）、カーソルは右下枠外
+
+  // holdMs — ターゲットのプロフィールへ移動開始
+  at(T.holdMs, () => {
+    const c = centerOf(targetProfileEl.querySelector('.icon'));
+    cursorTo(c.x, c.y, T.cursorMoveMs);
+  });
+
+  // hoverAtMs — 到着＝ホバー（選択）演出
+  at(T.hoverAtMs, () => targetProfileEl.classList.add('selected'));
+
+  // clickAtMs — クリック演出
+  at(T.clickAtMs, () => {
+    cursorClick();
+    targetProfileEl.classList.add('pressed');
+    timers.push(setTimeout(() => targetProfileEl.classList.remove('pressed'), 160));
+  });
+
+  // loadingStartMs — Scene2 へ（黒転＋サムネ＋スピナー）
+  at(T.loadingStartMs, () => {
+    cursor.classList.add('hidden');
+    showScene(2);
+  });
+
+  // detailStartMs — Scene3 へ（詳細ページ、背景スライド開始）
+  at(T.detailStartMs, () => {
+    showScene(3);
+    startHero();
+  });
+
+  // playCursorMs — カーソルが「再生」ボタンへ
+  at(T.playCursorMs, () => {
+    // 左下の枠外から入ってくるように一度だけ位置をリセット
+    cursor.classList.add('no-anim');
+    cursor.style.left = (DESIGN_W * 0.62) + 'px';
+    cursor.style.top  = (DESIGN_H + 60)   + 'px';
+    void cursor.offsetWidth;
+    cursor.classList.remove('no-anim', 'hidden');
+
+    const c = centerOf($('btnPlay'));
+    cursorTo(c.x, c.y, T.playCursorMoveMs);
+    timers.push(setTimeout(() => $('btnPlay').classList.add('hover'), T.playCursorMoveMs));
+  });
+
+  // playClickMs — 「再生」クリック
+  at(T.playClickMs, () => {
+    cursorClick();
+    $('btnPlay').classList.add('pressed');
+    timers.push(setTimeout(() => $('btnPlay').classList.remove('pressed'), 160));
+  });
+
+  // playbackMs — Scene4 へ（本編＋字幕）
+  at(T.playbackMs, () => {
+    cursor.classList.add('hidden');
+    showScene(4);
+    stopHero();
+    if (videoEl){
+      const p = videoEl.play();
+      if (p && p.catch) p.catch(() => {});   // 自動再生が拒否されても止めない
+    }
+    timers.push(setTimeout(() => subtitle.classList.add('on'), T.fadeMs));
+  });
+
+  // endMs — 終了。loop:true なら最初から
+  at(T.endMs, () => { if (CONFIG.loop) play(); });
+}
+
+/* ---------- 再撮り用 QoL：R キー／クリックで最初から ---------- */
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'r' || e.key === 'R') play();
+});
+window.addEventListener('click', () => play());
+
+/* ---------- 起動（load を起点に1回だけ） ---------- */
+let started = false;
+function boot(){
+  if (started) return;
+  started = true;
+  fit();
+  play();
+}
+window.addEventListener('load', boot);
+if (document.readyState === 'complete') boot();
+
+})();
+</script>
+</body>
+</html>
