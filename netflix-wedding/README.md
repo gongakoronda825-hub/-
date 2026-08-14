@@ -81,9 +81,16 @@ URL をスマホで開いて確認する用です。Artifact には `assets/` �
 
 文言も同じく `CONFIG` の中です。
 
-- あらすじ … `CONFIG.detail.synopsis`（3行）
+- あらすじ … `CONFIG.detail.synopsis`（行数可変。`''` を挟むとそこが段落の切れ目になります）
 - 本編の字幕 … `CONFIG.playback.subtitle`
 - タイトル・プロフィール名 … `CONFIG.title` / `CONFIG.profiles`
+
+あらすじの行が長いと自動で折り返します。折り返しは文節の切れ目で起きるので
+（`word-break: auto-phrase`）、「これから／の人生」のような不自然な分かれ方はしません。
+行を増やしすぎると More Like This に近づくので、増やしたときは表示を確認してください。
+
+色は `index.html` 冒頭のカラートークンにまとまっています。
+プロフィール選択画面の背景は `--bg`（現在 `#020D06` の深い緑がかった黒）です。
 
 背景スライドを増やしたいときは `CONFIG.detail.heroSlides` に追記してください。枚数可変で動きます。
 

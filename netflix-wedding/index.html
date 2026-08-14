@@ -13,8 +13,9 @@
    ========================================================================= */
 
 :root{
-  /* --- カラートークン（仕様書 4） --- */
-  --bg:        #141414;
+  /* --- カラートークン --- */
+  /* プロフィール選択画面の背景。深い緑がかった黒。ここ1か所で変えられる */
+  --bg:        #020D06;
   --black:     #000000;
   --red:       #E50914;
   --white:     #FFFFFF;
@@ -226,17 +227,27 @@ body{
 }
 #detail .logo{
   font-family:var(--serif); font-style:italic; font-weight:700;
-  font-size:76px; letter-spacing:.5px; color:var(--white);
+  font-size:72px; letter-spacing:.5px; color:var(--white);
   text-shadow:0 3px 18px rgba(0,0,0,.7);
   margin:22px 0 0;
 }
 #detail .synopsis{
-  margin-top:26px;
-  font-family:var(--jp); font-size:34px; line-height:2.1;
+  margin-top:22px;
+  font-family:var(--jp); font-size:26px; line-height:1.85;
   color:var(--white); text-shadow:0 2px 12px rgba(0,0,0,.75);
 }
+/* 長い行が折り返すときの見え方。
+   auto-phrase は文節の切れ目で折り返すので「これから／の人生」のような
+   不自然な分かれ方をしない（Chrome 向け。非対応ブラウザは通常の折り返し）。
+   balance は折り返した行の長さを揃える。 */
+#detail .synopsis > div{
+  word-break:auto-phrase;
+  text-wrap:balance;
+}
+/* CONFIG の空文字 '' が作る段落の余白 */
+#detail .synopsis .para-gap{ height:.8em; }
 #detail .buttons{
-  margin-top:36px; display:flex; align-items:center; gap:18px;
+  margin-top:30px; display:flex; align-items:center; gap:18px;
 }
 .btn{
   display:inline-flex; align-items:center; gap:12px;
@@ -252,7 +263,7 @@ body{
 
 /* More Like This */
 #more{
-  position:absolute; left:66px; right:66px; bottom:74px;
+  position:absolute; left:66px; right:66px; bottom:64px;
 }
 #more h2{
   margin:0 0 26px;
@@ -437,10 +448,13 @@ const CONFIG = {
   // Scene 3: 作品詳細ページ
   detail: {
     logoText: "Chisato's story",
+    // 空文字 '' を入れると、そこが段落の切れ目（1行分より狭い余白）になる
     synopsis: [
-      '始まりは何気ない出逢い',
-      '見た目も年齢も違うからこそ惹かれ合った二人',
-      '沢山の思い出を重ねて今日、夫婦になります',
+      '東京で出会った2人。',
+      '今日は、妻の故郷・岡山でウェディングフォトを撮ります。',
+      '',
+      '2人の物語が始まったのは東京。',
+      'そして今日、妻が育った大切な場所で、これからの人生を誓うように、一枚の写真を残します。',
     ],
     nav: ['Vlogs', 'TV Shows', 'Movies'],
     heroSlides: ['assets/hero-1.jpg','assets/hero-2.jpg','assets/hero-3.jpg','assets/hero-4.jpg'],
@@ -572,7 +586,11 @@ $('logoText').textContent = CONFIG.detail.logoText;
 const synEl = $('synopsis');
 CONFIG.detail.synopsis.forEach(line => {
   const d = document.createElement('div');
-  d.textContent = line;
+  if (line === ''){
+    d.className = 'para-gap';        // 空文字は段落の切れ目として扱う
+  } else {
+    d.textContent = line;
+  }
   synEl.appendChild(d);
 });
 
