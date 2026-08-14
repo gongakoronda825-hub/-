@@ -1,5 +1,6 @@
 /*
- * index.html から、claude.ai の Artifact として公開できる形を生成する。
+ * games/ultimate-choice/index.html から、claude.ai の Artifact として
+ * 公開できる形を生成する。
  *
  * Artifact は <!doctype html><head></head><body> の骨組みで包まれるので、
  * こちらの doctype / html / head / body タグは取り除く必要がある。
@@ -11,7 +12,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const src = fs.readFileSync(path.join(__dirname, 'index.html'), 'utf8');
+const src = fs.readFileSync(
+  path.join(__dirname, 'games', 'ultimate-choice', 'index.html'), 'utf8');
 let out = src;
 
 const cut = (re, label) => {

@@ -1,11 +1,27 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>究極の選択</title>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+
 <style>
+/* PixelMplus をCDNから。取得できない場合は DotGothic16 → monospace へ自動フォールバック */
+@font-face{
+  font-family:'PixelMplus12';
+  src:url('https://cdn.jsdelivr.net/gh/itouhiro/PixelMplus@master/PixelMplus12-Regular.ttf') format('truetype');
+  font-display:swap;
+}
+
 html,body{
   margin:0; padding:0; height:100%;
   background:#07060d;
   color:#8a8fa3;
-  font-family:ui-monospace,'SFMono-Regular',Menlo,'MS Gothic',monospace;
+  font-family:'PixelMplus12','DotGothic16','MS Gothic',monospace;
   overflow:hidden;
   -webkit-tap-highlight-color:transparent;
   -webkit-text-size-adjust:100%;
@@ -76,6 +92,14 @@ html.js #nojs{ display:none; }
 #hint b{color:#7d84a0; font-weight:normal;}
 @media (pointer:coarse){ #hint{ font-size:10px; } }
 </style>
+</head>
+<body>
+
+<div id="nojs">
+  ⚠ このページのスクリプトが実行されていません。<br>
+  ファイルを Safari や Chrome などのブラウザで直接開いてください。<br>
+  （アプリ内のファイルプレビューではJavaScriptが止められることがあります）
+</div>
 <div id="errbox"></div>
 
 <!-- 本体より先に読み込み、あとの構文エラーも拾えるようにしておく -->
@@ -452,7 +476,7 @@ function panel(x, y, w, h){
 /* ------------------------------------------------------------
    フォント
    ------------------------------------------------------------ */
-const FONT = '"SFMono-Regular",Menlo,"MS Gothic",monospace';
+const FONT = '"PixelMplus12","DotGothic16","MS Gothic",monospace';
 function setFont(px, weight){ ctx.font = (weight ? weight + ' ' : '') + px + 'px ' + FONT; }
 
 // 行頭に来てはいけない文字（禁則処理）
@@ -1375,5 +1399,25 @@ requestAnimationFrame(resize);   // パッド描画後の実寸で測り直す
 last = performance.now();
 requestAnimationFrame(frame);
 
-// Artifact では外部フォントを読まないため、フォント待ちの処理は無い
+try {
+  if (document.fonts && document.fonts.load){
+    document.fonts.load('12px "PixelMplus12"').catch(() => {});
+    document.fonts.load('12px "DotGothic16"').catch(() => {});
+    document.fonts.load('30px "DotGothic16"').catch(() => {});
+  }
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(() => {
+      // フォント差し替えで文字幅が変わるので、表示中の行を折り直す
+      if (G.curText && G.lines.length){
+        setFont(12);
+        G.lines = wrap(G.curText, 218);
+        G.totalChars = G.lines.reduce((a, l) => a + l.length, 0);
+        if (G.finished) G.revealed = G.totalChars;
+      }
+      resize();
+    }).catch(() => {});
+  }
+} catch (e){ /* フォールバックのまま続行 */ }
 </script>
+</body>
+</html>

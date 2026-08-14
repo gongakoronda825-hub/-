@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ゲームを投稿する — あそびば</title>
+<meta name="color-scheme" content="light dark">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23ff4d6a'/><path d='M12 9v14l11-7z' fill='%23fff'/></svg>">
+<link rel="stylesheet" href="assets/css/app.css">
+<script src="data/catalog.js"></script>
+<script src="assets/js/store.js"></script>
+<script src="assets/js/ui.js"></script>
+</head>
+<body>
+<main class="page form-page">
+  <h1>ゲームを投稿する</h1>
+  <p class="lede">HTMLが1枚あれば投稿できます。審査も開発者登録もありません。</p>
+
+  <section class="step">
+    <h2><span class="num">1</span>ゲームのファイルを選ぶ</h2>
+    <p class="hint">1ファイルで完結した HTML（外部ファイルを読まないもの）を選んでください。</p>
+
+    <div class="dropzone" id="dropzone" tabindex="0" role="button"
+         aria-label="HTMLファイルを選ぶ">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"
+           stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M12 16V4m0 0L7.5 8.5M12 4l4.5 4.5"/>
+        <path d="M4 15v3.5a1.5 1.5 0 0 0 1.5 1.5h13a1.5 1.5 0 0 0 1.5-1.5V15"/>
+      </svg>
+      <strong>ここに HTML ファイルをドロップ</strong>
+      <small>またはクリックして選ぶ</small>
+    </div>
+    <input type="file" id="file" accept=".html,.htm,text/html" class="visually-hidden">
+  </section>
+
+  <section class="step" id="step-preview" hidden>
+    <h2><span class="num">2</span>その場で遊んでみる</h2>
+    <p class="hint">投稿する前に、ここで動くか確かめられます。</p>
+    <div class="filerow" id="filerow"></div>
+    <div class="preview-frame"><iframe id="preview" title="プレビュー"
+      sandbox="allow-scripts allow-pointer-lock allow-modals allow-forms allow-popups"
+      allow="fullscreen; autoplay; gamepad; accelerometer; gyroscope"></iframe></div>
+    <div class="note" style="margin-top:14px">
+      <p>プレビューは安全のため隔離して動かしています。セーブ機能（localStorage）を使うゲームは、
+        ここでは保存だけが効きません。公開したあとは普通に動きます。</p>
+    </div>
+  </section>
+
+  <section class="step" id="step-form" hidden>
+    <h2><span class="num">3</span>ゲームの情報を書く</h2>
+    <p class="hint">ここに書いた内容が、フィードと詳細ページに出ます。</p>
+
+    <div class="field">
+      <label for="f-title">タイトル<span aria-hidden="true"> *</span></label>
+      <input id="f-title" name="title" required maxlength="60" placeholder="例: 究極の選択">
+    </div>
+
+    <div class="field">
+      <label for="f-tagline">一言説明</label>
+      <input id="f-tagline" maxlength="80" placeholder="例: 悪魔に取引を持ちかけられる、ドット絵RPG風の1シーン。">
+      <span class="help">フィードのカードには出ませんが、詳細ページの見出し下に出ます。</span>
+    </div>
+
+    <div class="field">
+      <label for="f-desc">説明</label>
+      <textarea id="f-desc" placeholder="どんなゲームか、どう遊ぶと面白いか。空行で段落が分かれます。"></textarea>
+    </div>
+
+    <div class="field">
+      <label>カテゴリ</label>
+      <div class="checkchips" id="f-categories"></div>
+    </div>
+
+    <div class="field">
+      <label for="f-tags">タグ</label>
+      <input id="f-tags" placeholder="ドット絵, ノベル, ショート">
+      <span class="help">カンマ区切り。フィードでの絞り込みに使われます。</span>
+    </div>
+
+    <div class="field-row">
+      <div class="field">
+        <label for="f-orientation">画面の向き</label>
+        <select id="f-orientation">
+          <option value="any">縦でも横でも</option>
+          <option value="landscape">横画面用</option>
+          <option value="portrait">縦画面用</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-playtime">プレイ時間</label>
+        <input id="f-playtime" maxlength="20" placeholder="5分ほど">
+      </div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn btn-primary btn-lg" id="submit" type="button">この端末に追加して遊ぶ</button>
+      <button class="btn btn-lg" id="publish" type="button">みんなに公開する手順を見る</button>
+    </div>
+    <p class="help muted" style="margin-top:12px">
+      「この端末に追加」は、あなたのブラウザの中だけに保存されます。ほかの人には見えません。
+      本当に公開するには、右のボタンの手順でリポジトリに置いてください。
+    </p>
+  </section>
+
+  <section class="step" id="step-publish" hidden>
+    <h2><span class="num">4</span>みんなに公開する</h2>
+    <p class="hint">この4手順でフィードに載ります。</p>
+    <div id="publish-body"></div>
+  </section>
+
+  <section class="step" id="step-local" hidden>
+    <h2>この端末に置いたゲーム</h2>
+    <p class="hint">あなたのブラウザにだけ保存されています。</p>
+    <ul class="local-list" id="local-list"></ul>
+  </section>
+</main>
+<script src="assets/js/upload.js"></script>
+</body>
+</html>
