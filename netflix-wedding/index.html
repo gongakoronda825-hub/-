@@ -2,8 +2,8 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Happy wedding — オープニングUI</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>Happy wedding</title>
 <style>
 /* =========================================================================
    Netflix風ウェディング オープニングUI
@@ -38,14 +38,26 @@
 }
 
 *{ box-sizing:border-box; }
-html,body{
-  margin:0; padding:0; width:100%; height:100%;
+html{
+  height:100%;
+  /* iOS Safari が横向きで文字サイズを勝手に拡大するのを防ぐ */
+  -webkit-text-size-adjust:100%;
+}
+body{
+  /* スマホでのラバーバンド・スクロールを止めて固定表示にする */
+  position:fixed; inset:0;
+  margin:0; padding:0;
   background:var(--black); overflow:hidden;
+  overscroll-behavior:none;
+  touch-action:manipulation;              /* ダブルタップ拡大を無効化 */
+  -webkit-tap-highlight-color:transparent;
+  user-select:none; -webkit-user-select:none;
   font-family:var(--ui); color:var(--white);
   -webkit-font-smoothing:antialiased;
 }
 
-/* デザイン基準 1920x1080 の固定ステージ。JSが scale して画面にフィットさせる */
+/* デザイン基準 1920x1080 の固定ステージ。JSが scale して画面にフィットさせる。
+   スマホの縦持ちでは JS が rotate(90deg) を足して画面いっぱいに表示する。 */
 #stage{
   position:fixed; left:50%; top:50%;
   width:1920px; height:1080px;
@@ -447,6 +459,13 @@ const CONFIG = {
 
   // 再生方法
   loop: false,   // true にすると自動でループ（再撮り用）
+
+  // スマホ表示
+  mobile: {
+    // 縦持ちのとき画面を90度回して全画面に表示する（iPhoneで見るとき用）。
+    // false にすると縦持ちでは中央に小さく表示される。
+    autoRotateOnPortrait: true,
+  },
 };
 
 /* =========================================================================
@@ -464,13 +483,35 @@ const scenes   = { 1:$('scene1'), 2:$('scene2'), 3:$('scene3'), 4:$('scene4') };
 const cursor   = $('cursor');
 const subtitle = $('subtitle');
 
-/* ---------- 画面フィット（1920x1080 を transform:scale で収める） ---------- */
-let scaleK = 1;
+/* ---------- 画面フィット（1920x1080 を transform で画面に収める） ----------
+   縦持ちのスマホでは 90 度回転させて全画面に表示する。
+   画面の回転をロックしていても横向きの映像として大きく見られる。 */
+const AUTO_ROTATE = !!(CONFIG.mobile && CONFIG.mobile.autoRotateOnPortrait);
+
 function fit(){
-  scaleK = Math.min(window.innerWidth / DESIGN_W, window.innerHeight / DESIGN_H);
-  stage.style.transform = 'translate(-50%,-50%) scale(' + scaleK + ')';
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const rotated = AUTO_ROTATE && vh > vw;
+
+  // 回転させる場合は縦横を入れ替えて収まる倍率を求める
+  const availW = rotated ? vh : vw;
+  const availH = rotated ? vw : vh;
+  const k = Math.min(availW / DESIGN_W, availH / DESIGN_H);
+
+  stage.style.transform =
+    'translate(-50%,-50%)' + (rotated ? ' rotate(90deg)' : '') + ' scale(' + k + ')';
 }
-window.addEventListener('resize', fit);
+
+// iOS はアドレスバーの開閉や向きの変更で寸法が遅れて確定するため、少し待ってからも測り直す
+let refitTimer = null;
+function refit(){
+  fit();
+  clearTimeout(refitTimer);
+  refitTimer = setTimeout(fit, 300);
+}
+window.addEventListener('resize', refit);
+window.addEventListener('orientationchange', refit);
+if (window.visualViewport) window.visualViewport.addEventListener('resize', refit);
 fit();
 
 /* ---------- 画像スロット生成（プレースホルダー付き） ---------- */
@@ -562,6 +603,7 @@ if (CONFIG.playback.video){
   videoEl.playsInline = true;
   videoEl.setAttribute('muted', '');
   videoEl.setAttribute('playsinline', '');
+  videoEl.setAttribute('webkit-playsinline', '');   // 古い iOS 対策
   videoEl.setAttribute('preload', 'auto');
   videoEl.addEventListener('error', () => videoEl.classList.add('failed'));
   videoEl.src = CONFIG.playback.video;
@@ -619,14 +661,17 @@ function cursorClick(){
   cursor.classList.add('click');
 }
 
-// 要素中心をデザイン座標（1920x1080）で取得
+// 要素中心をデザイン座標（1920x1080）で取得する。
+// getBoundingClientRect はステージの拡大縮小・回転の影響を受けるので、
+// レイアウト上のオフセットを #stage まで積み上げて求める。
 function centerOf(el){
-  const r = el.getBoundingClientRect();
-  const s = stage.getBoundingClientRect();
-  return {
-    x: (r.left + r.width  / 2 - s.left) / scaleK,
-    y: (r.top  + r.height / 2 - s.top ) / scaleK
-  };
+  let x = 0, y = 0, n = el;
+  while (n && n !== stage){
+    x += n.offsetLeft;
+    y += n.offsetTop;
+    n = n.offsetParent;
+  }
+  return { x: x + el.offsetWidth / 2, y: y + el.offsetHeight / 2 };
 }
 
 /* =========================================================================
@@ -749,11 +794,25 @@ function play(){
   at(T.endMs, () => { if (CONFIG.loop) play(); });
 }
 
-/* ---------- 再撮り用 QoL：R キー／クリックで最初から ---------- */
+/* ---------- 本編動画の再生解除（iOS 低電力モード対策） ----------
+   iOS は muted + playsinline なら自動再生できるが、低電力モードでは止められる。
+   最初のタップ（＝ユーザー操作）のうちに一度 play() を通しておくと、
+   13秒後の Scene 4 でも確実に再生できる。 */
+let videoUnlocked = false;
+function unlockVideo(){
+  if (videoUnlocked || !videoEl) return;
+  videoUnlocked = true;
+  const p = videoEl.play();
+  if (p && p.then){
+    p.then(() => { videoEl.pause(); videoEl.currentTime = 0; }).catch(() => {});
+  }
+}
+
+/* ---------- 再撮り用 QoL：R キー／クリック・タップで最初から ---------- */
 window.addEventListener('keydown', (e) => {
   if (e.key === 'r' || e.key === 'R') play();
 });
-window.addEventListener('click', () => play());
+window.addEventListener('click', () => { unlockVideo(); play(); });
 
 /* ---------- 起動（load を起点に1回だけ） ---------- */
 let started = false;
