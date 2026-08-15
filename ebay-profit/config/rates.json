@@ -1,0 +1,26 @@
+{
+  "_comment": "料率は変動する。初期値はあくまで雛形。設定画面またはこのファイルで現行値に更新すること。",
+  "fx_jpy_per_usd": 150,
+  "fx_updated_at": null,
+  "fx_manual_override": false,
+  "ebay": {
+    "final_value_rate": 0.1325,
+    "category_final_value_rates": {
+      "default": 0.1325,
+      "Cameras & Photo": 0.0935,
+      "Video Games": 0.1325,
+      "Trading Cards": 0.1325,
+      "Musical Instruments": 0.0695,
+      "Watches": 0.15,
+      "Clothing, Shoes & Accessories": 0.1325,
+      "Collectibles": 0.1325,
+      "Toys & Hobbies": 0.1325
+    },
+    "international_fee_rate": 0.0165,
+    "promoted_rate": 0.02,
+    "per_order_fixed_usd": 0.4
+  },
+  "payout_fee_rate": 0.02,
+  "misc_jpy_per_item": 150,
+  "shipping_table_ref": "config/shipping.json"
+}
