@@ -1,0 +1,45 @@
+{
+  "_comment": "総合スコア = 需要×w1 + 利益×w2 + 回転×w3 + 競合×w4 − リスク減点×w5。各サブスコアは 0-100。*_full はそこで 100 点に飽和する基準値。",
+  "weights": {
+    "demand": 0.22,
+    "profit": 0.34,
+    "turnover": 0.18,
+    "competition": 0.14,
+    "risk": 0.12
+  },
+  "demand": {
+    "sold_count_full": 60,
+    "sell_through_full": 1.0
+  },
+  "profit": {
+    "roi_full": 0.6,
+    "profit_jpy_full": 4000,
+    "roi_share": 0.5
+  },
+  "turnover": {
+    "sold_per_month_full": 20
+  },
+  "competition": {
+    "active_listings_full": 300
+  },
+  "risk": {
+    "penalties": {
+      "vero_brand": 60,
+      "cites": 100,
+      "food_cosmetics": 45,
+      "electronics_regulated": 35,
+      "battery": 30,
+      "counterfeit_suspect": 100,
+      "category_restricted": 50,
+      "low_ticket": 20,
+      "thin_margin": 25
+    },
+    "low_ticket_usd": 15,
+    "thin_margin_rate": 0.1
+  },
+  "alerts": {
+    "profit_drop_rate": 0.15,
+    "min_profit_jpy": 500,
+    "min_roi": 0.15
+  }
+}

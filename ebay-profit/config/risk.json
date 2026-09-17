@@ -1,0 +1,60 @@
+{
+  "_comment": "タイトル/カテゴリからリスクフラグを自動サジェストするためのキーワード辞書。自動判定は「候補提示」であり、最終判断は手動チェックで確定させる。",
+  "rules": [
+    {
+      "flag": "vero_brand",
+      "label": "VeRO/ブランド規制の可能性",
+      "hint": "権利者の出品制限プログラム対象になりやすいブランド。真贋証明・並行輸入可否を確認。",
+      "keywords": [
+        "disney", "ディズニー", "nintendo", "任天堂", "pokemon", "ポケモン", "sanrio", "サンリオ",
+        "studio ghibli", "ジブリ", "louis vuitton", "ルイヴィトン", "chanel", "シャネル",
+        "gucci", "グッチ", "hermes", "エルメス", "rolex", "ロレックス", "supreme", "シュプリーム",
+        "bandai", "バンダイ", "square enix", "スクウェア・エニックス", "sony", "ソニー"
+      ]
+    },
+    {
+      "flag": "cites",
+      "label": "ワシントン条約(CITES)該当の可能性",
+      "hint": "象牙・べっ甲・皮革・希少木材等は輸出禁止/許可制。該当すれば取扱不可。",
+      "keywords": [
+        "ivory", "象牙", "tortoise shell", "べっ甲", "鼈甲", "python", "パイソン", "crocodile",
+        "クロコダイル", "alligator", "アリゲーター", "rosewood", "ローズウッド", "紫檀", "coral", "珊瑚", "サンゴ"
+      ]
+    },
+    {
+      "flag": "food_cosmetics",
+      "label": "食品・化粧品・医薬部外品",
+      "hint": "仕向地の輸入規制（FDA等）・成分規制・賞味期限表示に要注意。",
+      "keywords": [
+        "food", "食品", "snack", "お菓子", "supplement", "サプリ", "cosmetic", "化粧品",
+        "skin care", "スキンケア", "shampoo", "シャンプー", "medicine", "医薬", "薬用", "サプリメント", "茶", "tea"
+      ]
+    },
+    {
+      "flag": "electronics_regulated",
+      "label": "電気製品（PSE/技適/電波法）",
+      "hint": "無線機能付き機器・電源アダプタ同梱は仕向地の認証（FCC/CE等）と輸出可否を確認。",
+      "keywords": [
+        "wireless", "無線", "bluetooth", "wi-fi", "wifi", "router", "ルーター", "transceiver",
+        "トランシーバー", "ac adapter", "acアダプタ", "charger", "充電器", "電源", "コンセント"
+      ]
+    },
+    {
+      "flag": "battery",
+      "label": "リチウム電池内蔵/同梱",
+      "hint": "航空危険物。発送方法が制限される（EMS不可の場合あり）。",
+      "keywords": [
+        "battery", "電池", "バッテリー", "lithium", "リチウム", "mobile battery", "モバイルバッテリー",
+        "camera", "カメラ", "drone", "ドローン", "電動"
+      ]
+    },
+    {
+      "flag": "counterfeit_suspect",
+      "label": "模造品・海賊版の疑い",
+      "hint": "非正規品・コピー品は出品即アカウント停止リスク。",
+      "keywords": [
+        "replica", "レプリカ", "copy", "コピー品", "bootleg", "偽物", "not genuine", "非正規", "同人"
+      ]
+    }
+  ]
+}

@@ -36,3 +36,6 @@
 
 `netflix-wedding/` にも別物が入っています。[Netflix風のウェディングオープニングUI](netflix-wedding/)で、
 画面録画して結婚式の映像素材にするためのものです。
+
+`ebay-profit/` も別物です。[eBay日本輸出の着地利益ツール](ebay-profit/)で、
+仕入れ候補の手取り利益を計算して並べ替える、iPhone/PC両対応のPWAです。
