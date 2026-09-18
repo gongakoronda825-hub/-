@@ -144,9 +144,9 @@ def _stroke(d, pts, rng, w, color, alpha):
     """折れ線を、太さを揺らしながら引く。"""
     col = (*color, alpha)
     for i in range(len(pts) - 1):
-        ww = max(2.0, w + rng.uniform(-1.1, 1.1))
+        ww = max(2.0, w + rng.uniform(-0.7, 0.7))
         d.line([pts[i], pts[i + 1]], fill=col, width=int(round(ww)))
-        r = ww / 2.0
+        r = ww * 0.46
         for p in (pts[i], pts[i + 1]):
             d.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=col)
 
@@ -192,11 +192,11 @@ def sketch_ellipse(d, cx, cy, rx, ry, rng, w=7, color=INK, passes=2,
 def marker_fill(d, box, rng, color=MARKER, alpha=115):
     """マーカーで雑に塗った風の帯。"""
     x0, y0, x1, y1 = box
-    n = max(2, int((y1 - y0) / 22))
+    n = max(3, int((y1 - y0) / 20))
     for i in range(n):
         yy = y0 + (y1 - y0) * (i + 0.5) / n
-        a = (x0 - rng.uniform(2, 16), yy + rng.uniform(-7, 7))
-        b = (x1 + rng.uniform(2, 18), yy + rng.uniform(-7, 7))
+        a = (x0 - rng.uniform(4, 22), yy + rng.uniform(-8, 8))
+        b = (x1 + rng.uniform(4, 24), yy + rng.uniform(-8, 8))
         d.line([a, b], fill=(*color, alpha), width=int((y1 - y0) / n) + 8)
 
 
@@ -204,8 +204,8 @@ def marker_fill(d, box, rng, color=MARKER, alpha=115):
 def hand_text(img, xy, text, f, fill=INK, angle=0.0, anchor="ls", alpha=240):
     """わずかに傾けて書いた風のテキスト (xy はベースライン左端)。"""
     pad = 40
-    tmp = Image.new("RGBA", (W + pad * 2, int(f.size * 2.6) + pad * 2), (0, 0, 0, 0))
-    ox, oy = pad, pad + f.size
+    tmp = Image.new("RGBA", (W * 2, int(f.size * 2.6) + pad * 2), (0, 0, 0, 0))
+    ox, oy = W, pad + f.size
     ImageDraw.Draw(tmp).text((ox, oy), text, font=f, fill=(*fill, alpha), anchor=anchor)
     if abs(angle) > 0.01:
         tmp = tmp.rotate(angle, resample=Image.BICUBIC, center=(ox, oy))
@@ -323,8 +323,8 @@ def draw_focus_lines(d, rng, reveal, cx, cy):
     total = 18
     for i in range(int(total * reveal)):
         a = 2 * math.pi * i / total + 0.16
-        r0 = 285 + rng.uniform(-16, 16)
-        r1 = r0 + rng.uniform(75, 140)
+        r0 = 335 + rng.uniform(-18, 18)
+        r1 = r0 + rng.uniform(80, 150)
         sketch_line(d, (cx + math.cos(a) * r0, cy + math.sin(a) * r0),
                     (cx + math.cos(a) * r1, cy + math.sin(a) * r1),
                     rng, w=5, passes=1, over=3)
@@ -365,6 +365,45 @@ def draw_arrow(d, p0, p1, rng, color=INK, reveal=1.0):
                         rng, w=6, color=color, passes=1)
 
 
+# --- 図解 -------------------------------------------------------------------
+FIG_BASE_Y = 1150          # バーの足元
+FIG_MIN_CM = 150.0         # 縦軸の起点 (差が見えるように0起点にはしない)
+FIG_PX_CM = 30.0
+FIG_HALF = 78              # バーの幅の半分
+FIG_BARS = [(388, 169.0, "ナポレオン"), (700, 165.0, "当時の平均")]
+
+
+def draw_figure(img, d, rng, reveal):
+    """身長の比較図。reveal に従ってバーが伸び、あとから平均ラインが入る。"""
+    base = FIG_BASE_Y
+    grow = min(1.0, reveal / 0.5)
+
+    sketch_line(d, (232, base), (868, base), rng, w=6)
+    hand_text(img, (236, base - 18), "150cmから", font(34), (128, 116, 110), angle=-0.4)
+
+    tops = []
+    for x, cm, label in FIG_BARS:
+        full = (cm - FIG_MIN_CM) * FIG_PX_CM
+        tops.append(base - full)
+        y = base - full * grow
+        sketch_path(d, [(x - FIG_HALF, base), (x - FIG_HALF, y),
+                        (x + FIG_HALF, y), (x + FIG_HALF, base)], rng, w=6)
+        hand_text(img, (x, base + 62), label, font(40), INK, angle=0.4, anchor="ms")
+        if reveal > 0.5:
+            hand_text(img, (x, y - 18), "%dcm" % cm, font(46), INK,
+                      angle=-0.5, anchor="ms")
+
+    if reveal > 0.68:                       # 平均ラインと、はみ出した分
+        p = min(1.0, (reveal - 0.68) / 0.32)
+        avg_y = tops[1]
+        sketch_line(d, (232, avg_y), (232 + (868 - 232) * p, avg_y), rng,
+                    w=5, color=RED_PENCIL, passes=1)
+        if p > 0.45:
+            x = FIG_BARS[0][0]
+            marker_fill(d, (x - FIG_HALF + 10, tops[0] + 8,
+                            x + FIG_HALF - 10, avg_y - 4), rng)
+
+
 # --- 画面の組み立て ---------------------------------------------------------
 def draw_title(img, d, title_lines, rng, marker_word=None):
     f = font(80)
@@ -382,12 +421,14 @@ def draw_tag(img, d, text, rng):
     hand_text(img, (TEXT_X, rule_y(0)), text, font(36), (96, 108, 140), angle=-0.5)
 
 
-def draw_subtitle(img, d, lines, mark, rng, reveal):
+def draw_subtitle(img, d, lines, marks, rng, reveal):
     f = font(58)
     for i, line in enumerate(lines):
         y = rule_y(15 + i)
         hand_text(img, (TEXT_X, y), line, f, INK, angle=(-0.5 if i == 0 else 0.4))
-        if mark and mark.get("line") == i:
+        for mark in marks:
+            if mark.get("line") != i:
+                continue
             span = text_span(line, mark["word"], f)
             if span:
                 box = (TEXT_X + span[0], y - 56, TEXT_X + span[0] + span[1], y + 8)
@@ -400,18 +441,50 @@ def draw_progress(d, p, rng):
                 rng, w=6, passes=1, over=2)
 
 
-def draw_frame(bg, t, duration, title_lines, tag, subtitle, mark, reveal,
-               mouth, speak, blinks, step):
+def draw_frame(bg, t, duration, title_lines, tag, subtitle, marks, reveal,
+               mouth, speak, blinks, step, art="character"):
     """1ステップ分の絵。step ごとに乱数を引き直すので線が揺れる。"""
     rng = random.Random(1000 + step)
+    marks = marks or []
     img = bg.copy()
     d = ImageDraw.Draw(img, "RGBA")
 
     draw_tag(img, d, tag, rng)
     draw_title(img, d, title_lines, rng, marker_word="チビじゃなかった")
-    if mark and mark.get("kind") == "focus":
+    if any(m.get("kind") == "focus" for m in marks):
         draw_focus_lines(d, rng, reveal, CX, HEAD_CY + 170)
-    draw_character(d, t, mouth, speak, blinks, rng)
-    draw_subtitle(img, d, subtitle, mark, rng, reveal)
+    if art == "figure":
+        draw_figure(img, d, rng, reveal)
+    else:
+        draw_character(d, t, mouth, speak, blinks, rng)
+    draw_subtitle(img, d, subtitle, marks, rng, reveal)
     draw_progress(d, min(1.0, t / duration), rng)
     return img
+
+
+# --- ページをめくる -----------------------------------------------------------
+def page_turn(prev_img, next_img, p):
+    """左綴じのノートを1ページめくる。p は 0->1。"""
+    ease = p * p * (3 - 2 * p)
+    angle = -15.0 * ease
+    dx = int(-W * 1.35 * (ease ** 1.15))
+
+    out = next_img.copy()
+
+    # めくった紙が次のページに落とす影
+    shade = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    sd = ImageDraw.Draw(shade)
+    edge = W + dx
+    sd.rectangle([edge, 0, edge + 90, H], fill=(60, 52, 40, int(70 * (1 - ease))))
+    out.paste(shade, (0, 0), shade)
+
+    # めくられていく紙 (左端を軸に回りながら左へ抜ける)
+    layer = prev_img.convert("RGBA").rotate(
+        angle, resample=Image.BILINEAR, center=(0, H * 0.55))
+    # 紙の右端ほど陰る
+    grad = np.linspace(0, 1, W, dtype=np.float32) ** 2.2
+    veil = np.zeros((H, W, 4), dtype=np.uint8)
+    veil[..., 3] = (grad[None, :] * 80 * ease).astype(np.uint8)
+    layer.alpha_composite(Image.fromarray(veil, "RGBA"))
+    out.paste(layer, (dx, 0), layer)
+    return out

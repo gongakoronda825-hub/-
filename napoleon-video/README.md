@@ -9,6 +9,8 @@
 - 文字: 手書き風フォント (Zen Kurenaido) を罫線のベースラインに乗せて配置
 - 動き: 10fps で描き直す「パラパラ漫画」方式。ステップごとに乱数を引き直すので線が小刻みに揺れる
 - 装飾: 丸囲み・マーカー・下線・集中線が、あとから書き足されるように伸びていく
+- 転換: 文と文のあいだで**ページをめくる** (左綴じ。紙が回りながら左へ抜け、影が落ちる)
+- 図解: セグメント単位で絵を `character` (棒人間) と `figure` (比較図) から選べる
 
 ## 使い方
 
@@ -27,14 +29,17 @@ python3 napoleon-video/make_video.py             # 本番 (output/test_video.mp4
 | --- | --- |
 | `script.py` | 台本。タイトルと「ナレーション文 / 字幕」のセグメント配列 |
 | `tts.py` | 音声合成。VOICEVOX → OS標準TTS → 音声なし の順にフォールバック |
-| `renderer.py` | 1フレームの描画 (紙・手描き線・キャラ・字幕・装飾) |
+| `renderer.py` | 1フレームの描画 (紙・手描き線・キャラ・図解・字幕・装飾・ページめくり) |
 | `fetch_fonts.sh` | 手書き風フォントの取得 (fonts/ に同梱済み) |
+| `voices/` | ナレーションの音響モデル (mei_normal.htsvoice, CC BY 3.0) |
 | `make_video.py` | パイプライン本体 (設定値は先頭の定数) |
 
 解像度・fps・尺・間の取り方は `make_video.py` 冒頭の定数で、紙や筆記具の色・キャラの骨格は
 `renderer.py` 冒頭の定数で変更できます。`ANIM_FPS` を上げるとパラパラ感が薄れて滑らかになります。
 
-強調 (丸囲み・マーカー・下線・集中線) は `script.py` の各セグメントの `mark` で指定します。
+強調 (丸囲み・マーカー・下線・集中線) は `script.py` の各セグメントの `marks` で、
+本文の絵は `art` (`character` / `figure`) で指定します。比較図の目盛りや棒の値は
+`renderer.py` の `FIG_*` 定数にあります。ページめくりの長さは `make_video.py` の `TURN_DUR`。
 
 ## ナレーション音声
 
@@ -45,10 +50,18 @@ python3 napoleon-video/make_video.py             # 本番 (output/test_video.mp4
    **VOICEVOXで生成した音声を公開する場合は、各キャラクターの利用規約に沿ったクレジット表記が必要です**
    (例: `VOICEVOX:ずんだもん`)。
 2. **OS標準の日本語TTS** — macOS `say -v Kyoko` / Windows SAPI / Linux `open_jtalk`
-   (`apt-get install open-jtalk open-jtalk-mecab-naist-jdic hts-voice-nitech-jp-atr503-m001`)
+   (`apt-get install open-jtalk open-jtalk-mecab-naist-jdic`)。
+   Linux では `voices/mei_normal.htsvoice` (女性声) を自動で使います。システムの
+   htsvoice を使いたい場合は `OPEN_JTALK_VOICE` に絶対パスを指定してください。
+   明瞭度・ピッチ・音量は `tts.py` の `OPEN_JTALK_ARGS` で調整できます。
+   **同梱の HTS Voice "Mei" は CC BY 3.0 です。この声で作った動画を公開する場合は
+   `HTS Voice "Mei" (C) 2009-2013 Nagoya Institute of Technology / CC BY 3.0` の表示が必要です**
+   (原文は `voices/LICENSE_mei_normal.htsvoice`)。
 3. **音声なし** — 字幕だけで成立するようにタイミングを文字数比で割り当てます
 
-話速はナレーション合計が30秒に収まるよう自動調整されます。
+話速はナレーション合計が30秒に収まるよう自動調整されます。合成後は ffmpeg で
+ハイパス・イコライザ・コンプレッサをかけ、こもりを取ってから音量をそろえています
+(`make_video.py` の `polish_track`)。
 
 ## BGM
 

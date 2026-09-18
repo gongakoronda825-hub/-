@@ -19,8 +19,38 @@ import wave
 VOICEVOX_URL = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
 VOICEVOX_SPEAKER = int(os.environ.get("VOICEVOX_SPEAKER", "3"))  # ずんだもん(ノーマル)
 
-OPEN_JTALK_DIC = "/var/lib/mecab/dic/open-jtalk/naist-jdic"
-OPEN_JTALK_VOICE = "/usr/share/hts-voice/nitech-jp-atr503-m001/nitech_jp_atr503_m001.htsvoice"
+_HERE = os.path.dirname(os.path.abspath(__file__))
+
+OPEN_JTALK_DIC_CANDIDATES = [
+    "/var/lib/mecab/dic/open-jtalk/naist-jdic",
+    "/usr/local/dic",
+    "/opt/homebrew/opt/open-jtalk/dic",
+    "/usr/local/opt/open-jtalk/dic",
+]
+# voices/ に置いた htsvoice を優先する (同梱の mei_normal は CC BY 3.0)
+OPEN_JTALK_VOICE_CANDIDATES = [
+    os.environ.get("OPEN_JTALK_VOICE", ""),
+    os.path.join(_HERE, "voices", "mei_normal.htsvoice"),
+    "/usr/share/hts-voice/nitech-jp-atr503-m001/nitech_jp_atr503_m001.htsvoice",
+]
+
+# 声の調整: -b=明瞭度(ポストフィルタ) / -fm=ピッチ / -g=音量 / -jf=抑揚の強さ
+OPEN_JTALK_ARGS = ["-b", "0.3", "-fm", "-0.5", "-g", "-3.0", "-jf", "1.1"]
+
+
+def _first_existing(paths):
+    for p in paths:
+        if p and os.path.exists(p):
+            return p
+    return None
+
+
+def open_jtalk_voice():
+    return _first_existing(OPEN_JTALK_VOICE_CANDIDATES)
+
+
+def open_jtalk_dic():
+    return _first_existing(OPEN_JTALK_DIC_CANDIDATES)
 
 
 # --- a. VOICEVOX ------------------------------------------------------------
@@ -62,7 +92,7 @@ def _os_tts_kind():
         return "say"
     if system == "Windows":
         return "sapi"
-    if shutil.which("open_jtalk") and os.path.exists(OPEN_JTALK_VOICE):
+    if shutil.which("open_jtalk") and open_jtalk_voice() and open_jtalk_dic():
         return "open_jtalk"
     return None
 
@@ -94,10 +124,10 @@ def _sapi_synth(text, out_path, rate):
 
 
 def _open_jtalk_synth(text, out_path, rate):
-    # open_jtalk の -r は「大きいほど遅い」のではなく speech rate 倍率
+    # open_jtalk の -r は speech rate 倍率 (大きいほど速い)
     subprocess.run(
-        ["open_jtalk", "-x", OPEN_JTALK_DIC, "-m", OPEN_JTALK_VOICE,
-         "-r", "%.3f" % rate, "-ow", out_path],
+        ["open_jtalk", "-x", open_jtalk_dic(), "-m", open_jtalk_voice(),
+         "-r", "%.3f" % rate, "-ow", out_path] + OPEN_JTALK_ARGS,
         input=text.encode("utf-8"), check=True,
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
     )
@@ -115,7 +145,7 @@ def pick_backend():
     if kind == "sapi":
         return "sapi", "Windows SAPI (System.Speech)"
     if kind == "open_jtalk":
-        return "open_jtalk", "Open JTalk (nitech-jp-atr503-m001)"
+        return "open_jtalk", "Open JTalk (%s)" % os.path.basename(open_jtalk_voice())
     return None, "音声なし (字幕のみ)"
 
 

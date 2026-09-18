@@ -36,6 +36,9 @@ OUTRO_MIN = 1.2            # 最後のナレーション後の余韻
 GAP = 0.45                 # 文と文のあいだ
 MARK_DELAY = 1.5           # 字幕が出てから強調を書き足すまで
 MARK_DRAW = 0.7            # 強調を書き終えるまでの時間
+FIG_DELAY = 0.15           # 図解を描き始めるまで
+FIG_DRAW = 2.4             # 図解を描き終えるまでの時間
+TURN_DUR = 0.42            # ページをめくる時間
 SAMPLE_RATE = 48000
 BGM_VOLUME = 0.10
 
@@ -125,6 +128,31 @@ def build_track(clips, spans, workdir):
     return out, track
 
 
+def polish_track(path, workdir):
+    """こもりを取り、明瞭度を上げ、音量をそろえる。"""
+    out = os.path.join(workdir, "narration_fx.wav")
+    try:
+        subprocess.run(
+            ["ffmpeg", "-y", "-loglevel", "error", "-i", path, "-af",
+             "highpass=f=75,"
+             "equalizer=f=260:t=q:w=1.0:g=-2.5,"     # こもりを削る
+             "equalizer=f=2800:t=q:w=1.2:g=3.0,"     # 子音を立てる
+             "acompressor=threshold=-18dB:ratio=3:attack=10:release=220,"
+             "alimiter=limit=0.95",
+             "-ar", str(SAMPLE_RATE), "-ac", "1", out], check=True)
+    except Exception as e:
+        print("  音声の仕上げをスキップ: %s" % e)
+        return path, read_wav_mono(path)
+    # コンプで下がった分を戻す
+    a = read_wav_mono(out)
+    peak = float(np.max(np.abs(a)))
+    if peak > 0:
+        a = a * (0.94 / peak)
+        write_wav_mono(out, a)
+    print("  音声を整えました (ピーク %.2f -> 0.94)" % peak)
+    return out, a
+
+
 # --- 口パク -----------------------------------------------------------------
 def mouth_envelope(track, n_steps):
     """音の大きさから各ステップの口の開き(0-1)を作る。"""
@@ -152,20 +180,36 @@ def fake_envelope(spans, n_steps):
 
 
 # --- タイミング -------------------------------------------------------------
+def turn_start(spans, i):
+    """セグメント i を出すためにページをめくり始める時刻。"""
+    return spans[i][0] - TURN_DUR - 0.05
+
+
 def segment_at(spans, t):
-    """その時刻に表示しているセグメントの番号。"""
-    for i, (s, e) in enumerate(spans):
-        if s - 0.3 <= t < e + (GAP - 0.1):
-            return i
-    if t >= spans[-1][1]:
-        return len(spans) - 1
-    return 0
+    """その時刻に表示しているセグメントの番号 (めくり始めた時点で次に切り替わる)。"""
+    idx = 0
+    for i in range(1, len(spans)):
+        if t >= turn_start(spans, i):
+            idx = i
+    return idx
 
 
-def mark_reveal(spans, i, t):
-    """強調を書き足す進み具合 (0-1)。"""
-    start = spans[i][0] + MARK_DELAY
-    return max(0.0, min(1.0, (t - start) / MARK_DRAW))
+def transition_at(spans, t):
+    """ページめくりの最中なら (めくる前のセグメント番号, 進み具合0-1)。"""
+    for i in range(1, len(spans)):
+        t0 = turn_start(spans, i)
+        if t0 <= t < t0 + TURN_DUR:
+            return i - 1, (t - t0) / TURN_DUR
+    return None
+
+
+def reveal_at(spans, i, t):
+    """書き足しの進み具合 (0-1)。図解ページは早く長めに描く。"""
+    if script.SEGMENTS[i].get("art") == "figure":
+        delay, draw = FIG_DELAY, FIG_DRAW
+    else:
+        delay, draw = MARK_DELAY, MARK_DRAW
+    return max(0.0, min(1.0, (t - spans[i][0] - delay) / draw))
 
 
 def speak_at(spans, t):
@@ -173,17 +217,29 @@ def speak_at(spans, t):
 
 
 # --- 描画 -------------------------------------------------------------------
+def compose(bg, spans, seg_i, t, mouth, speak, blinks, step):
+    seg = script.SEGMENTS[seg_i]
+    return R.draw_frame(bg, t, DURATION, script.TITLE_LINES, script.TAG,
+                        seg["subtitle"], seg.get("marks"),
+                        reveal_at(spans, seg_i, t), mouth,
+                        speak, blinks, step, art=seg.get("art", "character"))
+
+
 def render_steps(frames_dir, spans, env, n_steps):
     bg = R.make_background()
     blinks = R.blink_schedule(DURATION)
     for i in range(n_steps):
         t = i / float(ANIM_FPS)
-        seg_i = segment_at(spans, t)
-        seg = script.SEGMENTS[seg_i]
-        img = R.draw_frame(bg, t, DURATION, script.TITLE_LINES, script.TAG,
-                           seg["subtitle"], seg.get("mark"),
-                           mark_reveal(spans, seg_i, t),
-                           float(env[i]), speak_at(spans, t), blinks, i)
+        mouth, speak = float(env[i]), speak_at(spans, t)
+        turn = transition_at(spans, t)
+        if turn:                                  # ページをめくっている最中
+            prev_i, p = turn
+            before = compose(bg, spans, prev_i, t, mouth, speak, blinks, i)
+            after = compose(bg, spans, prev_i + 1, t, mouth, speak, blinks, i)
+            img = R.page_turn(before, after, p)
+        else:
+            img = compose(bg, spans, segment_at(spans, t), t,
+                          mouth, speak, blinks, i)
         img.save(os.path.join(frames_dir, "%05d.png" % i), compress_level=1)
         if i % 30 == 0:
             print("    step %d/%d" % (i, n_steps))
@@ -236,13 +292,15 @@ def main():
     if args.preview:
         spans = fallback_timeline()
         t = args.at
-        i = segment_at(spans, t)
-        seg = script.SEGMENTS[i]
-        R.draw_frame(R.make_background(), t, DURATION, script.TITLE_LINES,
-                     script.TAG, seg["subtitle"], seg.get("mark"),
-                     mark_reveal(spans, i, t), 0.7, 1.0,
-                     R.blink_schedule(DURATION),
-                     int(t * ANIM_FPS)).save(PREVIEW_PNG)
+        bg, blinks, step = R.make_background(), R.blink_schedule(DURATION), int(t * ANIM_FPS)
+        turn = transition_at(spans, t)
+        if turn:
+            prev_i, p = turn
+            img = R.page_turn(compose(bg, spans, prev_i, t, 0.7, 1.0, blinks, step),
+                              compose(bg, spans, prev_i + 1, t, 0.7, 1.0, blinks, step), p)
+        else:
+            img = compose(bg, spans, segment_at(spans, t), t, 0.7, 1.0, blinks, step)
+        img.save(PREVIEW_PNG)
         print("preview (%.1fs) -> %s" % (t, PREVIEW_PNG))
         return
 
@@ -263,6 +321,7 @@ def main():
                 if spans[-1][1] > DURATION:
                     print("  警告: 音声が30秒に収まらないため末尾を切り詰めます")
                 audio_path, track = build_track(clips, spans, workdir)
+                audio_path, track = polish_track(audio_path, workdir)
             except Exception as e:                      # 合成が転んでも動画は作る
                 print("  音声合成に失敗: %s -> 字幕のみで続行" % e)
                 backend, backend_name = None, "音声なし (字幕のみ)"
