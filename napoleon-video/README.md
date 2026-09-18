@@ -1,12 +1,20 @@
 # 棒人間 雑学ショート (テスト動画)
 
 棒人間が歴史・雑学を1つ紹介する30秒のMP4を、台本から一気通貫で生成します。
+ルックは **ノート落書き風** — ルーズリーフの紙に鉛筆で描いた落書き、で統一しています。
+
+- 紙: クリーム色 + 青い罫線 + 左の赤い縦線 + 綴じ穴。繊維と皺のテクスチャ入り
+- 線: 黒1色の手描き。震え・太さの揺らぎ・始点終点のはみ出し付き (`sketch_line` / `sketch_ellipse`)
+- 色: 強調の2色だけ (黄色マーカー / 赤の色鉛筆)。キャラは黒のみ
+- 文字: 手書き風フォント (Zen Kurenaido) を罫線のベースラインに乗せて配置
+- 動き: 10fps で描き直す「パラパラ漫画」方式。ステップごとに乱数を引き直すので線が小刻みに揺れる
+- 装飾: 丸囲み・マーカー・下線・集中線が、あとから書き足されるように伸びていく
 
 ## 使い方
 
 ```bash
-# 依存: ffmpeg / Pillow / numpy / 日本語フォント
-apt-get install -y ffmpeg fonts-noto-cjk
+# 依存: ffmpeg / Pillow / numpy (フォントは fonts/ に同梱)
+apt-get install -y ffmpeg
 pip3 install pillow numpy
 
 python3 napoleon-video/make_video.py --preview   # 1フレームだけ確認 (output/preview.png)
@@ -19,10 +27,14 @@ python3 napoleon-video/make_video.py             # 本番 (output/test_video.mp4
 | --- | --- |
 | `script.py` | 台本。タイトルと「ナレーション文 / 字幕」のセグメント配列 |
 | `tts.py` | 音声合成。VOICEVOX → OS標準TTS → 音声なし の順にフォールバック |
-| `renderer.py` | 1フレームの描画 (背景・タイトル・棒人間・字幕・進行バー) |
+| `renderer.py` | 1フレームの描画 (紙・手描き線・キャラ・字幕・装飾) |
+| `fetch_fonts.sh` | 手書き風フォントの取得 (fonts/ に同梱済み) |
 | `make_video.py` | パイプライン本体 (設定値は先頭の定数) |
 
-解像度・fps・尺・間の取り方は `make_video.py` 冒頭と `renderer.py` の `W, H` で変更できます。
+解像度・fps・尺・間の取り方は `make_video.py` 冒頭の定数で、紙や筆記具の色・キャラの骨格は
+`renderer.py` 冒頭の定数で変更できます。`ANIM_FPS` を上げるとパラパラ感が薄れて滑らかになります。
+
+強調 (丸囲み・マーカー・下線・集中線) は `script.py` の各セグメントの `mark` で指定します。
 
 ## ナレーション音声
 

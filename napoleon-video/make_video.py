@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""棒人間が歴史・雑学を1つ紹介する30秒動画を作る。
+"""棒人間が歴史・雑学を1つ紹介する30秒動画を作る (ノート落書き風)。
 
   python3 napoleon-video/make_video.py            # 通常
-  python3 napoleon-video/make_video.py --preview  # 1フレームだけ output/preview.png に出す
+  python3 napoleon-video/make_video.py --preview  # 1枚だけ output/preview.png に出す
 
 台本 -> ナレーション合成 -> PNG連番の描画 -> ffmpeg で MP4。
+絵は 10fps のパラパラで描き、ffmpeg で 30fps に伸ばす。
 """
 
 import argparse
@@ -27,11 +28,14 @@ import script          # noqa: E402
 import tts             # noqa: E402
 
 # --- 設定 -------------------------------------------------------------------
-FPS = 30
+FPS = 30                   # 出力動画のfps
+ANIM_FPS = 10              # 絵を描き直すfps (パラパラ漫画の感じ)
 DURATION = 30.0            # 秒
 INTRO = 0.7                # 最初のナレーションが始まるまで
 OUTRO_MIN = 1.2            # 最後のナレーション後の余韻
 GAP = 0.45                 # 文と文のあいだ
+MARK_DELAY = 1.5           # 字幕が出てから強調を書き足すまで
+MARK_DRAW = 0.7            # 強調を書き終えるまでの時間
 SAMPLE_RATE = 48000
 BGM_VOLUME = 0.10
 
@@ -86,7 +90,6 @@ def synth_segments(backend, workdir):
 
 
 def build_timeline(durations):
-    """各セグメントの開始/終了秒。"""
     spans, t = [], INTRO
     for d in durations:
         spans.append((t, t + d))
@@ -108,7 +111,6 @@ def fallback_timeline():
 
 
 def build_track(clips, spans, workdir):
-    """セグメント音声を30秒のトラックに並べる。"""
     track = np.zeros(int(DURATION * SAMPLE_RATE), dtype=np.float32)
     for (path, _), (start, _) in zip(clips, spans):
         a = read_wav_mono(path)
@@ -124,63 +126,67 @@ def build_track(clips, spans, workdir):
 
 
 # --- 口パク -----------------------------------------------------------------
-def mouth_envelope(track, n_frames):
-    """音の大きさから各フレームの口の開き(0-1)を作る。"""
-    win = int(SAMPLE_RATE / FPS)
-    env = np.zeros(n_frames, dtype=np.float32)
-    for i in range(n_frames):
+def mouth_envelope(track, n_steps):
+    """音の大きさから各ステップの口の開き(0-1)を作る。"""
+    win = int(SAMPLE_RATE / ANIM_FPS)
+    env = np.zeros(n_steps, dtype=np.float32)
+    for i in range(n_steps):
         chunk = track[i * win:(i + 1) * win]
         if len(chunk):
             env[i] = float(np.sqrt(np.mean(chunk ** 2)))
     if env.max() > 0:
         env = env / env.max()
-    env = np.clip(env * 2.4, 0.0, 1.0) ** 0.7
-    # 軽くなめらかに
-    k = np.array([0.25, 0.5, 0.25], dtype=np.float32)
-    return np.convolve(env, k, mode="same")
+    return np.clip(env * 2.4, 0.0, 1.0) ** 0.7
 
 
-def fake_envelope(spans, n_frames):
+def fake_envelope(spans, n_steps):
     rnd = random.Random(11)
     phase = [rnd.uniform(0, 6.28) for _ in spans]
-    env = np.zeros(n_frames, dtype=np.float32)
-    for i in range(n_frames):
-        t = i / float(FPS)
+    env = np.zeros(n_steps, dtype=np.float32)
+    for i in range(n_steps):
+        t = i / float(ANIM_FPS)
         for j, (s, e) in enumerate(spans):
             if s <= t < e:
-                v = 0.5 + 0.5 * math.sin(2 * math.pi * 5.5 * t + phase[j])
-                env[i] = max(0.0, v) ** 1.5
+                env[i] = max(0.0, math.sin(2 * math.pi * 4.0 * t + phase[j])) ** 1.2
     return env
 
 
-# --- フレーム描画 -----------------------------------------------------------
-def subtitle_at(spans, t):
+# --- タイミング -------------------------------------------------------------
+def segment_at(spans, t):
+    """その時刻に表示しているセグメントの番号。"""
     for i, (s, e) in enumerate(spans):
-        if s - 0.25 <= t < e + (GAP - 0.1):
-            return script.SEGMENTS[i]["subtitle"]
+        if s - 0.3 <= t < e + (GAP - 0.1):
+            return i
     if t >= spans[-1][1]:
-        return script.SEGMENTS[-1]["subtitle"]
-    return script.SEGMENTS[0]["subtitle"]
+        return len(spans) - 1
+    return 0
+
+
+def mark_reveal(spans, i, t):
+    """強調を書き足す進み具合 (0-1)。"""
+    start = spans[i][0] + MARK_DELAY
+    return max(0.0, min(1.0, (t - start) / MARK_DRAW))
 
 
 def speak_at(spans, t):
-    for s, e in spans:
-        if s - 0.2 <= t < e + 0.2:
-            return 1.0
-    return 0.25
+    return 1.0 if any(s - 0.2 <= t < e + 0.2 for s, e in spans) else 0.25
 
 
-def render_frames(frames_dir, spans, env, n_frames):
+# --- 描画 -------------------------------------------------------------------
+def render_steps(frames_dir, spans, env, n_steps):
     bg = R.make_background()
     blinks = R.blink_schedule(DURATION)
-    for i in range(n_frames):
-        t = i / float(FPS)
-        img = R.draw_frame(bg, t, DURATION, script.TITLE,
-                           subtitle_at(spans, t), float(env[i]),
-                           speak_at(spans, t), blinks)
+    for i in range(n_steps):
+        t = i / float(ANIM_FPS)
+        seg_i = segment_at(spans, t)
+        seg = script.SEGMENTS[seg_i]
+        img = R.draw_frame(bg, t, DURATION, script.TITLE_LINES, script.TAG,
+                           seg["subtitle"], seg.get("mark"),
+                           mark_reveal(spans, seg_i, t),
+                           float(env[i]), speak_at(spans, t), blinks, i)
         img.save(os.path.join(frames_dir, "%05d.png" % i), compress_level=1)
-        if i % 60 == 0:
-            print("    frame %d/%d" % (i, n_frames))
+        if i % 30 == 0:
+            print("    step %d/%d" % (i, n_steps))
 
 
 # --- BGM / ffmpeg -----------------------------------------------------------
@@ -198,7 +204,7 @@ def find_bgm():
 
 def encode(frames_dir, audio_path, bgm_path):
     cmd = ["ffmpeg", "-y", "-loglevel", "error", "-stats",
-           "-framerate", str(FPS), "-i", os.path.join(frames_dir, "%05d.png")]
+           "-framerate", str(ANIM_FPS), "-i", os.path.join(frames_dir, "%05d.png")]
     if audio_path:
         cmd += ["-i", audio_path]
     if audio_path and bgm_path:
@@ -221,17 +227,23 @@ def encode(frames_dir, audio_path, bgm_path):
 # --- メイン -----------------------------------------------------------------
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--preview", action="store_true", help="1フレームだけ書き出して終了")
+    ap.add_argument("--preview", action="store_true", help="1枚だけ書き出して終了")
+    ap.add_argument("--at", type=float, default=8.0, help="--preview で描く時刻(秒)")
     args = ap.parse_args()
 
     os.makedirs(OUT_DIR, exist_ok=True)
 
     if args.preview:
-        bg = R.make_background()
-        R.draw_frame(bg, 1.7, DURATION, script.TITLE,
-                     script.SEGMENTS[1]["subtitle"], 0.75, 1.0,
-                     R.blink_schedule(DURATION)).save(PREVIEW_PNG)
-        print("preview -> %s" % PREVIEW_PNG)
+        spans = fallback_timeline()
+        t = args.at
+        i = segment_at(spans, t)
+        seg = script.SEGMENTS[i]
+        R.draw_frame(R.make_background(), t, DURATION, script.TITLE_LINES,
+                     script.TAG, seg["subtitle"], seg.get("mark"),
+                     mark_reveal(spans, i, t), 0.7, 1.0,
+                     R.blink_schedule(DURATION),
+                     int(t * ANIM_FPS)).save(PREVIEW_PNG)
+        print("preview (%.1fs) -> %s" % (t, PREVIEW_PNG))
         return
 
     backend, backend_name = tts.pick_backend()
@@ -240,7 +252,7 @@ def main():
     workdir = tempfile.mkdtemp(prefix="stickvideo_")
     frames_dir = os.path.join(workdir, "frames")
     os.makedirs(frames_dir)
-    n_frames = int(DURATION * FPS)
+    n_steps = int(DURATION * ANIM_FPS)
 
     try:
         audio_path, track = None, None
@@ -257,16 +269,16 @@ def main():
         if not backend:
             spans = fallback_timeline()
 
-        env = mouth_envelope(track, n_frames) if track is not None \
-            else fake_envelope(spans, n_frames)
+        env = mouth_envelope(track, n_steps) if track is not None \
+            else fake_envelope(spans, n_steps)
 
         print("[2/4] セグメント割り当て")
         for i, (s, e) in enumerate(spans):
             print("  %d: %5.2fs - %5.2fs  %s" % (i, s, e,
-                  script.SEGMENTS[i]["subtitle"].replace("\n", " / ")))
+                  " / ".join(script.SEGMENTS[i]["subtitle"])))
 
-        print("[3/4] フレーム描画 (%d枚)" % n_frames)
-        render_frames(frames_dir, spans, env, n_frames)
+        print("[3/4] 作画 (%dステップ = %dfps のパラパラ)" % (n_steps, ANIM_FPS))
+        render_steps(frames_dir, spans, env, n_steps)
 
         bgm = find_bgm()
         print("[4/4] ffmpeg 結合 (BGM: %s)" % (os.path.basename(bgm) if bgm else "なし"))
