@@ -1,0 +1,207 @@
+/* UIはゲーム画面を邪魔しない。上に人口、下に一言。それだけ。 */
+
+:root {
+  --ink: #f2f6ec;
+  --ink-dim: #b9c6b2;
+  --edge: rgba(6, 12, 8, 0.85);
+  --font: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP",
+    "Yu Gothic", "YuGothic", "MS PGothic", system-ui, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #0a120e;
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
+  overscroll-behavior: none;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+}
+#stage.is-open { opacity: 1; }
+
+#screen {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action: none;
+}
+
+/* 画面の四隅をほんの少し落として、中央に目を集める */
+#vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  box-shadow: inset 0 0 22vmin rgba(4, 10, 8, 0.42);
+  background:
+    linear-gradient(to bottom, rgba(4, 10, 8, 0.55) 0%, rgba(4, 10, 8, 0) 26%),
+    linear-gradient(to top, rgba(4, 10, 8, 0.45) 0%, rgba(4, 10, 8, 0) 22%);
+}
+
+/* ── 上部の表示 ───────────────────────────── */
+#hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: calc(env(safe-area-inset-top, 0px) + 18px) 16px 0;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 1.1s ease, transform 1.1s ease;
+}
+#hud.is-on { opacity: 1; transform: none; }
+
+#hud p { margin: 0; }
+
+.hud-pop {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.28em;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 0 var(--edge), 0 0 12px rgba(0, 0, 0, 0.5);
+}
+.hud-label {
+  font-size: clamp(13px, 4.2vw, 21px);
+  letter-spacing: 0.22em;
+  color: var(--ink-dim);
+  transform: translateY(-0.15em);
+}
+#pop-value {
+  font-size: clamp(40px, 14.5vw, 82px);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.hud-unit { font-size: clamp(16px, 5vw, 26px); }
+
+.hud-era {
+  margin-top: 0.35em;
+  font-size: clamp(13px, 4.1vw, 21px);
+  letter-spacing: 0.14em;
+  text-shadow: 0 2px 0 var(--edge);
+}
+#era-world {
+  display: inline-block;
+  margin-left: 0.6em;
+  padding: 0.12em 0.6em;
+  border: 1px solid rgba(242, 246, 236, 0.35);
+  border-radius: 2px;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  color: var(--ink-dim);
+  vertical-align: 0.12em;
+}
+
+.hud-fol {
+  margin-top: 0.5em;
+  font-size: clamp(11px, 3.5vw, 17px);
+  letter-spacing: 0.16em;
+  color: var(--ink-dim);
+  text-shadow: 0 2px 0 var(--edge);
+}
+
+/* ── 字幕 ────────────────────────────────── */
+#subtitle {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22%;
+  padding: 0 24px;
+  text-align: center;
+  pointer-events: none;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.9s ease, transform 0.9s ease;
+}
+#subtitle.is-on { opacity: 1; transform: none; }
+#subtitle p {
+  margin: 0 auto;
+  max-width: 19em;
+  word-break: keep-all;
+  font-size: clamp(14px, 4.3vw, 24px);
+  letter-spacing: 0.12em;
+  line-height: 2.1;
+}
+/* 行ごとに背景を付ける。1行ぶんの幅にぴったり収まって、余白が間延びしない */
+#subtitle-text {
+  padding: 0.25em 0.7em;
+  background: rgba(6, 12, 9, 0.46);
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+  text-shadow: 0 2px 0 var(--edge);
+}
+
+/* ── 下部 ────────────────────────────────── */
+#foot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 16px calc(env(safe-area-inset-bottom, 0px) + 14px);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+#next-era {
+  margin: 0;
+  font-size: clamp(10px, 3.1vw, 14px);
+  letter-spacing: 0.12em;
+  color: rgba(226, 236, 218, 0.62);
+  text-shadow: 0 1px 0 var(--edge);
+}
+#replay {
+  flex: none;
+  appearance: none;
+  border: 1px solid rgba(242, 246, 236, 0.32);
+  background: rgba(6, 12, 9, 0.45);
+  color: var(--ink-dim);
+  font-family: inherit;
+  font-size: clamp(10px, 3.1vw, 14px);
+  letter-spacing: 0.1em;
+  padding: 0.45em 0.9em;
+  border-radius: 2px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.7s ease;
+  cursor: pointer;
+}
+#replay.is-on { opacity: 1; pointer-events: auto; }
+#replay:active { background: rgba(242, 246, 236, 0.15); }
+
+/* ── 生成中 ───────────────────────────────── */
+#boot {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: #0a120e;
+  color: var(--ink-dim);
+  font-size: clamp(12px, 3.6vw, 16px);
+  letter-spacing: 0.2em;
+  z-index: 10;
+  transition: opacity 0.8s ease;
+}
+#boot.is-done { opacity: 0; pointer-events: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  #stage, #hud, #subtitle, #replay, #boot { transition-duration: 0.01ms; }
+}

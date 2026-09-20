@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a120e">
+<meta name="description" content="TikTokのフォロワー1人 = 街の人口1人。人口0人、まだ誰も住んでいない太古の土地。">
+<title>人口0人の街</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div id="boot"><p>世界を生成しています…</p></div>
+
+<div id="stage">
+  <canvas id="screen"></canvas>
+  <div id="vignette"></div>
+
+  <header id="hud">
+    <p class="hud-pop">
+      <span class="hud-label">人口</span><span id="pop-value">0</span><span class="hud-unit">人</span>
+    </p>
+    <p class="hud-era">時代：<span id="era-value">人類誕生前</span><span id="era-world">恐竜時代</span></p>
+    <p class="hud-fol">フォロワー <span id="fol-value">0</span>人</p>
+  </header>
+
+  <div id="subtitle"><p><span id="subtitle-text"></span></p></div>
+
+  <footer id="foot">
+    <p id="next-era"></p>
+    <button id="replay" type="button">▶ もう一度</button>
+  </footer>
+</div>
+
+<script src="src/config.js"></script>
+<script src="src/data/eras.js"></script>
+<script src="src/core/rng.js"></script>
+<script src="src/core/pixel.js"></script>
+<script src="src/core/display.js"></script>
+<script src="src/world/terrain.js"></script>
+<script src="src/world/props.js"></script>
+<script src="src/life/species.js"></script>
+<script src="src/life/agents.js"></script>
+<script src="src/scene/director.js"></script>
+<script src="src/main.js"></script>
+</body>
+</html>
