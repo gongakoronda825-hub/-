@@ -1,0 +1,47 @@
+# main に push されたら、リポジトリをそのまま GitHub Pages に公開する。
+#
+#   https://gongakoronda825-hub.github.io/-/               ← 究極の選択
+#   https://gongakoronda825-hub.github.io/-/follower-town/ ← 人口0人の街
+#   https://gongakoronda825-hub.github.io/-/block-game/play/
+#   https://gongakoronda825-hub.github.io/-/netflix-wedding/
+#   https://gongakoronda825-hub.github.io/-/ebay-profit/
+#
+# ビルドは無い（どのプロジェクトも素のHTML/CSS/JSで動く）ので、
+# チェックアウトしたものをそのままアップロードしている。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 公開は1本ずつ。実行中のものは走り切らせる。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # enablement: true で、リポジトリ設定の Pages が未設定でも有効化する
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
