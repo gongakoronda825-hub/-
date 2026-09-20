@@ -1,0 +1,33 @@
+{
+  "seed": 7,
+  "generations": 14,
+  "seconds": 22.0,
+  "fps": 60,
+  "mean_speed_first": 0.2659,
+  "mean_speed_last": 0.4646,
+  "std_first": 0.1491,
+  "std_last": 0.137,
+  "params": {
+    "generations": 14,
+    "n_init": 42,
+    "max_pop": 64,
+    "min_pop": 14,
+    "n_food": 170,
+    "steps": 130,
+    "eat_radius": 0.018,
+    "wander": 0.22,
+    "body_r": 0.0155,
+    "tail_steps": 5,
+    "food_keep": 0.3,
+    "min_active": 20,
+    "v_min": 0.003,
+    "v_max": 0.0185,
+    "cost_base_total": 0.65,
+    "cost_quad_total": 2.6,
+    "survive_energy": 0.0,
+    "repro_energy": 2.3,
+    "mut_sigma": 0.017,
+    "init_beta_a": 2.0,
+    "init_beta_b": 5.2
+  }
+}
