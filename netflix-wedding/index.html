@@ -458,7 +458,9 @@ const CONFIG = {
   ],
 
   // Scene 2: ローディング（縦枠・モノクロ寄りで表示されます）
-  loadingThumb: { img: 'assets/IMG_8432.jpeg', pos: '56% 42%' },
+  //   押したプロフィールと同じ写真を出すと、Netflix の「作品を開いている」感が出る。
+  //   target のプロフィールを変えたら、ここも合わせて変えてください。
+  loadingThumb: { img: 'assets/profile-2.jpg', pos: '50% 50%' },
 
   // Scene 3: 作品詳細ページ
   detail: {
@@ -472,12 +474,12 @@ const CONFIG = {
       'そして今日、妻が育った大切な場所で、これからの人生を誓うように、一枚の写真を残します。',
     ],
     nav: ['Vlogs', 'TV Shows', 'Movies'],
-    // 背景スライド（犬が右寄りのものから順に）
+    // 背景スライド（2秒ごとにクロスフェード。左にあらすじと再生ボタンが乗ります）
     heroSlides: [
-      'assets/IMG_8431.jpeg',
-      'assets/IMG_8434.jpeg',
-      'assets/IMG_8432.jpeg',
-      'assets/IMG_8433.jpeg',
+      'assets/hero-1.jpg',
+      'assets/hero-2.jpg',
+      'assets/hero-3.jpg',
+      'assets/hero-4.jpg',
     ],
     heroSlideMs: 2000, // 1枚あたりの表示時間（クロスフェード）
     // More Like This（背景と並びが被らないようにずらしています）
@@ -497,6 +499,12 @@ const CONFIG = {
 
   // 透かし（お手本の @yoof568 は他人の作品なので使わない。自分の名前か、非表示に）
   watermark: { show: false, handle: '@yourname' },
+
+  // クリック音（Web Audio で作るので音声ファイルは不要）
+  sound: {
+    enabled: true,
+    volume: 0.35,   // 0〜1
+  },
 
   // 再生方法
   loop: false,   // true にすると自動でループ（再撮り用）
@@ -712,10 +720,56 @@ function cursorHome(){
   void cursor.offsetWidth;           // 強制リフロー（次の移動でアニメが効くように）
   cursor.classList.remove('no-anim');
 }
+/* =========================================================================
+   クリック音（Web Audio で生成するので音声ファイルは不要）
+
+   ブラウザはユーザー操作があるまで音を鳴らさない。ページを開いただけの
+   自動再生では鳴らず、R キーを押すかクリックした回では鳴る。
+   録画するときは R を押して始めるので、それで鳴る。
+   ========================================================================= */
+let audioCtx = null;
+function ensureAudio(){
+  if (!CONFIG.sound || !CONFIG.sound.enabled) return null;
+  if (!audioCtx){
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return null;
+    try { audioCtx = new AC(); } catch(e){ return null; }
+  }
+  if (audioCtx.state === 'suspended') audioCtx.resume().catch(() => {});
+  return audioCtx;
+}
+
+// 短いノイズを急減衰させて帯域通過させると「カチッ」になる
+function clickTick(ctx, when, gain, freq){
+  const len = Math.max(1, Math.floor(ctx.sampleRate * 0.02));
+  const buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  const d = buf.getChannelData(0);
+  for (let i = 0; i < len; i++){
+    d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 10);
+  }
+  const src = ctx.createBufferSource(); src.buffer = buf;
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass'; bp.frequency.value = freq; bp.Q.value = 1.1;
+  const g = ctx.createGain(); g.gain.value = gain;
+  src.connect(bp); bp.connect(g); g.connect(ctx.destination);
+  src.start(when);
+}
+
+// 実際のマウスは「押す音」と「離す音」の2つ鳴るので、それらしく2回鳴らす
+function playClickSound(){
+  const ctx = ensureAudio();
+  if (!ctx || ctx.state !== 'running') return;
+  const v = Math.max(0, Math.min(1, CONFIG.sound.volume));
+  const t = ctx.currentTime;
+  clickTick(ctx, t,         v,        2400);  // 押す
+  clickTick(ctx, t + 0.055, v * 0.55, 1800);  // 離す
+}
+
 function cursorClick(){
   cursor.classList.remove('click');
   void cursor.offsetWidth;
   cursor.classList.add('click');
+  playClickSound();
 }
 
 // 要素中心をデザイン座標（1920x1080）で取得する。
@@ -865,11 +919,12 @@ function unlockVideo(){
   }
 }
 
-/* ---------- 再撮り用 QoL：R キー／クリック・タップで最初から ---------- */
+/* ---------- 再撮り用 QoL：R キー／クリック・タップで最初から ----------
+   どちらもユーザー操作なので、ここで音声も起こしておく。 */
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'r' || e.key === 'R') play();
+  if (e.key === 'r' || e.key === 'R'){ ensureAudio(); unlockVideo(); play(); }
 });
-window.addEventListener('click', () => { unlockVideo(); play(); });
+window.addEventListener('click', () => { ensureAudio(); unlockVideo(); play(); });
 
 /* ---------- 起動（load を起点に1回だけ） ---------- */
 let started = false;
