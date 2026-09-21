@@ -446,13 +446,15 @@ const CONFIG = {
   // ------------------------------------------------------------------
 
   // Scene 1: プロフィール（縦4:5に切り抜かれるので pos で顔に寄せる）
+  //   4枚とも横長〜正方形なので、切り抜かれるのは左右だけ（上下は全部写る）。
+  //   pos の2つ目の数字（縦方向）は効かないので 50% のままでよい。
   title: 'Happy wedding',
   bottomTag: 'MEMORIES FAVORITE',
   profiles: [
-    { name: "mizuki's story", img: 'assets/IMG_8433.jpeg', pos: '38% 45%' },
-    { name: 'wedding photo',  img: 'assets/IMG_8432.jpeg', pos: '56% 45%', target: true }, // ← 自動選択
-    { name: 'Our Story',       img: 'assets/IMG_8431.jpeg', pos: '62% 45%' },
-    { name: 'How we met',      img: 'assets/IMG_8434.jpeg', pos: '72% 45%' },
+    { name: "mizuki's story", img: 'assets/profile-1.jpg', pos: '45% 50%' },
+    { name: 'wedding photo',  img: 'assets/profile-2.jpg', pos: '50% 50%', target: true }, // ← 自動選択
+    { name: 'Our Story',      img: 'assets/profile-3.jpg', pos: '52% 50%' },
+    { name: 'How we met',     img: 'assets/profile-4.jpg', pos: '60% 50%' },
   ],
 
   // Scene 2: ローディング（縦枠・モノクロ寄りで表示されます）
