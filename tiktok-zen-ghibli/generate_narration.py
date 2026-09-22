@@ -54,7 +54,7 @@ INTONATION_SCALE = 0.95   # 抑揚を少し抑えて大げさにしない
 VOLUME_SCALE = 1.0
 PRE_PHONEME_LENGTH = 0.10
 POST_PHONEME_LENGTH = 0.10
-LEAD_IN = 0.35            # 冒頭の無音
+LEAD_IN = 0.70            # 冒頭の無音。フックを見せる間を取る
 TAIL = 0.60               # 末尾の無音
 TARGET_PEAK_DBFS = -1.5   # TikTokで埋もれない音量にそろえる
 

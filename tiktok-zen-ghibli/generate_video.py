@@ -40,6 +40,14 @@ POP_TIME = 0.20
 POP_SCALE = 0.90
 POP_RISE = 16
 
+# 冒頭のフック。字幕より大きく出して、最初の数秒で足を止めてもらう。
+# 2行目の字幕（同じ題名が出る）に入れ替わるまで、これだけを見せる。
+HOOK_LINES = ["君たちは", "どう生きるか"]
+HOOK_TEXT = "君たちはどう生きるか"
+HOOK_SIZE = 112
+HOOK_COLOR = SPOKEN_COLOR
+HOOK_CENTER_Y = 940
+
 NO_LINE_START = "、。」』）,.!?ー々" + cap_mod.SMALL_KANA
 NO_LINE_END = "「『（"
 
@@ -155,6 +163,25 @@ def fit(text, font_path, base_size, max_width, max_lines=2):
     return font, char_wrap(text, font, max_width)
 
 
+class Hook:
+    """冒頭に出す大きな一言。字幕と同じ縁取りで、色だけ変える。"""
+
+    def __init__(self, lines, font_path, size, color):
+        self.font = ImageFont.truetype(str(font_path), size)
+        self.line_height = int(size * LINE_SPACING)
+        stroke = round(OUTLINE_WIDTH * size / FONT_SIZE)
+        pad = stroke * 2 + 6
+        width = int(max(self.font.getlength(l) for l in lines)) + pad * 2
+        height = self.line_height * len(lines) + pad * 2
+
+        self.layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(self.layer)
+        for i, line in enumerate(lines):
+            x = pad + (width - pad * 2 - self.font.getlength(line)) / 2
+            draw.text((x, pad + i * self.line_height), line, font=self.font,
+                      fill=color, stroke_width=stroke, stroke_fill=OUTLINE_COLOR)
+
+
 class Caption:
     """1つの字幕。白文字と金文字の2枚を作り置きし、境界で切り替えて描く。"""
 
@@ -225,7 +252,7 @@ def ease_out_back(t):
     return 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2
 
 
-def render_frames(captions, layers, duration, out_pipe):
+def render_frames(captions, layers, hook, hook_end, duration, out_pipe):
     background = Image.new("RGB", (WIDTH, HEIGHT), CHROMA)
     total_frames = int(round(duration * FPS))
     index = 0
@@ -234,15 +261,28 @@ def render_frames(captions, layers, duration, out_pipe):
         while index + 1 < len(captions) and t >= captions[index + 1]["start"]:
             index += 1
         frame = background.copy()
-        cap = captions[index]
-        layer = layers[index]
-        elapsed = t - cap["start"]
-        if elapsed >= 0:
-            _draw_caption(frame, cap, layer, elapsed)
+        if t < hook_end:
+            # フックだけを見せる。字幕と重ねない。
+            _draw_hook(frame, hook, t)
+        else:
+            cap = captions[index]
+            _draw_caption(frame, cap, layers[index], t - cap["start"])
         out_pipe.write(frame.tobytes())
         if frame_no % 300 == 0:
             print(f"  frame {frame_no}/{total_frames}", file=sys.stderr)
     return total_frames
+
+
+def _draw_hook(frame, hook, t):
+    layer = hook.layer
+    scale = 1.0
+    if t < POP_TIME:
+        scale = POP_SCALE + (1 - POP_SCALE) * ease_out_back(t / POP_TIME)
+    if scale != 1.0:
+        layer = layer.resize((max(1, int(layer.width * scale)),
+                              max(1, int(layer.height * scale))), Image.LANCZOS)
+    frame.paste(layer, ((WIDTH - layer.width) // 2,
+                        HOOK_CENTER_Y - layer.height // 2), layer)
 
 
 def _draw_caption(frame, cap, layer, elapsed):
@@ -295,9 +335,16 @@ def main():
 
     caps = cap_mod.build_captions(lambda t: gn.query_for(vv, t),
                                   gn.SCRIPT, spans, duration)
-    args.srt.write_text(cap_mod.to_srt(caps), encoding="utf-8")
-    print(f"字幕 {len(caps)}枚 / 1枚あたり平均 "
-          f"{sum(c['show_until'] - c['start'] for c in caps) / len(caps):.2f}s",
+
+    # フックは2枚目の字幕（同じ題名が本文に出てくる）に席を譲る。
+    # 1枚目「京都で、」はフックの裏に隠れるので、画面には出さない。
+    hook = Hook(HOOK_LINES, args.font, HOOK_SIZE, HOOK_COLOR)
+    hook_end = caps[1]["start"]
+
+    shown = [{"text": HOOK_TEXT, "start": 0.0, "show_until": hook_end}] + caps[1:]
+    args.srt.write_text(cap_mod.to_srt(shown), encoding="utf-8")
+    print(f"フック {hook_end:.2f}秒 / 字幕 {len(caps) - 1}枚 / 1枚あたり平均 "
+          f"{sum(c['show_until'] - c['start'] for c in caps[1:]) / (len(caps) - 1):.2f}s",
           file=sys.stderr)
 
     layers = [Caption(c["text"], args.font) for c in caps]
@@ -317,7 +364,8 @@ def main():
     ]
     process = subprocess.Popen(command, stdin=subprocess.PIPE)
     try:
-        frames = render_frames(caps, layers, duration, process.stdin)
+        frames = render_frames(caps, layers, hook, hook_end,
+                               duration, process.stdin)
     finally:
         process.stdin.close()
     if process.wait() != 0:
@@ -325,7 +373,7 @@ def main():
 
     print(f"\n{args.out}  {frames / FPS:.1f}s  {WIDTH}x{HEIGHT}/{FPS}fps  "
           f"背景 rgb{CHROMA}")
-    print(f"{args.srt}  字幕{len(caps)}枚")
+    print(f"{args.srt}  フック1枚＋字幕{len(caps) - 1}枚")
 
 
 if __name__ == "__main__":
