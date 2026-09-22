@@ -46,9 +46,10 @@ HOOK_LINES = ["君たちは", "どう生きるか"]
 HOOK_TEXT = "君たちはどう生きるか"
 HOOK_SIZE = 112
 HOOK_COLOR = SPOKEN_COLOR
-HOOK_CENTER_Y = 1000
+HOOK_CENTER_Y = 940
 
-# フックに出す写真。写真と文字をひとかたまりにして、まとめて弾ませる。
+# フックに写真を出したいとき用。hook-image.jpg を置けば文字の上に並ぶ。
+# 置かなければ文字だけのフックになる（今はこちら）。
 HOOK_IMAGE = "hook-image.jpg"
 HOOK_IMAGE_SIZE = 820
 HOOK_IMAGE_RADIUS = 30
