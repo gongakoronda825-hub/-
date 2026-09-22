@@ -19,12 +19,15 @@ import wave
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
+import sfx  # noqa: E402
 from vvcore import Voicevox  # noqa: E402
 
 STYLE_ID = 84  # 青山龍星「しっとり」
 
 # 読み上げる文章。(文, 直後に入れる無音の秒数)
+# 1行目は冒頭のフック。ここだけ画面では大きな文字で出す。
 SCRIPT = [
+    ("君たちはどう生きるか", 0.75),
     ("京都で、「君たちはどう生きるか」の世界で禅に触れられるイベントがあります。", 0.55),
     ("それが、「禅とジブリ」京都展。", 0.60),
     ("10月3日から、京都市京セラ美術館で開催されます。", 0.50),
@@ -54,7 +57,7 @@ INTONATION_SCALE = 0.95   # 抑揚を少し抑えて大げさにしない
 VOLUME_SCALE = 1.0
 PRE_PHONEME_LENGTH = 0.10
 POST_PHONEME_LENGTH = 0.10
-LEAD_IN = 0.70            # 冒頭の無音。フックを見せる間を取る
+LEAD_IN = 0.35            # 冒頭の無音
 TAIL = 0.60               # 末尾の無音
 TARGET_PEAK_DBFS = -1.5   # TikTokで埋もれない音量にそろえる
 
@@ -120,7 +123,12 @@ def render(vv, target_peak_dbfs=TARGET_PEAK_DBFS):
         spans.append((position, position + duration))
         position += duration + pause
     chunks.append(silence(params, TAIL))
-    return b"".join(chunks), params, spans
+
+    # フックに効果音を乗せる。切り替わる時刻は2文目（本文の1行目）の頭。
+    hand_off = spans[1][0] + PRE_PHONEME_LENGTH / SPEED_SCALE
+    audio = sfx.mix(b"".join(chunks), params.framerate,
+                    sfx.hook_cues(params.framerate, hand_off), target_peak_dbfs)
+    return audio, params, spans
 
 
 def write_wav(path, audio, params):
