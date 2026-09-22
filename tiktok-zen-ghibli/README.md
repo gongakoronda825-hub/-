@@ -4,13 +4,43 @@ TikTok用の日本語ナレーション音声と、その生成スクリプト�
 
 ## 成果物
 
-| ファイル | 形式 | 長さ |
-| --- | --- | --- |
-| `zen-ghibli-narration.mp3` | MP3 192kbps / 44.1kHz / モノラル | 1分5秒 |
-| `zen-ghibli-narration.wav` | WAV 16bit / 24kHz / モノラル | 1分5秒 |
+| ファイル | 中身 |
+| --- | --- |
+| `zen-ghibli-tiktok.mp4` | 縦動画 1080x1920 / 30fps / 1分5秒。背景は緑一色、音声と字幕入り |
+| `zen-ghibli-narration.mp3` | ナレーションのみ MP3 192kbps / 44.1kHz / モノラル |
+| `zen-ghibli-narration.wav` | ナレーションのみ WAV 16bit / 24kHz / モノラル |
+| `zen-ghibli-subtitles.srt` | 字幕29枚のタイムコード。編集アプリで字幕を作り直すとき用 |
 
-ピークは -1.5 dBFS、平均 -16.3 dBFS に整えてあるので、TikTokに載せても音量が
-埋もれない。動画編集はしていない、ナレーション音声のみ。
+音声はピーク -1.5 dBFS、平均 -16.3 dBFS に整えてあるので、TikTokに載せても
+音量が埋もれない。
+
+## 動画の作り
+
+背景は **クロマキー用の緑 rgb(0, 177, 64)** の一色。編集アプリのクロマキーで
+抜いて、好きな写真や映像を下に敷く前提で作っている。
+
+- 字幕以外は何も置いていないので、敷いた画像とぶつからない
+- 半透明の影やフェードは使っていない。緑と混ざった半透明の画素はキーで
+  抜くと濁るため、文字は不透明の白＋濃い縁取りだけで作っている
+- 字幕は画面のやや上寄り（中心 y=1010）、幅は860pxまで。TikTokの
+  下のキャプション欄と右のボタン列を避けた位置
+- 読み終えた文字が金色 rgb(255, 210, 74) に変わる。声と文字が一緒に
+  進むので、音を消して見ている人にもリズムが伝わる
+- 字幕の出はじめに軽く弾む動き（0.2秒）。文の切れ目で字幕を送るので、
+  1枚あたり平均2.2秒
+- 折り返しは「カタカナ語」「鍵括弧の題名」「日付」を割らず、助詞の
+  切れ目を選ぶ。1行に収まらないときだけ2行にして、字を少し小さくする
+
+### キーの抜き方（CapCutなど）
+
+1. 背景にしたい画像・映像を下のレイヤーに置く
+2. この `zen-ghibli-tiktok.mp4` を上のレイヤーに重ねる
+3. 「クロマキー」で緑の部分をスポイトで選び、強度を上げる
+4. 縁に緑が残るときは「シャドウ」「エッジ」のスライダーを少し上げる
+
+緑を別の色にしたい、字幕の位置・大きさ・色を変えたいときは
+`generate_video.py` の上部の定数（`CHROMA` `TEXT_CENTER_Y` `FONT_SIZE`
+`SPOKEN_COLOR` など）を触る。
 
 ## 声の設定
 
@@ -41,16 +71,24 @@ VOICEVOX:青山龍星
 ## 作り直す
 
 ```bash
-./setup_assets.sh                 # 素材を ./assets に取得（約120MB）
-python3 generate_narration.py     # WAV と MP3 を生成
+./setup_assets.sh                 # 素材を ./assets に取得（約150MB）
+python3 generate_narration.py     # 音声だけ作る（WAV と MP3）
+python3 generate_video.py         # 動画を作る（音声・字幕・MP4 を一括）
 ```
+
+`generate_video.py` は音声を作り直してから、その音声のモーラ長で字幕の
+タイミングを決める。音声と映像が同じ計算から出るので、ずれない。
 
 `generate_narration.py` の `SCRIPT` が読み上げる文章、その隣の数値が各文の
 直後に入れる無音の秒数。声のトーンは同ファイル上部の定数で調整する。
 
+- `captions.py` … 字幕の区切りと、モーラ長からのタイミング計算
 - `vvcore.py` … VOICEVOX CORE の C API を ctypes から叩く薄いラッパー
-- `setup_assets.sh` … コア / ONNX Runtime / Open JTalk辞書 / 音声モデルの取得
+- `setup_assets.sh` … コア / ONNX Runtime / Open JTalk辞書 / 音声モデル / フォント
 - `assets/` は容量が大きいためコミットしていない（`.gitignore`）
+
+字幕の文字は **Source Han Sans JP Heavy**（SIL Open Font License 1.1、
+商用利用可・クレジット不要）。
 
 MP3の書き出しには `ffmpeg` を使う。入っていない場合は
 `pip install imageio-ffmpeg` でも動く（WAVだけなら不要）。

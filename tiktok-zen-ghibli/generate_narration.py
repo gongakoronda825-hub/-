@@ -93,30 +93,48 @@ def synthesize_all(vv, volume_scale):
     return wavs, wav_params(wavs[0])
 
 
-def build(vv, out_wav, target_peak_dbfs=TARGET_PEAK_DBFS):
+def render(vv, target_peak_dbfs=TARGET_PEAK_DBFS):
+    """ナレーション全体を合成する。
+
+    戻り値は (PCMバイト列, waveのパラメータ, 各文の [開始秒, 終了秒])。
+    字幕を作る側がこの開始秒を使うので、音声と映像で必ず同じ時間軸になる。
+    """
     # 1回目は素の音量で合成し、全体のピークから音量係数を決めてから合成し直す。
     # エンジン側で音量をかけるので、16bit化のあとで増幅するより劣化が少ない。
-    wavs, params = synthesize_all(vv, VOLUME_SCALE)
+    wavs, _ = synthesize_all(vv, VOLUME_SCALE)
     peak = max(peak_amplitude(wav_frames(w)) for w in wavs)
     volume_scale = VOLUME_SCALE * (10 ** (target_peak_dbfs / 20) * 32767 / peak)
     print(f"  volumeScale={volume_scale:.2f} "
           f"(peak {peak} -> {target_peak_dbfs} dBFS)", file=sys.stderr)
     wavs, params = synthesize_all(vv, volume_scale)
 
+    bytes_per_second = params.framerate * params.sampwidth * params.nchannels
     chunks = [silence(params, LEAD_IN)]
+    spans = []
+    position = LEAD_IN
     for wav, (_, pause) in zip(wavs, SCRIPT):
-        chunks.append(wav_frames(wav))
+        frames = wav_frames(wav)
+        chunks.append(frames)
         chunks.append(silence(params, pause))
+        duration = len(frames) / bytes_per_second
+        spans.append((position, position + duration))
+        position += duration + pause
     chunks.append(silence(params, TAIL))
+    return b"".join(chunks), params, spans
 
-    audio = b"".join(chunks)
-    with wave.open(str(out_wav), "wb") as w:
+
+def write_wav(path, audio, params):
+    with wave.open(str(path), "wb") as w:
         w.setnchannels(params.nchannels)
         w.setsampwidth(params.sampwidth)
         w.setframerate(params.framerate)
         w.writeframes(audio)
-    seconds = len(audio) / (params.framerate * params.sampwidth * params.nchannels)
-    return seconds, params
+    return len(audio) / (params.framerate * params.sampwidth * params.nchannels)
+
+
+def build(vv, out_wav, target_peak_dbfs=TARGET_PEAK_DBFS):
+    audio, params, _ = render(vv, target_peak_dbfs)
+    return write_wav(out_wav, audio, params), params
 
 
 def find_ffmpeg():
@@ -143,25 +161,44 @@ def to_mp3(wav_path, mp3_path):
     return mp3_path
 
 
-def main():
-    assets = Path(os.environ.get("VV_ASSETS", Path(__file__).resolve().parent / "assets"))
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--assets", type=Path, default=assets,
-                    help="setup_assets.sh が展開した素材ディレクトリ")
-    ap.add_argument("--out", type=Path,
-                    default=Path(__file__).resolve().parent / "zen-ghibli-narration.wav")
-    args = ap.parse_args()
+DEFAULT_ASSETS = Path(os.environ.get("VV_ASSETS",
+                                    Path(__file__).resolve().parent / "assets"))
 
-    core = next(args.assets.glob("voicevox_core-*/lib/libvoicevox_core.so"))
-    ort = next(args.assets.glob("voicevox_onnxruntime-*/lib/libvoicevox_onnxruntime.so.*"))
-    dic = next(args.assets.glob("open_jtalk_dic_utf_8-*"))
-    vvm = next(args.assets.glob("**/15.vvm"))
+
+def open_engine(assets):
+    """素材ディレクトリからエンジンを起こし、音声モデルを読み込む。"""
+    core = next(assets.glob("voicevox_core-*/lib/libvoicevox_core.so"))
+    ort = next(assets.glob("voicevox_onnxruntime-*/lib/libvoicevox_onnxruntime.so.*"))
+    dic = next(assets.glob("open_jtalk_dic_utf_8-*"))
+    vvm = next(assets.glob("**/15.vvm"))
 
     vv = Voicevox(core, ort, dic, user_words=USER_WORDS)
     metas = vv.load_model(vvm)
     style = next((c["name"], s["name"]) for c in metas for s in c["styles"]
                  if s["id"] == STYLE_ID)
     print(f"voice: {style[0]}（{style[1]}） style_id={STYLE_ID}", file=sys.stderr)
+    return vv
+
+
+def query_for(vv, text, volume_scale=VOLUME_SCALE):
+    """本番と同じ声の設定を載せたAudioQueryを返す（字幕のタイミング計算用）。"""
+    query = vv.audio_query(text, STYLE_ID)
+    query.update(speedScale=SPEED_SCALE, pitchScale=PITCH_SCALE,
+                 intonationScale=INTONATION_SCALE, volumeScale=volume_scale,
+                 prePhonemeLength=PRE_PHONEME_LENGTH,
+                 postPhonemeLength=POST_PHONEME_LENGTH)
+    return query
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--assets", type=Path, default=DEFAULT_ASSETS,
+                    help="setup_assets.sh が展開した素材ディレクトリ")
+    ap.add_argument("--out", type=Path,
+                    default=Path(__file__).resolve().parent / "zen-ghibli-narration.wav")
+    args = ap.parse_args()
+
+    vv = open_engine(args.assets)
 
     seconds, params = build(vv, args.out)
     print(f"\n{args.out}  {seconds:.1f}s  "

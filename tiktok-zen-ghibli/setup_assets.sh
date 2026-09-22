@@ -44,5 +44,16 @@ mkdir -p vvms
 cp "voicevox_vvm/vvms/${VVM_FILE}" vvms/
 cp voicevox_vvm/TERMS.txt . 2>/dev/null || true
 
-rm -f core.zip ort.tgz open_jtalk_dic.tar.gz
+echo "==> 字幕用フォント Source Han Sans JP Heavy"
+curl -fsSL -o shs.zip \
+  "https://github.com/adobe-fonts/source-han-sans/releases/download/2.004R/SourceHanSansJP.zip"
+python3 - <<'EOF'
+import zipfile
+z = zipfile.ZipFile("shs.zip")
+open("SourceHanSansJP-Heavy.otf", "wb").write(
+    z.read("SubsetOTF/JP/SourceHanSansJP-Heavy.otf"))
+open("SourceHanSans-LICENSE.txt", "wb").write(z.read("LICENSE.txt"))
+EOF
+
+rm -f core.zip ort.tgz open_jtalk_dic.tar.gz shs.zip
 echo "==> 完了: $(pwd)"
