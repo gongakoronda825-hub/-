@@ -252,22 +252,41 @@ def ease_out_back(t):
     return 1 + 2.4 * (t - 1) ** 3 + 1.4 * (t - 1) ** 2
 
 
-def render_frames(captions, layers, hook, hook_end, duration, out_pipe):
-    background = Image.new("RGB", (WIDTH, HEIGHT), CHROMA)
+def _compose(frame, layer, x, y):
+    """文字のレイヤーを載せる。透明の面にはsrc-overで重ねる。"""
+    if frame.mode == "RGBA":
+        frame.alpha_composite(layer, (x, y))
+    else:
+        frame.paste(layer, (x, y), layer)
+
+
+def render_frames(captions, layers, hook, hook_end, duration, sinks):
+    """1枚ずつ描いて、各書き出し先へ流す。sinkは (パイプ, 透明かどうか)。"""
+    empty = Image.new("RGBA", (WIDTH, HEIGHT), (0, 0, 0, 0))
+    chroma = Image.new("RGB", (WIDTH, HEIGHT), CHROMA)
     total_frames = int(round(duration * FPS))
     index = 0
     for frame_no in range(total_frames):
         t = frame_no / FPS
         while index + 1 < len(captions) and t >= captions[index + 1]["start"]:
             index += 1
-        frame = background.copy()
+        frame = empty.copy()
         if t < hook_end:
             # フックだけを見せる。字幕と重ねない。
             _draw_hook(frame, hook, t)
         else:
             cap = captions[index]
             _draw_caption(frame, cap, layers[index], t - cap["start"])
-        out_pipe.write(frame.tobytes())
+
+        flat = None
+        for pipe, transparent in sinks:
+            if transparent:
+                pipe.write(frame.tobytes())
+            else:
+                if flat is None:
+                    flat = chroma.copy()
+                    flat.paste(frame, (0, 0), frame)
+                pipe.write(flat.tobytes())
         if frame_no % 300 == 0:
             print(f"  frame {frame_no}/{total_frames}", file=sys.stderr)
     return total_frames
@@ -281,8 +300,8 @@ def _draw_hook(frame, hook, t):
     if scale != 1.0:
         layer = layer.resize((max(1, int(layer.width * scale)),
                               max(1, int(layer.height * scale))), Image.LANCZOS)
-    frame.paste(layer, ((WIDTH - layer.width) // 2,
-                        HOOK_CENTER_Y - layer.height // 2), layer)
+    _compose(frame, layer, (WIDTH - layer.width) // 2,
+             HOOK_CENTER_Y - layer.height // 2)
 
 
 def _draw_caption(frame, cap, layer, elapsed):
@@ -297,11 +316,11 @@ def _draw_caption(frame, cap, layer, elapsed):
         rise = int(POP_RISE * (1 - ease_out_back(ratio)))
         popped = layer.base.resize((max(1, int(width * scale)),
                                     max(1, int(height * scale))), Image.LANCZOS)
-        frame.paste(popped, ((WIDTH - popped.width) // 2,
-                             TEXT_CENTER_Y - popped.height // 2 + rise), popped)
+        _compose(frame, popped, (WIDTH - popped.width) // 2,
+                 TEXT_CENTER_Y - popped.height // 2 + rise)
         return
 
-    frame.paste(layer.base, (anchor_x, anchor_y), layer.base)
+    _compose(frame, layer.base, anchor_x, anchor_y)
     progress = progress_at(cap["items"], elapsed)
     for i, count in enumerate(layer.spoken_chars(progress)):
         if count <= 0:
@@ -314,7 +333,7 @@ def _draw_caption(frame, cap, layer, elapsed):
         box = (max(0, x0 - OUTLINE_WIDTH * 2), max(0, y0),
                min(width, x1), min(height, y1))
         piece = layer.spoken.crop(box)
-        frame.paste(piece, (anchor_x + box[0], anchor_y + box[1]), piece)
+        _compose(frame, piece, anchor_x + box[0], anchor_y + box[1])
 
 
 def main():
@@ -323,7 +342,13 @@ def main():
     ap.add_argument("--assets", type=Path, default=gn.DEFAULT_ASSETS)
     ap.add_argument("--font", type=Path,
                     default=gn.DEFAULT_ASSETS / "SourceHanSansJP-Heavy.otf")
-    ap.add_argument("--out", type=Path, default=here / "zen-ghibli-tiktok.mp4")
+    ap.add_argument("--out", type=Path, default=here / "zen-ghibli-tiktok.mp4",
+                    help="緑背景のMP4")
+    ap.add_argument("--alpha-out", type=Path,
+                    default=here / "zen-ghibli-tiktok-alpha.webm",
+                    help="背景が透明のWebM（VP9のアルファ付き）")
+    ap.add_argument("--only", choices=["green", "alpha"],
+                    help="片方だけ書き出す")
     ap.add_argument("--audio", type=Path, default=here / "zen-ghibli-narration.wav")
     ap.add_argument("--srt", type=Path, default=here / "zen-ghibli-subtitles.srt")
     args = ap.parse_args()
@@ -352,27 +377,51 @@ def main():
     ffmpeg = gn.find_ffmpeg()
     if not ffmpeg:
         sys.exit("ffmpegが見つかりません。pip install imageio-ffmpeg を試してください。")
-    command = [
-        ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
-        "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{WIDTH}x{HEIGHT}",
-        "-r", str(FPS), "-i", "-",
-        "-i", str(args.audio),
+
+    def encode(pixel_format, codec_options, out_path):
+        return subprocess.Popen([
+            ffmpeg, "-hide_banner", "-loglevel", "error", "-y",
+            "-f", "rawvideo", "-pix_fmt", pixel_format,
+            "-s", f"{WIDTH}x{HEIGHT}", "-r", str(FPS), "-i", "-",
+            "-i", str(args.audio), *codec_options, "-shortest", str(out_path),
+        ], stdin=subprocess.PIPE)
+
+    green = [
         "-c:v", "libx264", "-preset", "medium", "-crf", "17",
         "-pix_fmt", "yuv420p", "-profile:v", "high", "-level", "4.0",
-        "-c:a", "aac", "-b:a", "192k", "-ar", "44100", "-shortest",
-        "-movflags", "+faststart", str(args.out),
+        "-c:a", "aac", "-b:a", "192k", "-ar", "44100",
+        "-movflags", "+faststart",
     ]
-    process = subprocess.Popen(command, stdin=subprocess.PIPE)
-    try:
-        frames = render_frames(caps, layers, hook, hook_end,
-                               duration, process.stdin)
-    finally:
-        process.stdin.close()
-    if process.wait() != 0:
-        sys.exit("ffmpegの書き出しに失敗しました。")
+    # VP9はアルファを別レイヤーとして持てる。yuva420pをフィルタで明示しないと
+    # 不透明なyuv420pに落ちるので注意。
+    alpha = [
+        "-vf", "format=yuva420p",
+        "-c:v", "libvpx-vp9", "-b:v", "0", "-crf", "30",
+        "-row-mt", "1", "-cpu-used", "4", "-deadline", "good",
+        "-auto-alt-ref", "0",
+        "-c:a", "libopus", "-b:a", "160k",
+    ]
 
-    print(f"\n{args.out}  {frames / FPS:.1f}s  {WIDTH}x{HEIGHT}/{FPS}fps  "
-          f"背景 rgb{CHROMA}")
+    jobs = []
+    if args.only != "alpha":
+        jobs.append((encode("rgb24", green, args.out), False, args.out))
+    if args.only != "green":
+        jobs.append((encode("rgba", alpha, args.alpha_out), True, args.alpha_out))
+
+    sinks = [(job.stdin, transparent) for job, transparent, _ in jobs]
+    try:
+        frames = render_frames(caps, layers, hook, hook_end, duration, sinks)
+    finally:
+        for job, _, _ in jobs:
+            job.stdin.close()
+    for job, _, path in jobs:
+        if job.wait() != 0:
+            sys.exit(f"{path} の書き出しに失敗しました。")
+
+    print()
+    for _, transparent, path in jobs:
+        print(f"{path}  {frames / FPS:.1f}s  {WIDTH}x{HEIGHT}/{FPS}fps  "
+              f"{'背景 透明' if transparent else f'背景 rgb{CHROMA}'}")
     print(f"{args.srt}  フック1枚＋字幕{len(caps) - 1}枚")
 
 
