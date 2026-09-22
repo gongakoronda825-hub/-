@@ -46,7 +46,15 @@ HOOK_LINES = ["君たちは", "どう生きるか"]
 HOOK_TEXT = "君たちはどう生きるか"
 HOOK_SIZE = 112
 HOOK_COLOR = SPOKEN_COLOR
-HOOK_CENTER_Y = 940
+HOOK_CENTER_Y = 1000
+
+# フックに出す写真。写真と文字をひとかたまりにして、まとめて弾ませる。
+HOOK_IMAGE = "hook-image.jpg"
+HOOK_IMAGE_SIZE = 820
+HOOK_IMAGE_RADIUS = 30
+HOOK_IMAGE_BORDER = 5
+HOOK_IMAGE_CROP_TOP = 0.08   # 正方形に切るときの上の余白の取り方
+HOOK_GAP = 52                # 写真と文字のあいだ
 
 NO_LINE_START = "、。」』）,.!?ー々" + cap_mod.SMALL_KANA
 NO_LINE_END = "「『（"
@@ -163,22 +171,57 @@ def fit(text, font_path, base_size, max_width, max_lines=2):
     return font, char_wrap(text, font, max_width)
 
 
-class Hook:
-    """冒頭に出す大きな一言。字幕と同じ縁取りで、色だけ変える。"""
+def photo_card(path, side=HOOK_IMAGE_SIZE, radius=HOOK_IMAGE_RADIUS,
+               border=HOOK_IMAGE_BORDER):
+    """写真を正方形に切り、角を丸めて白い縁を付けたカードにする。"""
+    photo = Image.open(path).convert("RGB")
+    edge = min(photo.width, photo.height)
+    left = (photo.width - edge) // 2
+    top = int((photo.height - edge) * HOOK_IMAGE_CROP_TOP)
+    photo = photo.crop((left, top, left + edge, top + edge))
+    photo = photo.resize((side, side), Image.LANCZOS).convert("RGBA")
 
-    def __init__(self, lines, font_path, size, color):
+    # 角の丸みはマスクで付ける。半透明の画素は縁のごく細い部分だけになる。
+    mask = Image.new("L", (side, side), 0)
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, side - 1, side - 1),
+                                           radius=radius, fill=255)
+    photo.putalpha(mask)
+
+    if not border:
+        return photo
+    card = Image.new("RGBA", (side + border * 2, side + border * 2), (0, 0, 0, 0))
+    ImageDraw.Draw(card).rounded_rectangle(
+        (0, 0, card.width - 1, card.height - 1),
+        radius=radius + border, fill=(255, 255, 255, 255))
+    card.alpha_composite(photo, (border, border))
+    return card
+
+
+class Hook:
+    """冒頭に出す写真と大きな一言。字幕と同じ縁取りで、色だけ変える。"""
+
+    def __init__(self, lines, font_path, size, color, image=None):
         self.font = ImageFont.truetype(str(font_path), size)
         self.line_height = int(size * LINE_SPACING)
         stroke = round(OUTLINE_WIDTH * size / FONT_SIZE)
         pad = stroke * 2 + 6
-        width = int(max(self.font.getlength(l) for l in lines)) + pad * 2
-        height = self.line_height * len(lines) + pad * 2
+        text_width = int(max(self.font.getlength(l) for l in lines)) + pad * 2
+        text_height = self.line_height * len(lines) + pad * 2
+
+        card = photo_card(image) if image else None
+        width = max(text_width, card.width if card else 0)
+        height = text_height + (card.height + HOOK_GAP if card else 0)
 
         self.layer = Image.new("RGBA", (width, height), (0, 0, 0, 0))
+        top = 0
+        if card:
+            self.layer.alpha_composite(card, ((width - card.width) // 2, 0))
+            top = card.height + HOOK_GAP
+
         draw = ImageDraw.Draw(self.layer)
         for i, line in enumerate(lines):
-            x = pad + (width - pad * 2 - self.font.getlength(line)) / 2
-            draw.text((x, pad + i * self.line_height), line, font=self.font,
+            x = (width - self.font.getlength(line)) / 2
+            draw.text((x, top + pad + i * self.line_height), line, font=self.font,
                       fill=color, stroke_width=stroke, stroke_fill=OUTLINE_COLOR)
 
 
@@ -349,6 +392,8 @@ def main():
                     help="背景が透明のWebM（VP9のアルファ付き）")
     ap.add_argument("--only", choices=["green", "alpha"],
                     help="片方だけ書き出す")
+    ap.add_argument("--hook-image", type=Path, default=here / HOOK_IMAGE,
+                    help="フックに出す写真。無ければ文字だけになる")
     ap.add_argument("--audio", type=Path, default=here / "zen-ghibli-narration.wav")
     ap.add_argument("--srt", type=Path, default=here / "zen-ghibli-subtitles.srt")
     args = ap.parse_args()
@@ -363,7 +408,8 @@ def main():
 
     # フックは2枚目の字幕（同じ題名が本文に出てくる）に席を譲る。
     # 1枚目「京都で、」はフックの裏に隠れるので、画面には出さない。
-    hook = Hook(HOOK_LINES, args.font, HOOK_SIZE, HOOK_COLOR)
+    hook = Hook(HOOK_LINES, args.font, HOOK_SIZE, HOOK_COLOR,
+                image=args.hook_image if args.hook_image.exists() else None)
     hook_end = caps[1]["start"]
 
     shown = [{"text": HOOK_TEXT, "start": 0.0, "show_until": hook_end}] + caps[1:]
