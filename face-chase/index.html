@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#07060a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="format-detection" content="telephone=no">
+<title>FACE CHASE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&display=swap">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+  <canvas id="scene"></canvas>
+
+  <!-- 緊張演出のオーバーレイ -->
+  <div id="vignette"></div>
+  <div id="danger"></div>
+  <div id="indicators"></div>
+  <div id="caughtDim"></div>
+  <div id="flash"></div>
+
+  <!-- HUD -->
+  <div id="hud" class="hidden">
+    <div class="hud-time">
+      <div class="hud-label">TIME</div>
+      <div id="timeValue" class="hud-value">00:00</div>
+      <div class="stamina"><div id="staminaFill"></div></div>
+    </div>
+    <div id="facesValue" class="hud-faces">FACE ×1</div>
+  </div>
+  <div id="warning" class="hidden">
+    <div class="warn-main">WARNING</div>
+    <div class="warn-sub">接近中</div>
+  </div>
+  <div id="toast"></div>
+
+  <button id="muteBtn" type="button" aria-label="サウンド切替">SOUND ON</button>
+
+  <!-- スマホ操作 -->
+  <div id="touchControls" class="hidden">
+    <div id="joyZone">
+      <div id="joyBase"><div id="joyKnob"></div></div>
+    </div>
+    <button id="dashBtn" type="button"><span>DASH</span></button>
+  </div>
+
+  <!-- スタート画面 -->
+  <div id="titleScreen" class="screen">
+    <img id="titleFace" alt="">
+    <div class="title-inner">
+      <h1 class="title-logo">FACE<br>CHASE</h1>
+      <p class="title-tag">逃げろ。</p>
+      <button id="startBtn" type="button" class="big-btn" disabled>LOADING…</button>
+      <p class="how how-pc">WASD / 矢印キーで移動 ・ Shift / Space でダッシュ</p>
+      <p class="how how-touch">左下スティックで移動 ・ 右の DASH で加速</p>
+      <p id="faceNote" class="face-note hidden"></p>
+    </div>
+  </div>
+
+  <div id="countdown"></div>
+
+  <!-- 捕獲 → そこそこバっチリ → GAME OVER -->
+  <div id="endLayer" class="hidden">
+    <div id="caughtText" aria-label="そこそこバっチリ"><span>そこそこ</span><span>バっチリ</span></div>
+    <div id="overPanel">
+      <div class="over-title">GAME OVER</div>
+      <div class="over-label">SURVIVAL TIME</div>
+      <div id="overTime" class="over-time">生存時間：0.00秒</div>
+      <div id="overBest" class="over-best">BEST：0.00秒</div>
+      <div id="newBest" class="new-best hidden">NEW BEST!</div>
+      <button id="retryBtn" type="button" class="big-btn">もう一度遊ぶ</button>
+    </div>
+  </div>
+
+  <div id="bootError" class="hidden"></div>
+</div>
+
+<script type="importmap">
+{ "imports": { "three": "./lib/three.module.min.js" } }
+</script>
+<script type="module" src="game.js"></script>
+<script>
+  // game.js が読み込めなかったとき（file:// で直接開いた等）に原因を表示する
+  setTimeout(function () {
+    if (window.__faceChaseReady) return;
+    var el = document.getElementById('bootError');
+    el.innerHTML = 'ゲームを読み込めませんでした。<br><br>' +
+      (location.protocol === 'file:'
+        ? 'index.html を直接開くとブラウザの制限で動きません。<br>ローカルサーバー経由で開いてください：<br><code>npx serve .</code> または <code>python3 -m http.server</code>'
+        : 'ページを再読み込みしてください。');
+    el.classList.remove('hidden');
+  }, 6000);
+</script>
+</body>
+</html>
