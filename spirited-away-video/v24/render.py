@@ -18,8 +18,8 @@ GOLD = (236, 200, 120)
 WHITE = (255, 255, 255)
 NAVY = (6, 12, 45)
 
-poster_path, intro_path, clip_dir, fontdir, sfx_path, out_path = sys.argv[1:7]
-previews = [float(x) for x in sys.argv[7].split(",")] if len(sys.argv) > 7 else None
+poster_path, intro_path, clip_dir, aburaya_path, fontdir, sfx_path, out_path = sys.argv[1:8]
+previews = [float(x) for x in sys.argv[8].split(",")] if len(sys.argv) > 8 else None
 
 SANS = f"{fontdir}/NotoSansCJKjp-Black.otf"
 SANS_B = f"{fontdir}/NotoSansCJKjp-Bold.otf"
@@ -31,6 +31,10 @@ intro = Image.open(intro_path).convert("RGB").crop((40, 0, 1110, 668))  # 右端
 
 
 CLIP = sorted(glob.glob(f"{clip_dir}/c_*.jpg"))
+
+# 日程の場面の背景（湯屋。縦長 1080x2340 を上端そろえで使い、空に日程を置く）
+ABURAYA = Image.open(aburaya_path).convert("RGB")
+ABURAYA = ABURAYA.resize((W, int(ABURAYA.height * W / ABURAYA.width)), Image.LANCZOS).convert("RGBA")
 
 
 def clip_frame(i):
@@ -252,30 +256,81 @@ def scene_hook(t):
     return f
 
 
-def scene_japan(t):
-    if t < 3.0:
-        # 1.5–3.0 東京
-        k = ease_out((t - 1.5) / 0.3)
-        s = lerp(3.4, 3.0, k) + (t - 1.5) * 0.05
-        f = camera(525, 290, s)
-        f.alpha_composite(gradient(0.9, 0.0, 0, 330))
-        f.alpha_composite(gradient(0.0, 0.92, 780, 1150))
-        f.alpha_composite(gradient(0.92, 0.92, 1150, H))
-        pop(f, TOKYO_DATE, W / 2, 1150, t, 1.55)
-        pop(f, TOKYO_CITY, W / 2, 1345, t, 1.62)
-        pop(f, TOKYO_VENUE, W / 2, 1510, t, 1.70)
+JP_DUR = 5.0  # 日程の場面の長さ
+
+# 日程の文字素材
+JP_LABEL = text([("日本公演", GOLD)], SANS, 64)
+JP_HERO_DATE = text([("2027.3〜5", GOLD)], SERIF, 140)
+JP_HERO_CITY = text([("東京・明治座", WHITE)], SANS, 150)
+JP_HEAD2 = text([("2027 ", GOLD), ("日本5都市をめぐる", WHITE)], SANS, 72)
+JP_ROWS = [
+    ("3〜5月", "東京", "明治座"),
+    ("6月", "愛知", "御園座"),
+    ("6〜7月", "大阪", "梅田芸術劇場 メインホール"),
+    ("7〜8月", "福岡", "博多座"),
+    ("8月", "北海道", "札幌文化芸術劇場 hitaru"),
+]
+ROW_Y0, ROW_STEP = 320, 118
+LINE_X = 290
+
+
+def jp_row(date, city, venue):
+    """1行分：左に月（金）、右に都市（大）と劇場（小）"""
+    d = text([(date, GOLD)], SERIF, 62)
+    c = text([(city, WHITE)], SANS, 82)
+    v = text([(venue, (235, 240, 250))], SANS_B, 36 if len(venue) < 10 else 28, stroke=2)
+    return d, c, v
+
+
+JP_ROW_IMGS = [jp_row(*r) for r in JP_ROWS]
+
+
+def scene_japan_new(lt):
+    # 背景：湯屋。ゆっくり寄る（上端を基準にして、空を残す）
+    z = 1.0 + lt * 0.012
+    bw, bh = int(W * z), int(ABURAYA.height * z)
+    bg = ABURAYA.resize((bw, bh), Image.BICUBIC)
+    f = Image.new("RGBA", (W, H), (0, 0, 0, 255))
+    f.alpha_composite(bg, ((W - bw) // 2, 0))
+    # 空の部分を少しだけ暗くして文字を読みやすく
+    f.alpha_composite(gradient(0.35, 0.0, 0, 900))
+
+    # 前半 0–1.9：東京を大きく
+    if lt < 2.2:
+        out = clamp((lt - 1.8) / 0.4)  # 1.8秒から上へ縮みながら消える
+        sc = lerp(1.0, 0.55, ease_io(out))
+        dy = lerp(0, -170, ease_io(out))
+        a = 1 - out
+        pop(f, JP_LABEL, W / 2, 250 + dy * 0.6, lt, 0.0, 0.15)
+        if a > 0:
+            k = ease_out(lt / 0.2)
+            place(f, JP_HERO_DATE, W / 2, 400 + dy, a * k, sc * lerp(1.15, 1.0, k))
+            k = ease_out((lt - 0.08) / 0.2)
+            place(f, JP_HERO_CITY, W / 2, 580 + dy, a * k, sc * lerp(1.15, 1.0, k))
         return f
-    # 3.0–5.0 国内4都市
-    s = 2.2 + (t - 3.0) * 0.04
-    f = camera(525, 380, s)
-    darken(f, 0.35)
-    f.alpha_composite(gradient(0.0, 0.9, 620, 820))
-    f.alpha_composite(gradient(0.9, 0.9, 820, H))
-    f.alpha_composite(gradient(0.85, 0.0, 0, 420))
-    pop(f, JP_HEAD, W / 2, 290, t, 3.0, 0.15)
-    pos = [(300, 1010), (780, 1010), (300, 1340), (780, 1340)]
-    for i, (x, y) in enumerate(pos):
-        pop(f, TILES[i], x, y, t, 3.05 + i * 0.25, 0.16)
+
+    # 後半 2.0–5.0：5都市を「路線図」のように縦に並べる
+    place(f, JP_HEAD2, W / 2, 200, ease_out((lt - 2.0) / 0.2))
+    # 金の線が上から伸びる
+    grow = ease_io((lt - 2.0) / 1.1)
+    y_top, y_bot = ROW_Y0, ROW_Y0 + ROW_STEP * (len(JP_ROWS) - 1)
+    d = ImageDraw.Draw(f)
+    if grow > 0:
+        d.line((LINE_X, y_top, LINE_X, lerp(y_top, y_bot, grow)), fill=GOLD + (230,), width=6)
+    for i, (di, ci, vi) in enumerate(JP_ROW_IMGS):
+        t0 = 2.0 + i * 0.25
+        k = ease_out((lt - t0) / 0.25)
+        if k <= 0:
+            continue
+        y = ROW_Y0 + i * ROW_STEP
+        r = lerp(4, 16 if i == 0 else 12, k)
+        d.ellipse((LINE_X - r, y - r, LINE_X + r, y + r), fill=GOLD + (255,), outline=NAVY + (255,), width=3)
+        slide = lerp(40, 0, k)
+        # 月は線の左に右寄せ、都市と劇場は線の右
+        place(f, di, LINE_X - 30 - di.width / 2 - slide, y, k)
+        cx = LINE_X + 34 + slide
+        place(f, ci, cx + ci.width / 2, y, k)
+        place(f, vi, cx + ci.width - 18 + vi.width / 2, y + 8, k)
     return f
 
 
@@ -345,9 +400,10 @@ def scene_ask(t):
 def frame_at(t):
     if t < HOOK_DUR:
         return scene_hook(t)
-    t = t - HOOK_DUR + 1.5  # 以降の場面は、もとの作り（文字の場面 1.5秒）の時間で動く
-    if t < 5.0:
-        return scene_japan(t)
+    t -= HOOK_DUR
+    if t < JP_DUR:
+        return scene_japan_new(t)
+    t = t - JP_DUR + 5.0  # 以降の場面は、もとの作りの時間（introduction が 5.0秒から）で動く
     if t < 9.5:
         return scene_intro(t)
     if t < 14.0:
@@ -369,7 +425,7 @@ cmd = [ff, "-y", "-loglevel", "error",
        "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
        "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out_path]
 proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-n = int((21.0 - 1.5 + HOOK_DUR) * FPS)
+n = int((HOOK_DUR + JP_DUR + 16.0) * FPS)
 for i in range(n):
     proc.stdin.write(frame_at(i / FPS).convert("RGB").tobytes())
     if i % 60 == 0:

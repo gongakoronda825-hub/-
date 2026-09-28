@@ -6,7 +6,8 @@ from scipy.io import wavfile
 
 SR = 48000
 HOOK_DUR = 4.0  # 文字の場面の長さ（render.py と合わせる）
-DUR = 21.0 - 1.5 + HOOK_DUR
+JP_DUR = 5.0  # 日程の場面の長さ（render.py と合わせる）
+DUR = HOOK_DUR + JP_DUR + 16.0
 rng = np.random.default_rng(7)
 
 
@@ -134,8 +135,11 @@ def main(out_path):
     mix = np.zeros((int(DUR * SR), 2))
 
     def put(sound, at, gain=1.0, pan=0.0):
-        if at >= 1.0:  # 文字の場面より後の音は、場面が延びた分だけ後ろへずらす
-            at += HOOK_DUR - 1.5
+        # もとの作りの時間（文字 0–1.5 / 日程 1.5–5.0 / introduction 5.0〜）を、今の長さに合わせる
+        if at >= 5.0:
+            at = at - 5.0 + HOOK_DUR + JP_DUR
+        elif at >= 1.0:
+            at = at - 1.5 + HOOK_DUR
         s = int(at * SR)
         e = min(s + len(sound), len(mix))
         seg = sound[: e - s] * gain
@@ -147,6 +151,7 @@ def main(out_path):
     put(applause(HOOK_DUR + 0.4), 0.0, 1.0)
     # 2 日本公演：東京で「シュッ」、4都市で「トン×4」
     put(shu(), 1.42, 1.0)
+    put(shu(), 3.3, 0.5)  # 東京から5都市の並びへ切り替わるところ（小さめ）
     # （4都市の「トン×4」は削除）
     # 3 introduction：風鈴 → 1行ごとに「ドン」、最後だけ強く
     put(furin(), 5.0, 0.9)
