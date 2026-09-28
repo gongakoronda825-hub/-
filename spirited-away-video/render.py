@@ -1,6 +1,6 @@
 """舞台『千と千尋の神隠し』TikTok動画（1080x1920 / 30fps / 21秒）を書き出す。
 
-使い方: python3 render.py <poster.jpg> <intro.jpg> <fontdir> <sfx.wav> <out.mp4> [preview秒,...]
+使い方: python3 render.py <poster.jpg> <intro.jpg> <舞台写真1,2,3> <fontdir> <sfx.wav> <out.mp4> [preview秒,...]
 """
 import math
 import subprocess
@@ -15,8 +15,8 @@ GOLD = (236, 200, 120)
 WHITE = (255, 255, 255)
 NAVY = (6, 12, 45)
 
-poster_path, intro_path, fontdir, sfx_path, out_path = sys.argv[1:6]
-previews = [float(x) for x in sys.argv[6].split(",")] if len(sys.argv) > 6 else None
+poster_path, intro_path, photos_arg, fontdir, sfx_path, out_path = sys.argv[1:7]
+previews = [float(x) for x in sys.argv[7].split(",")] if len(sys.argv) > 7 else None
 
 SANS = f"{fontdir}/NotoSansCJKjp-Black.otf"
 SANS_B = f"{fontdir}/NotoSansCJKjp-Bold.otf"
@@ -25,6 +25,22 @@ SERIF = f"{fontdir}/NotoSerifCJKjp-Black.otf"
 poster = Image.open(poster_path).convert("RGBA")
 PW, PH = poster.size
 intro = Image.open(intro_path).convert("RGB").crop((40, 0, 1110, 668))  # 右端のスクロールバーを除く
+
+
+def photo_layer(path):
+    """舞台写真と、余白を埋める同じ写真のぼかし背景を返す"""
+    im = Image.open(path).convert("RGB")
+    s_ = max(W / im.width, H / im.height) * 1.05
+    bg = im.resize((int(im.width * s_) + 1, int(im.height * s_) + 1), Image.LANCZOS)
+    bg = bg.crop(((bg.width - W) // 2, (bg.height - H) // 2, (bg.width - W) // 2 + W, (bg.height - H) // 2 + H))
+    bg = Image.eval(bg.filter(ImageFilter.GaussianBlur(45)), lambda v: int(v * 0.4)).convert("RGBA")
+    # 横長の写真は高さ 1050px まで大きくして横にパンする。縦長は横幅いっぱい
+    fh = 1050 if im.width > im.height else int(im.height * W / im.width)
+    fg = im.resize((int(im.width * fh / im.height), fh), Image.LANCZOS).convert("RGBA")
+    return bg, fg
+
+
+PHOTOS = [photo_layer(x) for x in photos_arg.split(",")]
 
 # ぼかした背景（ポスターが画面を覆わないときの余白用）
 _s = max(W / PW, H / PH)
@@ -163,15 +179,6 @@ JP_TILES = [
     ("北海道", "2027.8", "札幌文化芸術劇場 hitaru"),
 ]
 
-WORLD_HEAD = text([("そして、", WHITE), ("世界へ", GOLD)], SANS, 100)
-WORLD = [
-    # (ポスター上の位置, 日付, 都市, 劇場)
-    ((170, 205), "2026.12〜2027.1", "台北", "国家戯劇院"),
-    ((880, 210), "2027.5〜8", "トロント", "Princess of Wales Theatre"),
-    ((170, 345), "2027.9〜10", "ロサンゼルス", "Ahmanson Theatre"),
-    ((880, 345), "2028.3〜7", "ロンドン", "London Coliseum"),
-]
-
 STAGE1 = text([("舞台版", GOLD)], SANS, 90)
 STAGE2 = text([("『千と千尋の神隠し』", WHITE)], SANS, 84)
 
@@ -215,24 +222,6 @@ def particles(frame, t, t0, strength):
     glow = layer.filter(ImageFilter.GaussianBlur(6))
     frame.alpha_composite(glow)
     frame.alpha_composite(layer)
-
-
-def shine(frame, t, t0, dur, y0, y1):
-    """金文字に光が走る"""
-    k = (t - t0) / dur
-    if not 0 <= k <= 1:
-        return frame
-    arr = np.asarray(frame).astype(np.float32)
-    region = arr[y0:y1, :, :3]
-    lum = region.mean(axis=2)
-    mask = np.clip((lum - 120) / 100, 0, 1)
-    xs = np.arange(W)[None, :]
-    ys = np.arange(y1 - y0)[:, None]
-    pos = lerp(-300, W + 300, ease_io(k))
-    band = np.exp(-(((xs + ys * 0.6) - pos) / 70) ** 2)
-    region += (band * mask * 190)[..., None]
-    arr[y0:y1, :, :3] = np.clip(region, 0, 255)
-    return Image.fromarray(arr.astype(np.uint8), "RGBA")
 
 
 # ---------- シーン ----------
@@ -302,32 +291,18 @@ def scene_intro(t):
     return f
 
 
-def scene_world(t):
-    if t < 10.6:
-        # 9.5–10.6 WORLD TOUR 2026-2028
-        k = ease_out((t - 9.5) / 1.1)
-        s = lerp(1.02, 1.08, k)
-        f = camera(528, lerp(420, 400, k), s)
-        y = int(H / 2 + (70 - lerp(420, 400, k)) * s)
-        return shine(f, t, 9.6, 0.8, max(0, y - 70), y + 70)
-    # 10.6–14.0 海外4都市
-    i = min(3, int((t - 10.6) / 0.85))
-    t0 = 10.6 + i * 0.85
-    (cx, cy), date, city, venue = WORLD[i]
-    k = ease_out((t - t0) / 0.25)
-    s = lerp(3.3, 2.8, k) + (t - t0) * 0.08
-    f = camera(cx, cy + 45, s)
-    f.alpha_composite(gradient(0.95, 0.95, 0, 380))
-    f.alpha_composite(gradient(0.95, 0.0, 380, 520))
-    f.alpha_composite(gradient(0.0, 0.95, 700, 960))
-    f.alpha_composite(gradient(0.95, 0.95, 960, H))
-    place(f, WORLD_HEAD, W / 2, 270, ease_out((t - 10.6) / 0.15))
-    d = text([(date, GOLD)], SERIF, 96 if len(date) < 12 else 80)
-    c = text([(city, WHITE)], SANS, 170 if len(city) <= 4 else 140)
-    v = text([(venue, WHITE)], SANS_B, 56)
-    pop(f, d, W / 2, 1160, t, t0 + 0.03)
-    pop(f, c, W / 2, 1340, t, t0 + 0.08)
-    pop(f, v, W / 2, 1500, t, t0 + 0.12)
+def scene_photos(t):
+    # 9.5–14.0 舞台写真3枚（1.5秒ずつ）。切り替えで少し寄った状態から戻り、横長の写真は左から右へパン
+    i = min(2, int((t - 9.5) / 1.5))
+    lt = t - 9.5 - i * 1.5
+    bg, fg = PHOTOS[i]
+    z = lerp(1.06, 1.0, ease_out(lt / 0.3)) * (1 + lt * 0.02)
+    fw, fh = int(fg.width * z), int(fg.height * z)
+    img = fg.resize((fw, fh), Image.BICUBIC)
+    over = max(0, fw - W)
+    x = -over * ease_io(lt / 1.5) if over else (W - fw) // 2
+    f = bg.copy()
+    f.alpha_composite(img, (int(x), (H - fh) // 2))
     return f
 
 
@@ -368,7 +343,7 @@ def frame_at(t):
     if t < 9.5:
         return scene_intro(t)
     if t < 14.0:
-        return scene_world(t)
+        return scene_photos(t)
     if t < 18.0:
         return scene_full(t)
     return scene_ask(t)

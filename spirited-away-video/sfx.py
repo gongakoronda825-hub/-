@@ -66,41 +66,6 @@ def furin():
     return x * 0.22
 
 
-def kiran():
-    """きらめく「キラーン」"""
-    t = t_(2.0)
-    out = np.zeros(len(t))
-    for i, f in enumerate([2093, 2637, 3136, 4186, 5274]):
-        d = int(i * 0.045 * SR)
-        seg = np.sin(2 * np.pi * f * t[: len(t) - d]) * env(len(t) - d, 0.002, 0.55)
-        out[d:] += seg * (0.8 - i * 0.1)
-    shimmer = bp(rng.standard_normal(len(t)), 6000, 12000) * env(len(t), 0.02, 0.5) * 0.25
-    return (out + shimmer) * 0.18
-
-
-def train(sec):
-    """電車の走行音「ガタンゴトン」（遠くから来て遠ざかる）"""
-    n = int(sec * SR)
-    t = np.arange(n) / SR
-    rumble = lp(rng.standard_normal(n), 180, 4) * 1.6
-    rumble += bp(rng.standard_normal(n), 300, 900) * 0.15
-    clicks = np.zeros(n)
-    period = 0.62
-    for beat in np.arange(0.05, sec, period):
-        for off, amp, f in [(0.0, 1.0, 95), (0.11, 0.8, 80), (0.31, 0.9, 105), (0.42, 0.7, 85)]:
-            s = int((beat + off) * SR)
-            if s >= n:
-                continue
-            m = min(int(0.2 * SR), n - s)
-            tt = np.arange(m) / SR
-            hit = np.sin(2 * np.pi * f * tt) * np.exp(-tt / 0.05)
-            hit += lp(rng.standard_normal(m), 1500) * np.exp(-tt / 0.012) * 0.6
-            clicks[s : s + m] += hit * amp
-    whole = (rumble + clicks * 0.9)
-    shape = np.minimum(np.clip(t / 0.5, 0, 1), np.clip((sec - t) / 1.4, 0, 1))
-    return whole * shape * 0.5
-
-
 def splash():
     """水しぶき「ザバーッ」"""
     n = int(2.2 * SR)
@@ -168,11 +133,10 @@ def main(out_path):
     put(don(0.7), 5.6)
     put(don(0.8), 6.6)
     put(don(1.2), 7.6)
-    # 4 ワールドツアー：「キラーン」→ 電車 ＋ 切り替えの「シュッ」
-    put(kiran(), 9.65, 1.0)
-    put(train(4.6), 10.3, 0.55)
-    for at in [10.62, 11.47, 12.32, 13.17]:
-        put(shu(), at, 0.8)
+    # 4 舞台写真3枚：切り替えごとに「シュッ」＋軽い「ドン」
+    for at in [9.45, 10.95, 12.45]:
+        put(shu(), at - 0.05, 0.9)
+        put(don(0.45), at + 0.05)
     # 5 ポスター全体：水しぶき ＋ 風
     put(splash(), 14.05, 1.0)
     put(wind(4.2), 14.2, 0.9)
