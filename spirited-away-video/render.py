@@ -2,7 +2,8 @@
 
 使い方: python3 render.py <poster.jpg> <intro.jpg> <舞台映像のコマのフォルダ> <fontdir> <sfx.wav> <out.mp4> [preview秒,...]
 
-舞台映像のコマは、4.5秒・30fps（135枚）に合わせて c_001.jpg〜 の名前で書き出しておく（README 参照）。
+舞台映像のコマは、30fps で c_001.jpg〜 の名前で書き出しておく（README 参照）。
+出力を .png にすると、冒頭の舞台映像に重ねる文字だけを透明PNGで書き出す（opening.py が使う）。
 """
 import glob
 import math
@@ -13,7 +14,7 @@ import imageio_ffmpeg
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-W, H, FPS, DUR = 1080, 1920, 30, 21.0
+W, H, FPS = 1080, 1920, 30
 GOLD = (236, 200, 120)
 WHITE = (255, 255, 255)
 NAVY = (6, 12, 45)
@@ -183,8 +184,6 @@ JP_TILES = [
     ("北海道", "2027.8", "札幌文化芸術劇場 hitaru"),
 ]
 
-STAGE1 = text([("舞台版", GOLD)], SANS, 90)
-STAGE2 = text([("『千と千尋の神隠し』", WHITE)], SANS, 84)
 
 ASK1 = text([("ジブリの", WHITE), ("最新情報", GOLD), ("が", WHITE)], SANS, 100)
 ASK2 = text([("知りたい方は是非", WHITE)], SANS, 100)
@@ -228,37 +227,34 @@ def particles(frame, t, t0, strength):
     frame.alpha_composite(layer)
 
 
-# ---------- シーン ----------
-def scene_hook(t):
-    # 0.0–1.5 最初のフレームから答えを見せる（フェードなし）
-    s = lerp(1.30, 1.36, t / 1.5)
-    f = camera(528, 800, s)
-    # 文字の背後（画面中央の帯）を暗くする
-    f.alpha_composite(gradient(0.0, 0.82, 590, 750))
-    f.alpha_composite(gradient(0.82, 0.82, 750, 1110))
-    f.alpha_composite(gradient(0.82, 0.0, 1110, 1270))
-    place(f, HOOK0, W / 2, H / 2 - 190)
-    # 動員数と本文の間に細い金の線
-    ImageDraw.Draw(f).line((W / 2 - 180, H / 2 - 128, W / 2 + 180, H / 2 - 128), fill=GOLD + (200,), width=3)
-    place(f, HOOK1, W / 2, H / 2 - 40)
-    place(f, HOOK2, W / 2, H / 2 + 115)
+# ---------- シーン（どれも場面の中の時間 lt を受け取る） ----------
+def hook_overlay():
+    """冒頭の舞台映像に重ねる文字（opening.py が使う透明PNG）。映像の上の余白に置く"""
+    f = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    f.alpha_composite(gradient(0.75, 0.75, 0, 560))
+    f.alpha_composite(gradient(0.75, 0.0, 560, 640))
+    place(f, HOOK0, W / 2, 245)
+    ImageDraw.Draw(f).line((W / 2 - 180, 305, W / 2 + 180, 305), fill=GOLD + (200,), width=3)
+    place(f, HOOK1, W / 2, 395)
+    place(f, HOOK2, W / 2, 530)
     return f
 
 
-def scene_japan(t):
+def scene_japan(lt):
+    t = lt + 1.5  # もとの作りの時間（1.5–5.0）に合わせる
     if t < 3.0:
-        # 1.5–3.0 東京
+        # 東京
         k = ease_out((t - 1.5) / 0.3)
         s = lerp(3.4, 3.0, k) + (t - 1.5) * 0.05
         f = camera(525, 290, s)
         f.alpha_composite(gradient(0.9, 0.0, 0, 330))
         f.alpha_composite(gradient(0.0, 0.92, 780, 1150))
         f.alpha_composite(gradient(0.92, 0.92, 1150, H))
-        pop(f, TOKYO_DATE, W / 2, 1150, t, 1.55)
-        pop(f, TOKYO_CITY, W / 2, 1345, t, 1.62)
-        pop(f, TOKYO_VENUE, W / 2, 1510, t, 1.70)
+        pop(f, TOKYO_DATE, W / 2, 1150, t, 1.5)
+        pop(f, TOKYO_CITY, W / 2, 1345, t, 1.55)
+        pop(f, TOKYO_VENUE, W / 2, 1510, t, 1.62)
         return f
-    # 3.0–5.0 国内4都市
+    # 国内4都市
     s = 2.2 + (t - 3.0) * 0.04
     f = camera(525, 380, s)
     darken(f, 0.35)
@@ -272,87 +268,85 @@ def scene_japan(t):
     return f
 
 
-def scene_intro(t):
-    # 5.0–9.5 introduction 画像を1行ずつ
-    lt = t - 5.0
-    z = 1.0 + lt * 0.006
+def scene_intro(lt):
+    # introduction 画像。文字が読めるよう大きめに置き、1行ずつすばやく出す（2.5秒）
+    z = 1.05 + lt * 0.006
     iw = int(W * z)
     ih = int(intro.height * iw / intro.width)
     img = intro.resize((iw, ih), Image.LANCZOS)
     arr = np.asarray(img).astype(np.float32)
     ys = np.arange(ih) / ih * 668  # 元画像の y
     alpha = np.zeros(ih, np.float32)
-    rows = [(60, 180, 0.0, 0.35), (300, 400, 0.6, 0.2), (405, 505, 1.6, 0.2), (510, 610, 2.6, 0.2)]
+    rows = [(60, 180, 0.0, 0.25), (300, 400, 0.35, 0.15), (405, 505, 0.85, 0.15), (510, 610, 1.35, 0.15)]
     for y0, y1, st, du in rows:
         inside = (ys >= y0) & (ys < y1)
-        a = clamp((lt - st) / du)
-        alpha[inside] = a
+        alpha[inside] = clamp((lt - st) / du)
     arr *= alpha[:, None, None]
     img = Image.fromarray(arr.astype(np.uint8), "RGB").convert("RGBA")
     f = Image.new("RGBA", (W, H), (0, 0, 0, 255))
-    # 最後の行でわずかに揺らす（「ドン」に合わせる）
     shake = 0
-    if 2.6 <= lt < 2.9:
-        shake = int(10 * math.sin((lt - 2.6) * 60) * (1 - (lt - 2.6) / 0.3))
+    if 1.35 <= lt < 1.65:  # 最後の行でわずかに揺らす（「ドン」に合わせる）
+        shake = int(10 * math.sin((lt - 1.35) * 60) * (1 - (lt - 1.35) / 0.3))
     f.alpha_composite(img, ((W - iw) // 2, 880 - ih // 2 + shake))
     return f
 
 
-def scene_clip(t):
-    # 9.5–14.0 舞台映像（カーテンコール）。少しスローにして 4.5秒に合わせ、左から右へゆっくりパン
-    lt = t - 9.5
-    bg, fg = clip_frame(int(round(lt * FPS)))
+def scene_clip(lt):
+    # 舞台映像（カーテンコール）。等速で、左から右へゆっくりパン
+    dur = len(CLIP) / FPS
+    bg, fg = clip_frame(int(lt * FPS))
     z = lerp(1.06, 1.0, ease_out(lt / 0.35)) * (1 + lt * 0.01)
     fw, fh = int(fg.width * z), int(fg.height * z)
     img = fg.resize((fw, fh), Image.BICUBIC)
-    x = -(fw - W) * lerp(0.1, 0.9, ease_io(lt / 4.5))
+    x = -(fw - W) * lerp(0.1, 0.9, ease_io(lt / dur))
     f = bg
     f.alpha_composite(img, (int(x), (H - fh) // 2))
     return f
 
 
-def scene_full(t):
-    # 14.0–18.0 ポスター全体へ引く
-    k = ease_io((t - 14.0) / 3.2)
+def scene_full(lt):
+    # 千尋のシルエットからポスター全体へ引く（2.5秒）
+    k = ease_io(lt / 2.3)
     s = lerp(2.4, 1.2, k)
-    cx = lerp(610, 528, k)
-    cy = lerp(650, 790, k)
-    f = camera(cx, cy, s)
-    particles(f, t, 14.0, clamp((t - 14.0) / 0.4) * 0.9)
-    a = ease_out((t - 15.4) / 0.4)
-    if a > 0:
-        f.alpha_composite(gradient(0.93 * a, 0.93 * a, 0, 480))
-        f.alpha_composite(gradient(0.93 * a, 0.0, 480, 760))
-    pop(f, STAGE1, W / 2, 260, t, 15.4, 0.25)
-    pop(f, STAGE2, W / 2, 390, t, 15.55, 0.25)
+    f = camera(lerp(610, 528, k), lerp(650, 790, k), s)
+    particles(f, lt, 0.0, clamp(lt / 0.4) * 0.9)
     return f
 
 
-def scene_ask(t):
-    # 18.0–21.0 問いかけ → 暗転
-    f = camera(528, 790, 1.2 + (t - 18.0) * 0.015)
-    particles(f, t, 14.0, 0.9)
-    darken(f, 0.55 * ease_out((t - 18.0) / 0.3))
-    pop(f, ASK1, W / 2, H / 2 - 150, t, 18.05, 0.2)
-    pop(f, ASK2, W / 2, H / 2, t, 18.15, 0.2)
-    pop(f, ASK3, W / 2, H / 2 + 150, t, 18.3, 0.2)
-    darken(f, ease_io((t - 19.9) / 0.5))
+def scene_ask(lt):
+    # フォローのお願い → 暗転（3秒）
+    f = camera(528, 790, 1.2 + lt * 0.015)
+    particles(f, lt + 2.5, 0.0, 0.9)
+    darken(f, 0.55 * ease_out(lt / 0.3))
+    pop(f, ASK1, W / 2, H / 2 - 150, lt, 0.05, 0.2)
+    pop(f, ASK2, W / 2, H / 2, lt, 0.15, 0.2)
+    pop(f, ASK3, W / 2, H / 2 + 150, lt, 0.3, 0.2)
+    darken(f, ease_io((lt - 2.3) / 0.5))
     return f
+
+
+# 本編の並び（冒頭の舞台映像は opening.py で前につなぐ）
+SEGMENTS = [
+    (3.5, scene_japan),
+    (2.5, scene_intro),
+    (len(CLIP) / FPS, scene_clip),
+    (2.5, scene_full),
+    (3.0, scene_ask),
+]
+DUR = sum(d for d, _ in SEGMENTS)
 
 
 def frame_at(t):
-    if t < 1.5:
-        return scene_hook(t)
-    if t < 5.0:
-        return scene_japan(t)
-    if t < 9.5:
-        return scene_intro(t)
-    if t < 14.0:
-        return scene_clip(t)
-    if t < 18.0:
-        return scene_full(t)
-    return scene_ask(t)
+    for d, fn in SEGMENTS:
+        if t < d:
+            return fn(t)
+        t -= d
+    return SEGMENTS[-1][1](SEGMENTS[-1][0] - 1e-3)
 
+
+if out_path.endswith(".png"):
+    hook_overlay().save(out_path)
+    sys.exit()
 
 if previews:
     for p in previews:

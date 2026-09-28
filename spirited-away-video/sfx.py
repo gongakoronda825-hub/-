@@ -5,7 +5,7 @@ from scipy import signal
 from scipy.io import wavfile
 
 SR = 48000
-DUR = 21.0
+DUR = 14.8  # 本編の長さ（render.py の SEGMENTS の合計）
 rng = np.random.default_rng(7)
 
 
@@ -139,26 +139,26 @@ def main(out_path):
         mix[s:e, 0] += seg * (1 - max(pan, 0))
         mix[s:e, 1] += seg * (1 + min(pan, 0))
 
-    # 1 冒頭：0.0秒ちょうどに「ドン」
-    put(don(1.25), 0.0)
-    # 2 日本公演：東京で「シュッ」、4都市で「トン×4」
-    put(shu(), 1.42, 1.0)
-    for i, at in enumerate([3.05, 3.3, 3.55, 3.8]):
+    # 本編の音（冒頭の舞台映像は元の音を使うので、ここには入れない）
+    # 日本公演 0.0–3.5：東京で「シュッ」＋「ドン」、4都市で「トン×4」
+    put(shu(), 0.0, 1.0)
+    put(don(0.9), 0.0)
+    for i, at in enumerate([1.55, 1.8, 2.05, 2.3]):
         put(ton(), at, 0.9, pan=[-0.3, 0.3, -0.3, 0.3][i])
-    # 3 introduction：風鈴 → 1行ごとに「ドン」、最後だけ強く
-    put(furin(), 5.0, 0.9)
-    put(don(0.7), 5.6)
-    put(don(0.8), 6.6)
-    put(don(1.2), 7.6)
-    # 4 舞台映像（カーテンコール）：切り替えの「ドン」＋会場の拍手（元の映像の音は使わない）
-    put(don(0.8), 9.5)
-    put(applause(5.0), 9.45, 1.0)
-    # 5 ポスター全体：水しぶき ＋ 風
-    put(splash(), 14.05, 1.0)
-    put(wind(4.2), 14.2, 0.9)
-    # 6 問いかけ → 最後に水滴
-    put(ton(), 18.05, 0.6)
-    put(drop(), 20.35, 1.0)
+    # introduction 3.5–6.0：風鈴 → 1行ごとに「ドン」、最後だけ強く
+    put(furin(), 3.5, 0.9)
+    put(don(0.7), 3.85)
+    put(don(0.8), 4.35)
+    put(don(1.2), 4.85)
+    # 舞台映像 6.0–9.3：切り替えの「ドン」＋会場の拍手（元の映像の音は使わない）
+    put(don(0.8), 6.0)
+    put(applause(3.8), 5.95, 1.0)
+    # ポスター全体 9.3–11.8：水しぶき ＋ 風
+    put(splash(), 9.3, 1.0)
+    put(wind(2.7), 9.4, 0.9)
+    # フォローのお願い 11.8–14.8 → 最後に水滴
+    put(ton(), 11.85, 0.6)
+    put(drop(), 14.15, 1.0)
 
     peak = np.max(np.abs(mix))
     mix = mix / peak * 0.89

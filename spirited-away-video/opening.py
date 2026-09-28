@@ -1,6 +1,6 @@
 """冒頭に差し込む舞台映像（カーテンコール）を 1080x1920 の縦動画にし、本編の前につなげる。元の映像の音はそのまま使う。
 
-使い方: python3 opening.py <コマのフォルダ> <音声.wav> <本編.mp4> <出力.mp4>
+使い方: python3 opening.py <コマのフォルダ> <音声.wav> <重ねる文字.png> <本編.mp4> <出力.mp4>
 コマは 30fps で o_001.jpg〜 の名前で書き出しておく（README 参照）。
 """
 import glob
@@ -11,7 +11,9 @@ import imageio_ffmpeg
 from PIL import Image, ImageFilter
 
 W, H, FPS = 1080, 1920, 30
-frames_dir, audio_path, main_path, out_path = sys.argv[1:5]
+frames_dir, audio_path, overlay_path, main_path, out_path = sys.argv[1:6]
+# 最初のフレームから出す文字（render.py で書き出した透明PNG）
+overlay = Image.open(overlay_path).convert("RGBA")
 frames = sorted(glob.glob(f"{frames_dir}/o_*.jpg"))
 n = len(frames)
 
@@ -35,8 +37,11 @@ def compose(i):
     fg = im.resize((fw, fh), Image.LANCZOS)
     k = ease_io(i / max(n - 1, 1))
     x = -(fw - W) * (0.38 + 0.24 * k)
-    bg.paste(fg, (int(x), (H - fh) // 2))
-    return bg
+    # 上に文字を置くので、映像は少し下げる
+    bg.paste(fg, (int(x), 600))
+    out = bg.convert("RGBA")
+    out.alpha_composite(overlay)
+    return out.convert("RGB")
 
 
 ff = imageio_ffmpeg.get_ffmpeg_exe()
