@@ -81,3 +81,20 @@
 - ナレーションを入れるか（案では入れない）
 - 読ませる文字を日本語だけにするか、英語も並べるか（海外公演も見せるなら英語併記が効く）
 - 最後の誘導先（公式サイト／プロフィールのリンク）
+
+## 8. 書き出し
+
+完成動画：`spirited_away_tiktok.mp4`（1080×1920 / 30fps / 21秒 / H.264 + AAC）。
+公式画像を含むため、動画ファイルはリポジトリには入れていない。
+
+作り直す手順（Python 3。`pip install pillow numpy scipy imageio-ffmpeg`）：
+
+```
+python3 sfx.py sfx.wav                    # 効果音を合成（音楽なし）
+python3 render.py poster.jpg intro.jpg <フォントのフォルダ> sfx.wav spirited_away_tiktok.mp4
+```
+
+- `poster.jpg`：ワールドツアーのポスター（1056×1504）、`intro.jpg`：introduction 画像（1158×668）
+- フォント：Noto Sans CJK JP（Black / Bold）、Noto Serif CJK JP（Black）
+- 末尾に `0,2.2,8.5` のように秒数を渡すと、その時刻の静止画だけを書き出して確認できる
+- 構成の「そして、世界へ」の場面では、見出しを短くして都市名を1つずつ大きく見せている
