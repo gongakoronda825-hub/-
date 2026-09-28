@@ -13,7 +13,7 @@ import imageio_ffmpeg
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-W, H, FPS, DUR = 1080, 1920, 30, 21.0
+W, H, FPS = 1080, 1920, 30
 GOLD = (236, 200, 120)
 WHITE = (255, 255, 255)
 NAVY = (6, 12, 45)
@@ -229,22 +229,26 @@ def particles(frame, t, t0, strength):
 
 
 # ---------- シーン ----------
+HOOK_DUR = 4.0  # 文字の場面の長さ（舞台映像を等速で 4秒）
+
+
 def scene_hook(t):
-    # 0.0–1.5 背景は舞台映像（座って並ぶカーテンコール、等速）。最初のフレームから文字を見せる（フェードなし）
+    # 0.0–4.0 背景は舞台映像（座って並ぶカーテンコール、等速）。文字は画面のど真ん中に、最初のフレームから出す
     bg, fg = clip_frame(int(t * FPS))
-    z = 1.0 + t * 0.02
+    z = 1.0 + t * 0.012
     fw, fh = int(fg.width * z), int(fg.height * z)
     img = fg.resize((fw, fh), Image.BICUBIC)
     f = bg
-    # 出演者の顔が文字に隠れないよう、映像は下寄りに置き、文字はその上に置く
-    f.alpha_composite(img, (int(-(fw - W) * lerp(0.35, 0.5, t / 1.5)), 760))
-    f.alpha_composite(gradient(0.75, 0.75, 0, 700))
-    f.alpha_composite(gradient(0.75, 0.0, 700, 800))
-    place(f, HOOK0, W / 2, 330)
+    f.alpha_composite(img, (int(-(fw - W) * lerp(0.3, 0.6, ease_io(t / HOOK_DUR))), (H - fh) // 2))
+    # 文字の背後（画面中央の帯）を少し暗くする。映像が透けて見える程度
+    f.alpha_composite(gradient(0.0, 0.45, 590, 750))
+    f.alpha_composite(gradient(0.45, 0.45, 750, 1110))
+    f.alpha_composite(gradient(0.45, 0.0, 1110, 1270))
+    place(f, HOOK0, W / 2, H / 2 - 190)
     # 動員数と本文の間に細い金の線
-    ImageDraw.Draw(f).line((W / 2 - 180, 392, W / 2 + 180, 392), fill=GOLD + (200,), width=3)
-    place(f, HOOK1, W / 2, 480)
-    place(f, HOOK2, W / 2, 635)
+    ImageDraw.Draw(f).line((W / 2 - 180, H / 2 - 128, W / 2 + 180, H / 2 - 128), fill=GOLD + (200,), width=3)
+    place(f, HOOK1, W / 2, H / 2 - 40)
+    place(f, HOOK2, W / 2, H / 2 + 115)
     return f
 
 
@@ -339,8 +343,9 @@ def scene_ask(t):
 
 
 def frame_at(t):
-    if t < 1.5:
+    if t < HOOK_DUR:
         return scene_hook(t)
+    t = t - HOOK_DUR + 1.5  # 以降の場面は、もとの作り（文字の場面 1.5秒）の時間で動く
     if t < 5.0:
         return scene_japan(t)
     if t < 9.5:
@@ -364,7 +369,7 @@ cmd = [ff, "-y", "-loglevel", "error",
        "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
        "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out_path]
 proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-n = int(DUR * FPS)
+n = int((21.0 - 1.5 + HOOK_DUR) * FPS)
 for i in range(n):
     proc.stdin.write(frame_at(i / FPS).convert("RGB").tobytes())
     if i % 60 == 0:

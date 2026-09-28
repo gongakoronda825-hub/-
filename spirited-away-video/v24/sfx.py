@@ -5,7 +5,8 @@ from scipy import signal
 from scipy.io import wavfile
 
 SR = 48000
-DUR = 21.0
+HOOK_DUR = 4.0  # 文字の場面の長さ（render.py と合わせる）
+DUR = 21.0 - 1.5 + HOOK_DUR
 rng = np.random.default_rng(7)
 
 
@@ -133,6 +134,8 @@ def main(out_path):
     mix = np.zeros((int(DUR * SR), 2))
 
     def put(sound, at, gain=1.0, pan=0.0):
+        if at >= 1.0:  # 文字の場面より後の音は、場面が延びた分だけ後ろへずらす
+            at += HOOK_DUR - 1.5
         s = int(at * SR)
         e = min(s + len(sound), len(mix))
         seg = sound[: e - s] * gain
@@ -141,7 +144,7 @@ def main(out_path):
 
     # 1 冒頭：0.0秒ちょうどに「ドン」
     # 冒頭の文字の場面（背景は舞台映像）：会場の拍手（冒頭の「ドン」は削除）
-    put(applause(2.0), 0.0, 1.0)
+    put(applause(HOOK_DUR + 0.4), 0.0, 1.0)
     # 2 日本公演：東京で「シュッ」、4都市で「トン×4」
     put(shu(), 1.42, 1.0)
     # （4都市の「トン×4」は削除）
