@@ -170,7 +170,7 @@ def darken(frame, amount):
 # ---------- 文字素材 ----------
 HOOK0 = text([("累計動員 ", WHITE), ("90万人", GOLD), ("突破", WHITE)], SANS, 80)
 HOOK1 = text([("千と千尋の神隠し", GOLD), ("の", WHITE)], SANS, 100)
-HOOK2 = text([("舞台が", WHITE), ("帰ってきた！", WHITE)], SANS, 112)
+HOOK2 = text([("舞台が", WHITE), ("帰ってくる！", WHITE)], SANS, 112)
 
 TOKYO_DATE = text([("2027.3〜5", GOLD)], SERIF, 150)
 TOKYO_CITY = text([("東京", WHITE)], SANS, 210)
