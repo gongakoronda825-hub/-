@@ -185,9 +185,9 @@ JP_TILES = [
 STAGE1 = text([("舞台版", GOLD)], SANS, 90)
 STAGE2 = text([("『千と千尋の神隠し』", WHITE)], SANS, 84)
 
-ASK1 = text([("あなたは", WHITE)], SANS, 130)
-ASK2 = text([("どこで", GOLD), ("観る？", WHITE)], SANS, 150)
-ASK3 = text([("コメントで教えてね", WHITE)], SANS_B, 58)
+ASK1 = text([("ジブリの", WHITE), ("最新情報", GOLD), ("が", WHITE)], SANS, 100)
+ASK2 = text([("知りたい方は是非", WHITE)], SANS, 100)
+ASK3 = text([("フォロー", GOLD), ("お願いします", WHITE)], SANS, 100)
 
 
 def tile(city, date, venue, w=440, h=300):
@@ -329,9 +329,9 @@ def scene_ask(t):
     f = camera(528, 790, 1.2 + (t - 18.0) * 0.015)
     particles(f, t, 14.0, 0.9)
     darken(f, 0.55 * ease_out((t - 18.0) / 0.3))
-    pop(f, ASK1, W / 2, 800, t, 18.05, 0.2)
-    pop(f, ASK2, W / 2, 980, t, 18.15, 0.2)
-    pop(f, ASK3, W / 2, 1170, t, 18.5, 0.2)
+    pop(f, ASK1, W / 2, H / 2 - 150, t, 18.05, 0.2)
+    pop(f, ASK2, W / 2, H / 2, t, 18.15, 0.2)
+    pop(f, ASK3, W / 2, H / 2 + 150, t, 18.3, 0.2)
     darken(f, ease_io((t - 19.9) / 0.5))
     return f
 
