@@ -270,7 +270,7 @@ JP_ROWS = [
     ("7〜8月", "福岡", "博多座"),
     ("8月", "北海道", "札幌文化芸術劇場 hitaru"),
 ]
-ROW_Y0, ROW_STEP = 320, 118
+ROW_Y0, ROW_STEP = 300, 112
 LINE_X = 290
 
 
@@ -283,6 +283,8 @@ def jp_row(date, city, venue):
 
 
 JP_ROW_IMGS = [jp_row(*r) for r in JP_ROWS]
+# おまけ程度に、海外で回る国も小さく
+JP_ABROAD = text([("さらに海外へ ", GOLD), ("台湾・カナダ・アメリカ・イギリス", WHITE)], SANS_B, 36, stroke=2)
 
 
 def scene_japan_new(lt):
@@ -310,7 +312,7 @@ def scene_japan_new(lt):
         return f
 
     # 後半 2.0–5.0：5都市を「路線図」のように縦に並べる
-    place(f, JP_HEAD2, W / 2, 200, ease_out((lt - 2.0) / 0.2))
+    place(f, JP_HEAD2, W / 2, 190, ease_out((lt - 2.0) / 0.2))
     # 金の線が上から伸びる
     grow = ease_io((lt - 2.0) / 1.1)
     y_top, y_bot = ROW_Y0, ROW_Y0 + ROW_STEP * (len(JP_ROWS) - 1)
@@ -331,6 +333,15 @@ def scene_japan_new(lt):
         cx = LINE_X + 34 + slide
         place(f, ci, cx + ci.width / 2, y, k)
         place(f, vi, cx + ci.width - 18 + vi.width / 2, y + 8, k)
+    # 最後に、海外の国を小さく添える（半透明の帯の上）
+    k = ease_out((lt - 3.4) / 0.3)
+    if k > 0:
+        y = ROW_Y0 + ROW_STEP * len(JP_ROWS) - 20
+        pw, ph = JP_ABROAD.width + 30, JP_ABROAD.height + 6
+        pill = Image.new("RGBA", (pw, ph), (0, 0, 0, 0))
+        ImageDraw.Draw(pill).rounded_rectangle((0, 0, pw - 1, ph - 1), ph // 2, fill=(6, 12, 45, 150))
+        place(f, pill, W / 2, y, k)
+        place(f, JP_ABROAD, W / 2, y, k)
     return f
 
 
@@ -397,15 +408,19 @@ def scene_ask(t):
     return f
 
 
+INTRO_DUR = 4.5  # introduction の場面の長さ
+
+
 def frame_at(t):
     if t < HOOK_DUR:
         return scene_hook(t)
     t -= HOOK_DUR
+    if t < INTRO_DUR:
+        return scene_intro(t + 5.0)  # introduction は、もとの作りの時間（5.0–9.5）で動く
+    t -= INTRO_DUR
     if t < JP_DUR:
         return scene_japan_new(t)
-    t = t - JP_DUR + 5.0  # 以降の場面は、もとの作りの時間（introduction が 5.0秒から）で動く
-    if t < 9.5:
-        return scene_intro(t)
+    t = t - JP_DUR + 9.5  # 以降の場面は、もとの作りの時間（ポスターが 9.5秒から）で動く
     if t < 14.0:
         return scene_poster(t)
     if t < 18.0:
@@ -425,7 +440,7 @@ cmd = [ff, "-y", "-loglevel", "error",
        "-c:v", "libx264", "-preset", "slow", "-crf", "18", "-pix_fmt", "yuv420p",
        "-c:a", "aac", "-b:a", "192k", "-shortest", "-movflags", "+faststart", out_path]
 proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-n = int((HOOK_DUR + JP_DUR + 16.0) * FPS)
+n = int((HOOK_DUR + INTRO_DUR + JP_DUR + 11.5) * FPS)
 for i in range(n):
     proc.stdin.write(frame_at(i / FPS).convert("RGB").tobytes())
     if i % 60 == 0:

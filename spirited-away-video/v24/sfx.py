@@ -7,7 +7,8 @@ from scipy.io import wavfile
 SR = 48000
 HOOK_DUR = 4.0  # 文字の場面の長さ（render.py と合わせる）
 JP_DUR = 5.0  # 日程の場面の長さ（render.py と合わせる）
-DUR = HOOK_DUR + JP_DUR + 16.0
+INTRO_DUR = 4.5
+DUR = HOOK_DUR + INTRO_DUR + JP_DUR + 11.5
 rng = np.random.default_rng(7)
 
 
@@ -135,11 +136,14 @@ def main(out_path):
     mix = np.zeros((int(DUR * SR), 2))
 
     def put(sound, at, gain=1.0, pan=0.0):
-        # もとの作りの時間（文字 0–1.5 / 日程 1.5–5.0 / introduction 5.0〜）を、今の長さに合わせる
-        if at >= 5.0:
-            at = at - 5.0 + HOOK_DUR + JP_DUR
+        # もとの作りの時間（文字 0–1.5 / 日程 1.5–5.0 / introduction 5.0–9.5 / ポスター 9.5〜）を、
+        # 今の並び（文字 → introduction → 日程 → ポスター）と長さに合わせる
+        if at >= 9.5:
+            at = at - 9.5 + HOOK_DUR + INTRO_DUR + JP_DUR
+        elif at >= 5.0:
+            at = at - 5.0 + HOOK_DUR
         elif at >= 1.0:
-            at = at - 1.5 + HOOK_DUR
+            at = at - 1.5 + HOOK_DUR + INTRO_DUR
         s = int(at * SR)
         e = min(s + len(sound), len(mix))
         seg = sound[: e - s] * gain
