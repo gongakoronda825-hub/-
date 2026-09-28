@@ -1,7 +1,10 @@
 """舞台『千と千尋の神隠し』TikTok動画（1080x1920 / 30fps / 21秒）を書き出す。
 
-使い方: python3 render.py <poster.jpg> <intro.jpg> <舞台写真1,2,3> <fontdir> <sfx.wav> <out.mp4> [preview秒,...]
+使い方: python3 render.py <poster.jpg> <intro.jpg> <舞台映像のコマのフォルダ> <fontdir> <sfx.wav> <out.mp4> [preview秒,...]
+
+舞台映像のコマは、4.5秒・30fps（135枚）に合わせて c_001.jpg〜 の名前で書き出しておく（README 参照）。
 """
+import glob
 import math
 import subprocess
 import sys
@@ -15,7 +18,7 @@ GOLD = (236, 200, 120)
 WHITE = (255, 255, 255)
 NAVY = (6, 12, 45)
 
-poster_path, intro_path, photos_arg, fontdir, sfx_path, out_path = sys.argv[1:7]
+poster_path, intro_path, clip_dir, fontdir, sfx_path, out_path = sys.argv[1:7]
 previews = [float(x) for x in sys.argv[7].split(",")] if len(sys.argv) > 7 else None
 
 SANS = f"{fontdir}/NotoSansCJKjp-Black.otf"
@@ -27,20 +30,20 @@ PW, PH = poster.size
 intro = Image.open(intro_path).convert("RGB").crop((40, 0, 1110, 668))  # 右端のスクロールバーを除く
 
 
-def photo_layer(path):
-    """舞台写真と、余白を埋める同じ写真のぼかし背景を返す"""
-    im = Image.open(path).convert("RGB")
+CLIP = sorted(glob.glob(f"{clip_dir}/c_*.jpg"))
+
+
+def clip_frame(i):
+    """舞台映像の i コマ目を、ぼかし背景の上に大きく置く"""
+    im = Image.open(CLIP[min(i, len(CLIP) - 1)]).convert("RGB")
     s_ = max(W / im.width, H / im.height) * 1.05
-    bg = im.resize((int(im.width * s_) + 1, int(im.height * s_) + 1), Image.LANCZOS)
+    small = im.resize((im.width // 4, im.height // 4))
+    bg = small.resize((int(im.width * s_) + 1, int(im.height * s_) + 1), Image.BILINEAR)
     bg = bg.crop(((bg.width - W) // 2, (bg.height - H) // 2, (bg.width - W) // 2 + W, (bg.height - H) // 2 + H))
-    bg = Image.eval(bg.filter(ImageFilter.GaussianBlur(45)), lambda v: int(v * 0.4)).convert("RGBA")
-    # 横長の写真は高さ 1050px まで大きくして横にパンする。縦長は横幅いっぱい
-    fh = 1050 if im.width > im.height else int(im.height * W / im.width)
+    bg = Image.eval(bg.filter(ImageFilter.GaussianBlur(40)), lambda v: int(v * 0.4)).convert("RGBA")
+    fh = 1000
     fg = im.resize((int(im.width * fh / im.height), fh), Image.LANCZOS).convert("RGBA")
     return bg, fg
-
-
-PHOTOS = [photo_layer(x) for x in photos_arg.split(",")]
 
 # ぼかした背景（ポスターが画面を覆わないときの余白用）
 _s = max(W / PW, H / PH)
@@ -291,17 +294,15 @@ def scene_intro(t):
     return f
 
 
-def scene_photos(t):
-    # 9.5–14.0 舞台写真3枚（1.5秒ずつ）。切り替えで少し寄った状態から戻り、横長の写真は左から右へパン
-    i = min(2, int((t - 9.5) / 1.5))
-    lt = t - 9.5 - i * 1.5
-    bg, fg = PHOTOS[i]
-    z = lerp(1.06, 1.0, ease_out(lt / 0.3)) * (1 + lt * 0.02)
+def scene_clip(t):
+    # 9.5–14.0 舞台映像（カーテンコール）。少しスローにして 4.5秒に合わせ、左から右へゆっくりパン
+    lt = t - 9.5
+    bg, fg = clip_frame(int(round(lt * FPS)))
+    z = lerp(1.06, 1.0, ease_out(lt / 0.35)) * (1 + lt * 0.01)
     fw, fh = int(fg.width * z), int(fg.height * z)
     img = fg.resize((fw, fh), Image.BICUBIC)
-    over = max(0, fw - W)
-    x = -over * ease_io(lt / 1.5) if over else (W - fw) // 2
-    f = bg.copy()
+    x = -(fw - W) * lerp(0.1, 0.9, ease_io(lt / 4.5))
+    f = bg
     f.alpha_composite(img, (int(x), (H - fh) // 2))
     return f
 
@@ -343,7 +344,7 @@ def frame_at(t):
     if t < 9.5:
         return scene_intro(t)
     if t < 14.0:
-        return scene_photos(t)
+        return scene_clip(t)
     if t < 18.0:
         return scene_full(t)
     return scene_ask(t)

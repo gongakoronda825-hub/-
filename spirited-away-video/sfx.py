@@ -102,6 +102,23 @@ def wind(sec):
     return x * mod * shape * 0.35
 
 
+def applause(sec):
+    """会場の拍手（たくさんの手拍子を重ねる）"""
+    n = int(sec * SR)
+    t = np.arange(n) / SR
+    out = np.zeros(n)
+    m = int(0.03 * SR)
+    tt = np.arange(m) / SR
+    for _ in range(int(sec * 260)):
+        st = int(rng.uniform(0, sec - 0.04) * SR)
+        burst = rng.standard_normal(m) * np.exp(-tt / rng.uniform(0.004, 0.009))
+        out[st : st + m] += burst * rng.uniform(0.3, 1.0)
+    out = bp(out, 700, 6500)
+    out += bp(rng.standard_normal(n), 400, 3000) * 0.12  # 会場のざわめき
+    shape = np.minimum(np.clip(t / 0.4, 0, 1), np.clip((sec - t) / 1.2, 0, 1))
+    return out * shape * 0.16
+
+
 def drop():
     """水滴「ポチャン」"""
     t = t_(0.9)
@@ -133,10 +150,9 @@ def main(out_path):
     put(don(0.7), 5.6)
     put(don(0.8), 6.6)
     put(don(1.2), 7.6)
-    # 4 舞台写真3枚：切り替えごとに「シュッ」＋軽い「ドン」
-    for at in [9.45, 10.95, 12.45]:
-        put(shu(), at - 0.05, 0.9)
-        put(don(0.45), at + 0.05)
+    # 4 舞台映像（カーテンコール）：切り替えの「ドン」＋会場の拍手（元の映像の音は使わない）
+    put(don(0.8), 9.5)
+    put(applause(5.0), 9.45, 1.0)
     # 5 ポスター全体：水しぶき ＋ 風
     put(splash(), 14.05, 1.0)
     put(wind(4.2), 14.2, 0.9)
