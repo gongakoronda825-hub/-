@@ -148,8 +148,8 @@ def darken(frame, amount):
 
 
 # ---------- 文字素材 ----------
-HOOK1 = text([("ジブリ", GOLD), ("『千と千尋』の", WHITE)], SANS, 90)
-HOOK2 = text([("舞台、", WHITE), ("日本で", GOLD), ("やります", WHITE)], SANS, 96)
+HOOK1 = text([("千と千尋の神隠し", GOLD), ("の", WHITE)], SANS, 100)
+HOOK2 = text([("舞台が", WHITE), ("帰ってきた", WHITE)], SANS, 118)
 
 TOKYO_DATE = text([("2027.3〜5", GOLD)], SERIF, 150)
 TOKYO_CITY = text([("東京", WHITE)], SANS, 210)
@@ -240,9 +240,12 @@ def scene_hook(t):
     # 0.0–1.5 最初のフレームから答えを見せる（フェードなし）
     s = lerp(1.30, 1.36, t / 1.5)
     f = camera(528, 800, s)
-    f.alpha_composite(gradient(0.92, 0.0, 0, 900))
-    place(f, HOOK1, W / 2, 330)
-    place(f, HOOK2, W / 2, 480)
+    # 文字の背後（画面中央の帯）を暗くする
+    f.alpha_composite(gradient(0.0, 0.8, 690, 850))
+    f.alpha_composite(gradient(0.8, 0.8, 850, 1070))
+    f.alpha_composite(gradient(0.8, 0.0, 1070, 1230))
+    place(f, HOOK1, W / 2, H / 2 - 80)
+    place(f, HOOK2, W / 2, H / 2 + 75)
     return f
 
 
