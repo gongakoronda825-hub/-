@@ -2,7 +2,8 @@
 
 親フォルダの18秒版とは別に、24秒版の構成で作り直したもの。
 
-- 冒頭：手をつないで挙げ、一礼して顔を上げるまでのカーテンコール（新しい録画、元の音あり、5.5秒）
+- 冒頭：題字「千と千尋の神隠し」を、舞台の背景の前・出演者の後ろに入れる（位置は画面に固定。全コマの中央値で人のいない舞台の画を作り、それとの差で人を切り抜く）
+- 冒頭の映像：手をつないで挙げ、一礼して顔を上げるまでのカーテンコール（新しい録画、元の音あり、5.5秒）
 - 「累計動員90万人突破／千と千尋の神隠しの／舞台が帰ってきた！」の場面（4秒）：背景は座って並ぶカーテンコールの映像（新しい録画の0.5秒目から4秒、等速）、文字は画面のど真ん中。拍手の効果音
 - 並び：冒頭 → 文字の場面 → introduction → 日程 → ポスター → ポスター全体 → フォローのお願い
 - 日程の場面（5秒）：背景は湯屋の絵。空の部分に、前半は「日本公演 2027.3〜5 東京・明治座」を大きく、後半は5都市を路線図のように縦に並べる（金の線が伸び、上から1都市ずつ出る）。最後に「さらに海外へ 台湾・カナダ・アメリカ・イギリス」を小さく添える
@@ -14,5 +15,5 @@ ffmpeg -ss 0.5 -t 4.0 -i ScreenRecording.mov -an -vf "crop=2114:836:0:0,fps=30" 
 python3 sfx.py sfx.wav
 python3 render.py poster.jpg intro.jpg clip3 aburaya.jpg <フォントのフォルダ> sfx.wav main.mp4   # clip3 は新しい録画を等速で書き出したコマ（下記）
 # 冒頭の録画は下端の字幕のような映り込みを除く: ffmpeg -i Opening.mov -an -vf "crop=2144:996:0:0,fps=30" -q:v 2 open/o_%03d.jpg
-python3 opening.py open open.wav main.mp4 spirited_away_tiktok_24s.mp4
+python3 opening.py open open.wav main.mp4 spirited_away_tiktok_24s.mp4 logo.png   # logo.png：題字（透明PNG）
 ```
