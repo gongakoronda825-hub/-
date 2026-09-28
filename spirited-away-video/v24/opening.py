@@ -27,6 +27,7 @@ def ease_io(x):
 
 # ロゴ（透明PNG）。画面上の位置は固定
 LOGO_W, LOGO_CY = 940, 640
+LOGO_START, LOGO_FADE = 2.0, 0.4  # ロゴは開始2秒から、0.4秒かけてふわっと出す
 if logo_path:
     _lg = Image.open(logo_path).convert("RGBA")
     LOGO = _lg.resize((LOGO_W, int(_lg.height * LOGO_W / _lg.width)), Image.LANCZOS)
@@ -61,11 +62,11 @@ def person_mask(im):
     return mi.resize(im.size, Image.BILINEAR).filter(ImageFilter.GaussianBlur(2))
 
 
-def put_logo_behind_people(frame, mask):
+def put_logo_behind_people(frame, mask, fade=1.0):
     """ロゴを、人のいない所（舞台の背景）にだけ描く。mask は画面全体の人の範囲"""
     x0, y0, x1, y1 = LOGO_X, LOGO_Y, LOGO_X + LOGO.width, LOGO_Y + LOGO.height
     person = np.asarray(mask.crop((x0, y0, x1, y1))).astype(np.float32) / 255
-    a = (LOGO_A * (1 - person))[..., None]
+    a = (LOGO_A * (1 - person) * fade)[..., None]
     base = np.asarray(frame.crop((x0, y0, x1, y1))).astype(np.float32)
     out = base * (1 - a) + LOGO_RGB * a
     frame.paste(Image.fromarray(out.astype(np.uint8)), (x0, y0))
@@ -87,10 +88,11 @@ def compose(i):
     k = ease_io(i / max(n - 1, 1))
     x = -(fw - W) * (0.38 + 0.24 * k)
     bg.paste(fg, (int(x), (H - fh) // 2))
-    if logo_path:
+    fade = max(0.0, min(1.0, (i / FPS - LOGO_START) / LOGO_FADE))
+    if logo_path and fade > 0:
         mask = Image.new("L", (W, H), 0)
         mask.paste(person_mask(im).resize((fw, fh), Image.BILINEAR), (int(x), (H - fh) // 2))
-        bg = put_logo_behind_people(bg, mask)
+        bg = put_logo_behind_people(bg, mask, fade)
     return bg
 
 
