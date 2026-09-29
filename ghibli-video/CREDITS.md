@@ -11,11 +11,13 @@ VOICEVOX:春日部つむぎ
 | 場面写真 | スタジオジブリ公式サイト（場面写真） | 常識の範囲で自由に使用可 |
 | ナレーション | VOICEVOX:春日部つむぎ | 動画内または説明文にクレジット表記が必要 |
 | 効果音（ジャン！／和太鼓でドドン／キラッ） | 効果音ラボ https://soundeffect-lab.info/ | 商用利用可・クレジット不要。音源ファイルそのものの再配布は禁止のため、リポジトリには含めない（render.py が自動でダウンロード） |
+| BGM（第3位〜第1位の説明中） | 各作品の主題歌・劇中歌（ユーザー提供の録音） | 著作物のためリポジトリには含めない。`ghibli-video/bgm/` に marnie.m4a / kokuriko.m4a / umi.m4a として置く |
 | 絵文字 👇 | Twemoji | CC-BY 4.0 |
 | フォント | Noto Sans JP | SIL Open Font License |
 
 ## 作り直し方
 
 1. VOICEVOX Engine を `127.0.0.1:50021` で起動する
-2. `python3 ghibli-video/narration.py` … `audio/narration.mp3` を作る
-3. `python3 ghibli-video/render.py` … `output/ghibli_minor3.mp4` を作る
+2. `ghibli-video/bgm/` に曲ファイルを置く（なければBGMなしで作られる）
+3. `python3 ghibli-video/narration.py` … `audio/narration.mp3` を作る
+4. `python3 ghibli-video/render.py` … `output/ghibli_minor3.mp4` を作る

@@ -32,10 +32,6 @@ RANK_Y = 470                      # 順位テロップの中心 (上部)
 #   画像: ファイル名 / ("flip", [...]) 高速切替 / ("stack", [...]) 縦3分割
 HOOK = ["umi_01", "kokuriko_01", "marnie_01"]
 CUTS = [
-    (0, 1, "umi_01", None, "fastzoom", {}),
-    (1, 2, "kokuriko_01", None, "pan_r", {}),
-    (2, 3, "marnie_01", None, "zoom", {}),
-    (3, 4, ("flip", HOOK), "ジブリ好きでも意外と観てない…", "zoom", {}),
     (4, 7, ("stack", HOOK), "マイナーだけどおすすめな\nジブリ映画3選", "slowzoom", {}),
     (7, 9, "marnie_02", "思い出のマーニー", "zoom", {"rank": "第3位", "flash": 8}),
     (9, 12, "marnie_03", "心を閉ざした少女・杏奈", "zoom", {}),
@@ -60,25 +56,12 @@ CUTS = [
 
 
 def retime(cuts, timeline_path):
-    """ナレーションの区間 (audio/timeline.json) に合わせてカットの秒数を決め直す。
-    区間0 (つかみの一言) はカット1〜4、区間1以降はカット5以降に1つずつ対応する。
-    区間0の中は元の秒数の比率で分ける。"""
+    """ナレーションの区間 (audio/timeline.json) に合わせてカットの秒数を決め直す。区間とカットは1対1"""
     if not timeline_path.exists():
         return cuts
     segs = json.loads(timeline_path.read_text())
-    hook, rest = cuts[:4], cuts[4:]
-    assert len(segs) == len(rest) + 1, "timeline.json の区間数がカット表と合わない"
-    out = []
-    s0, e0 = segs[0]["start"], segs[0]["end"]
-    total0 = sum(c[1] - c[0] for c in hook)
-    t = s0
-    for k, c in enumerate(hook):
-        e = e0 if k == len(hook) - 1 else round((t + (c[1] - c[0]) / total0 * (e0 - s0)) * FPS) / FPS
-        out.append((t, e) + c[2:])
-        t = e
-    for seg, c in zip(segs[1:], rest):
-        out.append((seg["start"], seg["end"]) + c[2:])
-    return out
+    assert len(segs) == len(cuts), "timeline.json の区間数がカット表と合わない"
+    return [(seg["start"], seg["end"]) + c[2:] for seg, c in zip(segs, cuts)]
 
 
 CUTS = retime(CUTS, ROOT / "audio" / "timeline.json")
@@ -243,7 +226,7 @@ def render_frame(cut, layers, i, n):
 
 # ---- 効果音 (効果音ラボ https://soundeffect-lab.info/) --------------------
 # (秒, ファイル, 音量倍率)
-SFX = [(CUTS[4][0], "jean1.mp3", 0.9)]                                    # タイトル「ジャン！」
+SFX = [(CUTS[0][0], "jean1.mp3", 0.9)]                                    # タイトル「ジャン！」
 SFX += [(t, "drum-japanese2.mp3", 1.0) for t in DON_TIMES]          # 順位発表「和太鼓でドドン」
 SFX += [(CUTS[-1][0], "kira1.mp3", 0.8)]                                   # 締め「キラッ」
 
@@ -261,16 +244,59 @@ def load_sfx(name, sr):
     return a[max(0, idx[0] - 100):] if len(idx) else a   # 頭の無音を切って映像とぴったり合わせる
 
 
+# ---- BGM (各順位の説明中に流す作品の曲。著作物なのでリポジトリには置かない) ----
+BGM = {"第3位": "marnie.m4a", "第2位": "kokuriko.m4a", "第1位": "umi.m4a"}
+BGM_GAIN = 0.28      # ナレーションが聞こえるように下げる
+BGM_FADE_OUT = 0.5
+
+
+def decode(path, sr, channels):
+    raw = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-loglevel", "error", "-i", str(path),
+                          "-f", "s16le", "-ac", str(channels), "-ar", str(sr), "-"],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(raw, "<i2").astype(np.float64).reshape(-1, channels) / 32768
+
+
+def bgm_sections():
+    """順位発表のカットから、次の順位発表 (最後はエンディング) の直前までを1区間にする"""
+    starts = [(c[0], c[5]["rank"]) for c in CUTS if "rank" in c[5]]
+    ends = [s for s, _ in starts[1:]] + [CUTS[-1][0]]
+    return [(s, e, BGM[r]) for (s, r), e in zip(starts, ends)]
+
+
 def make_audio(path, total):
     sr = 44100
-    buf = np.zeros(int(sr * total), dtype=np.float64)
-    for t, name, gain in SFX:
-        clip = load_sfx(name, sr) * gain
+    buf = np.zeros((int(sr * total), 2), dtype=np.float64)
+
+    def add(clip, t):
         a = int(t * sr)
-        buf[a:a + len(clip)] += clip[: len(buf) - a]
+        n = min(len(clip), len(buf) - a)
+        buf[a:a + n] += clip[:n]
+
+    narration = ROOT / "audio" / "narration.mp3"
+    if narration.exists():
+        add(decode(narration, sr, 2), 0.0)
+    for t, name, gain in SFX:
+        add(np.repeat(load_sfx(name, sr)[:, None], 2, axis=1) * gain, t)
+    for s, e, name in bgm_sections():
+        f = HERE / "bgm" / name
+        if not f.exists():
+            print("BGM なし:", f)
+            continue
+        clip = decode(f, sr, 2)
+        idx = np.nonzero(np.abs(clip).max(axis=1) > 0.01)[0]
+        clip = clip[idx[0]:] if len(idx) else clip        # 画面録画の頭の無音を切る
+        n = int((e - s) * sr)
+        clip = clip[:n] * BGM_GAIN
+        env = np.ones(len(clip))
+        fi, fo = int(0.05 * sr), int(BGM_FADE_OUT * sr)
+        env[:fi] = np.linspace(0, 1, fi)
+        env[-fo:] = np.minimum(env[-fo:], np.linspace(1, 0, fo))
+        add(clip * env[:, None], s)
+
     pcm = (np.clip(buf, -1, 1) * 32767).astype("<i2")
     with wave.open(str(path), "wb") as w:
-        w.setnchannels(1)
+        w.setnchannels(2)
         w.setsampwidth(2)
         w.setframerate(sr)
         w.writeframes(pcm.tobytes())
@@ -279,18 +305,13 @@ def make_audio(path, total):
 def main():
     OUT.mkdir(exist_ok=True)
     total = CUTS[-1][1]
-    wav = OUT / "_sfx.wav"
-    make_audio(wav, total)
-    narration = ROOT / "audio" / "narration.mp3"
+    wav = OUT / "_mix.wav"
+    make_audio(wav, total)  # ナレーション・効果音・BGM をまとめたステレオ音声
 
     cmd = [imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-i", str(wav)]
-    if narration.exists():
-        cmd += ["-i", str(narration), "-filter_complex", "[1:a][2:a]amix=inputs=2:normalize=0,alimiter=limit=0.89:level=false[a]",
-                "-map", "0:v", "-map", "[a]"]
-    else:
-        cmd += ["-map", "0:v", "-map", "1:a"]
+    cmd += ["-map", "0:v", "-map", "1:a", "-af", "alimiter=limit=0.89:level=false"]
     cmd += ["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "192k", "-t", str(total), "-movflags", "+faststart",
             str(OUT / "ghibli_minor3.mp4")]
