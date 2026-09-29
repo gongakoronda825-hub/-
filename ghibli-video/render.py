@@ -247,6 +247,7 @@ def load_sfx(name, sr):
 # ---- BGM (各順位の説明中に流す作品の曲。著作物なのでリポジトリには置かない) ----
 BGM = {"第3位": "marnie.m4a", "第2位": "kokuriko.m4a", "第1位": "umi.m4a"}
 BGM_GAIN = 0.28      # ナレーションが聞こえるように下げる
+BGM_GAIN_BY_FILE = {"marnie.m4a": 0.5}  # マーニーの曲は少し目立たせる
 BGM_FADE_OUT = 0.5
 
 
@@ -287,7 +288,7 @@ def make_audio(path, total):
         idx = np.nonzero(np.abs(clip).max(axis=1) > 0.01)[0]
         clip = clip[idx[0]:] if len(idx) else clip        # 画面録画の頭の無音を切る
         n = int((e - s) * sr)
-        clip = clip[:n] * BGM_GAIN
+        clip = clip[:n] * BGM_GAIN_BY_FILE.get(name, BGM_GAIN)
         env = np.ones(len(clip))
         fi, fo = int(0.05 * sr), int(BGM_FADE_OUT * sr)
         env[:fi] = np.linspace(0, 1, fi)
