@@ -29,7 +29,7 @@ TAIL = 1.2          # 最後のフレーズのあとに残す余韻 (秒)
 FPS = 30
 SR = 44100
 
-# (読み上げ文, 順位発表か)。人名は読み間違いを防ぐためカタカナで渡す
+# (読み上げ文, 順位発表か[, 読み上げ速度])。人名は読み間違いを防ぐためカタカナで渡す
 LINES = [
     ("ジブリ好きなのに、これ観てないのはもったいない！", False),
     ("マイナーだけど本当におすすめなジブリ映画、3選！", False),
@@ -50,7 +50,7 @@ LINES = [
     ("高知の高校生、タクと、", False),
     ("東京から来た転校生、リカコ。わがままなのに目が離せない彼女との、", False),
     ("リアルな青春が刺さります。", False),
-    ("あなたはどれを観たことある？コメントで教えてね！", False),
+    ("あなたはどれを観たことある？コメントで教えてね！", False, 1.1),  # 最後ははっきり聞かせる
 ]
 
 
@@ -65,9 +65,16 @@ def post(path, params, body=b""):
         return r.read()
 
 
+MIN_CONSONANT = 0.045  # 子音が短すぎると聞こえなくなる (例:「教えてね」の「て」が消える) ので下限を設ける
+
+
 def synth(text, speed):
     """VOICEVOX で読み上げ → float32 mono 44.1kHz。前後の無音は切る"""
     q = json.loads(post("/audio_query", {"text": text, "speaker": SPEAKER}))
+    for ap in q["accent_phrases"]:
+        for m in ap["moras"]:
+            if m.get("consonant") and m["consonant_length"] < MIN_CONSONANT:
+                m["consonant_length"] = MIN_CONSONANT
     q.update(speedScale=speed, prePhonemeLength=0.0, postPhonemeLength=0.05, pauseLengthScale=PAUSE,
              outputSamplingRate=SR, outputStereo=False)
     wav = post("/synthesis", {"speaker": SPEAKER}, json.dumps(q).encode())
@@ -81,8 +88,8 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     clips, segments = [], []
     t = 0.0
-    for k, (text, rank) in enumerate(LINES):
-        clip = synth(text, SPEED)
+    for k, (text, rank, *opt) in enumerate(LINES):
+        clip = synth(text, opt[0] if opt else SPEED)
         start = t + (RANK_LEAD if rank else 0.05)
         end = start + len(clip) / SR
         seg_end = frame_round(end + (TAIL if k == len(LINES) - 1 else GAP))
