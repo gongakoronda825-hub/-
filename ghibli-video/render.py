@@ -1,8 +1,10 @@
 """マイナーだけどおすすめなジブリ映画3選 — TikTok 縦動画レンダラー
 
-images/ の20枚から 1080x1920 / 30fps / 60秒の mp4 を作る。
+images/ の20枚から 1080x1920 / 30fps の mp4 を作る。
+audio/timeline.json があれば、カットの長さをナレーションに合わせる (なければ下のカット表の秒数)。
 使い方: python3 ghibli-video/render.py
 """
+import json
 import math
 import subprocess
 import wave
@@ -55,6 +57,31 @@ CUTS = [
     (55, 60, ("stack", ["marnie_05", "kokuriko_04", "umi_05"]), "どれか観たことある？", "zoom",
      {"emoji": True, "labels": ["思い出のマーニー", "コクリコ坂から", "海がきこえる"]}),
 ]
+
+
+def retime(cuts, timeline_path):
+    """ナレーションの区間 (audio/timeline.json) に合わせてカットの秒数を決め直す。
+    区間0 (つかみの一言) はカット1〜4、区間1以降はカット5以降に1つずつ対応する。
+    区間0の中は元の秒数の比率で分ける。"""
+    if not timeline_path.exists():
+        return cuts
+    segs = json.loads(timeline_path.read_text())
+    hook, rest = cuts[:4], cuts[4:]
+    assert len(segs) == len(rest) + 1, "timeline.json の区間数がカット表と合わない"
+    out = []
+    s0, e0 = segs[0]["start"], segs[0]["end"]
+    total0 = sum(c[1] - c[0] for c in hook)
+    t = s0
+    for k, c in enumerate(hook):
+        e = e0 if k == len(hook) - 1 else round((t + (c[1] - c[0]) / total0 * (e0 - s0)) * FPS) / FPS
+        out.append((t, e) + c[2:])
+        t = e
+    for seg, c in zip(segs[1:], rest):
+        out.append((seg["start"], seg["end"]) + c[2:])
+    return out
+
+
+CUTS = retime(CUTS, ROOT / "audio" / "timeline.json")
 DON_TIMES = [c[0] for c in CUTS if "rank" in c[5]]
 
 
@@ -216,9 +243,9 @@ def render_frame(cut, layers, i, n):
 
 # ---- 効果音 (効果音ラボ https://soundeffect-lab.info/) --------------------
 # (秒, ファイル, 音量倍率)
-SFX = [(4.0, "jean1.mp3", 0.9)]                                    # タイトル「ジャン！」
+SFX = [(CUTS[4][0], "jean1.mp3", 0.9)]                                    # タイトル「ジャン！」
 SFX += [(t, "drum-japanese2.mp3", 1.0) for t in DON_TIMES]          # 順位発表「和太鼓でドドン」
-SFX += [(55.0, "kira1.mp3", 0.8)]                                   # 締め「キラッ」
+SFX += [(CUTS[-1][0], "kira1.mp3", 0.8)]                                   # 締め「キラッ」
 
 
 def load_sfx(name, sr):

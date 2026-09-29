@@ -1,7 +1,7 @@
 """ナレーション音声を作る (VOICEVOX:春日部つむぎ)
 
-カットの頭に合わせて1フレーズずつ読み上げ、audio/narration.mp3 に並べる。
-フレーズが次の枠に収まらないときは、その分だけ読む速さを上げる。
+1フレーズ＝1区間として、フレーズの間をほぼ空けずに audio/narration.mp3 に並べる。
+各区間の開始・終了秒を audio/timeline.json に書き出し、render.py がカットの長さに使う。
 事前に VOICEVOX Engine を 127.0.0.1:50021 で起動しておくこと。
 使い方: python3 ghibli-video/narration.py
 """
@@ -21,34 +21,41 @@ OUT = ROOT / "audio"
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 ENGINE = "http://127.0.0.1:50021"
 SPEAKER = 8         # 春日部つむぎ ノーマル
-BASE_SPEED = 1.15   # 標準の読み上げ速度
-MAX_SPEED = 1.45
+SPEED = 1.2         # 読み上げ速度
+GAP = 0.12          # フレーズ間のすき間 (秒)
+PAUSE = 0.5         # 「、」「。」での間の長さ (1.0 が標準)
+RANK_LEAD = 0.30    # 順位発表の「ドドン」を聞かせてから読み始めるまで (秒)
+TAIL = 1.2          # 最後のフレーズのあとに残す余韻 (秒)
+FPS = 30
 SR = 44100
-TOTAL = 60.0
 
-# (開始秒, 読み上げ文)。人名は読み間違いを防ぐためカタカナ/ひらがなで渡す
+# (読み上げ文, 順位発表か)。人名は読み間違いを防ぐためカタカナで渡す
 LINES = [
-    (0.10, "ジブリ好きなのに、これ観てないのはもったいない！"),
-    (4.25, "マイナーだけど本当におすすめなジブリ映画、3選！"),
-    (7.35, "第3位、思い出のマーニー。"),
-    (9.05, "心を閉ざした少女、アンナが、"),
-    (12.05, "北海道の海辺の屋敷で出会った、"),
-    (15.05, "金髪の少女、マーニー。"),
-    (18.05, "二人の関係に隠された秘密がわかった瞬間、"),
-    (21.05, "涙が止まらなくなります。"),
-    (23.35, "第2位、コクリコ坂から。"),
-    (25.05, "舞台は1963年の横浜。"),
-    (28.05, "毎朝旗を揚げる少女、ウミと、"),
-    (31.05, "少年、シュンの甘酸っぱい恋。"),
-    (34.05, "古い部室棟、カルチェラタンの雰囲気と、"),
-    (37.05, "昭和レトロな街並みが最高です。"),
-    (39.40, "そして第1位は、海がきこえる。"),
-    (42.05, "実はテレビ用に作られた、知る人ぞ知る一本。"),
-    (45.05, "高知の高校生、タクと、"),
-    (48.05, "東京から来た転校生、リカコ。わがままなのに目が離せない彼女との、"),
-    (52.30, "リアルな青春が刺さります。"),
-    (55.10, "あなたはどれを観たことある？コメントで教えてね！"),
+    ("ジブリ好きなのに、これ観てないのはもったいない！", False),
+    ("マイナーだけど本当におすすめなジブリ映画、3選！", False),
+    ("第3位、思い出のマーニー。", True),
+    ("心を閉ざした少女、アンナが、", False),
+    ("北海道の海辺の屋敷で出会った、", False),
+    ("金髪の少女、マーニー。", False),
+    ("二人の関係に隠された秘密がわかった瞬間、", False),
+    ("涙が止まらなくなります。", False),
+    ("第2位、コクリコ坂から。", True),
+    ("舞台は1963年の横浜。", False),
+    ("毎朝旗を揚げる少女、ウミと、", False),
+    ("少年、シュンの甘酸っぱい恋。", False),
+    ("古い部室棟、カルチェラタンの雰囲気と、", False),
+    ("昭和レトロな街並みが最高です。", False),
+    ("そして第1位は、海がきこえる。", True),
+    ("実はテレビ用に作られた、知る人ぞ知る一本。", False),
+    ("高知の高校生、タクと、", False),
+    ("東京から来た転校生、リカコ。わがままなのに目が離せない彼女との、", False),
+    ("リアルな青春が刺さります。", False),
+    ("あなたはどれを観たことある？コメントで教えてね！", False),
 ]
+
+
+def frame_round(t):
+    return round(t * FPS) / FPS
 
 
 def post(path, params, body=b""):
@@ -61,7 +68,7 @@ def post(path, params, body=b""):
 def synth(text, speed):
     """VOICEVOX で読み上げ → float32 mono 44.1kHz。前後の無音は切る"""
     q = json.loads(post("/audio_query", {"text": text, "speaker": SPEAKER}))
-    q.update(speedScale=speed, prePhonemeLength=0.0, postPhonemeLength=0.05,
+    q.update(speedScale=speed, prePhonemeLength=0.0, postPhonemeLength=0.05, pauseLengthScale=PAUSE,
              outputSamplingRate=SR, outputStereo=False)
     wav = post("/synthesis", {"speaker": SPEAKER}, json.dumps(q).encode())
     with wave.open(io.BytesIO(wav)) as w:
@@ -72,21 +79,26 @@ def synth(text, speed):
 
 def main():
     OUT.mkdir(parents=True, exist_ok=True)
-    buf = np.zeros(int(SR * TOTAL), np.float32)
-    report = []
-    for k, (start, text) in enumerate(LINES):
-        limit = (LINES[k + 1][0] if k + 1 < len(LINES) else TOTAL) - start - 0.08
-        speed = BASE_SPEED
-        while True:
-            clip = synth(text, speed)
-            dur = len(clip) / SR
-            if dur <= limit or speed >= MAX_SPEED:
-                break
-            speed = min(MAX_SPEED, round(speed + 0.05, 2))
+    clips, segments = [], []
+    t = 0.0
+    for k, (text, rank) in enumerate(LINES):
+        clip = synth(text, SPEED)
+        start = t + (RANK_LEAD if rank else 0.05)
+        end = start + len(clip) / SR
+        seg_end = frame_round(end + (TAIL if k == len(LINES) - 1 else GAP))
+        clips.append((start, clip))
+        segments.append({"start": t, "end": seg_end, "voice_start": round(start, 3),
+                         "voice_end": round(end, 3), "text": text})
+        print(f"{t:6.2f}-{seg_end:6.2f}s  声 {start:6.2f}-{end:6.2f}  {text}")
+        t = seg_end
+
+    buf = np.zeros(int(SR * t) + SR, np.float32)
+    for start, clip in clips:
         a = int(start * SR)
-        buf[a:a + len(clip)] += clip[: len(buf) - a]
-        flag = "" if dur <= limit else "  ※枠をはみ出し"
-        print(f"{start:5.2f}-{start + dur:5.2f}s (枠 {start + limit:5.2f}) x{speed:.2f} {text}{flag}")
+        buf[a:a + len(clip)] += clip
+    buf = buf[: int(SR * t)]
+    (OUT / "timeline.json").write_text(json.dumps(segments, ensure_ascii=False, indent=1))
+    print(f"合計 {t:.2f} 秒")
 
     wav = OUT / "_narration.wav"
     with wave.open(str(wav), "wb") as w:
