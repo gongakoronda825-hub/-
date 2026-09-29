@@ -214,19 +214,33 @@ def render_frame(cut, layers, i, n):
     return frame.convert("RGB")
 
 
-# ---- 効果音 (ドン) --------------------------------------------------------
+# ---- 効果音 (効果音ラボ https://soundeffect-lab.info/) --------------------
+# (秒, ファイル, 音量倍率)
+SFX = [(4.0, "jean1.mp3", 0.9)]                                    # タイトル「ジャン！」
+SFX += [(t, "drum-japanese2.mp3", 1.0) for t in DON_TIMES]          # 順位発表「和太鼓でドドン」
+SFX += [(55.0, "kira1.mp3", 0.8)]                                   # 締め「キラッ」
+
+
+def load_sfx(name, sr):
+    path = HERE / "sfx" / name
+    if not path.exists():  # 素材の再配布は規約で禁止なのでリポジトリには置かず、毎回サイトから取る
+        path.parent.mkdir(exist_ok=True)
+        subprocess.run(["curl", "-sSf", "-A", "Mozilla/5.0", "-e", "https://soundeffect-lab.info/sound/anime/",
+                        "-o", str(path), f"https://soundeffect-lab.info/sound/anime/mp3/{name}"], check=True)
+    raw = subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-loglevel", "error", "-i", str(HERE / "sfx" / name),
+                          "-f", "s16le", "-ac", "1", "-ar", str(sr), "-"], capture_output=True, check=True).stdout
+    a = np.frombuffer(raw, "<i2").astype(np.float64) / 32768
+    idx = np.nonzero(np.abs(a) > 0.02)[0]
+    return a[max(0, idx[0] - 100):] if len(idx) else a   # 頭の無音を切って映像とぴったり合わせる
+
+
 def make_audio(path, total):
     sr = 44100
     buf = np.zeros(int(sr * total), dtype=np.float64)
-    tt = np.arange(int(sr * 0.9)) / sr
-    freq = 45 + 110 * np.exp(-tt * 18)
-    phase = 2 * np.pi * np.cumsum(freq) / sr
-    don = np.sin(phase) * np.exp(-tt * 5.5)
-    click = np.random.default_rng(0).normal(0, 1, len(tt)) * np.exp(-tt * 120) * 0.35
-    don = np.tanh((don + click) * 1.6) * 0.8
-    for s in DON_TIMES:
-        a = int(s * sr)
-        buf[a:a + len(don)] += don[: len(buf) - a]
+    for t, name, gain in SFX:
+        clip = load_sfx(name, sr) * gain
+        a = int(t * sr)
+        buf[a:a + len(clip)] += clip[: len(buf) - a]
     pcm = (np.clip(buf, -1, 1) * 32767).astype("<i2")
     with wave.open(str(path), "wb") as w:
         w.setnchannels(1)
@@ -246,7 +260,7 @@ def main():
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-i", str(wav)]
     if narration.exists():
-        cmd += ["-i", str(narration), "-filter_complex", "[1:a][2:a]amix=inputs=2:normalize=0[a]",
+        cmd += ["-i", str(narration), "-filter_complex", "[1:a][2:a]amix=inputs=2:normalize=0,alimiter=limit=0.89:level=false[a]",
                 "-map", "0:v", "-map", "[a]"]
     else:
         cmd += ["-map", "0:v", "-map", "1:a"]
