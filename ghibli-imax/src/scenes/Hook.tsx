@@ -7,24 +7,65 @@ export const STAMP_HIT = 18;
 
 const CARD_W = 780;
 const CARD_H = 1060;
-const ROW_H = 86;
-const DATE_COL = 170;
+const TABLE_TOP = 222;
+const HEAD_H = 60;
+const ROW_H = 76;
+const ROWS = 10;
+const OUT_COL = 132;
+const BACK_COL = 168;
 
-// 手書き欄（名前は架空）
+const INK = "#2B2622";
+const LINE = "rgba(52,44,38,0.78)";
+const HAND_INK = "#1F1F26";
+const DATE_INK = "#34323D";
+
+// 書名と借りた人（どちらも架空）
+const BOOK_TITLE = "月夜の坂道";
 const ENTRIES = [
-  { out: "6.14", name: "佐伯 ゆう", back: "6.28", rot: -1.5 },
-  { out: "7.2", name: "森川 透", back: "7.16", rot: 1 },
-  { out: "8.20", name: "高梨 みつ", back: "9.3", rot: -0.5 },
-  { out: "9.9", name: "小野寺 薫", back: "9.23", rot: 1.8 },
+  { out: "6/10", name: "佐伯 ゆう", back: "6.17", rot: -1.2 },
+  { out: "6/19", name: "森川 透", back: "6.26", rot: 0.8 },
+  { out: "7/2", name: "高梨 みつ", back: "7.09", rot: -0.4 },
+  { out: "7/21", name: "小野寺 薫", back: "7.28", rot: 1.4 },
+  { out: "8/15", name: "小森 はる", back: "8.22", rot: -0.9 },
 ];
+// 次の空いた行にスタンプを押す
 const STAMP_ROW = ENTRIES.length;
-const ROWS = 9;
+
+// 右上の蔵書印
+const Seal: React.FC = () => (
+  <div
+    style={{
+      position: "absolute",
+      top: 30,
+      right: 50,
+      width: 74,
+      height: 74,
+      border: `4px solid ${STAMP_RED}`,
+      borderRadius: 10,
+      color: STAMP_RED,
+      fontFamily: mincho,
+      fontWeight: 900,
+      fontSize: 28,
+      lineHeight: 1.05,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      transform: "rotate(8deg)",
+      opacity: 0.8,
+      mixBlendMode: "multiply",
+    }}
+  >
+    <span>図</span>
+    <span>書</span>
+  </div>
+);
 
 const Paper: React.FC = () => (
   <svg
     width={CARD_W}
     height={CARD_H}
-    style={{ position: "absolute", inset: 0, borderRadius: 22 }}
+    style={{ position: "absolute", inset: 0 }}
   >
     <defs>
       <filter id="paper-noise">
@@ -73,6 +114,8 @@ const Paper: React.FC = () => (
   </svg>
 );
 
+const STAMP_H = 124;
+
 const Stamp: React.FC<{ frame: number }> = ({ frame }) => {
   // 1.4 → 1.0 に加速しながら押し下ろす
   const t = interpolate(frame, [STAMP_HIT - 7, STAMP_HIT], [0, 1], {
@@ -94,12 +137,12 @@ const Stamp: React.FC<{ frame: number }> = ({ frame }) => {
   const lift = frame < STAMP_HIT ? 1 - t : 0;
 
   const W = 440;
-  const H = 140;
+  const H = STAMP_H;
   return (
     <div
       style={{
         position: "absolute",
-        left: 120,
+        left: 100,
         top: 0,
         width: W,
         height: H,
@@ -147,7 +190,7 @@ const Stamp: React.FC<{ frame: number }> = ({ frame }) => {
           />
           <text
             x={W / 2}
-            y={H / 2 + 27}
+            y={H / 2 + 24}
             textLength={W - 70}
             lengthAdjust="spacingAndGlyphs"
             textAnchor="middle"
@@ -156,7 +199,7 @@ const Stamp: React.FC<{ frame: number }> = ({ frame }) => {
             style={{
               fontFamily: gothic,
               fontWeight: 700,
-              fontSize: 78,
+              fontSize: 70,
               letterSpacing: "0.04em",
             }}
           >
@@ -187,8 +230,6 @@ export const Hook: React.FC = () => {
     extrapolateRight: "clamp",
   });
 
-  const tableTop = 250;
-
   return (
     <AbsoluteFill
       style={{
@@ -208,7 +249,7 @@ export const Hook: React.FC = () => {
             top: (1920 - CARD_H) / 2 - 20,
             width: CARD_W,
             height: CARD_H,
-            borderRadius: 22,
+            borderRadius: 6,
             overflow: "hidden",
             transform: "rotate(-1.2deg)",
             boxShadow:
@@ -217,61 +258,72 @@ export const Hook: React.FC = () => {
         >
           <Paper />
 
+          {/* 見出しと蔵書印 */}
           <div
             style={{
               position: "absolute",
-              top: 70,
-              left: 0,
-              right: 0,
-              textAlign: "center",
+              top: 44,
+              left: 52,
               fontFamily: mincho,
               fontWeight: 700,
-              fontSize: 64,
-              letterSpacing: "0.5em",
-              color: "#3B3024",
-              paddingLeft: "0.5em",
+              fontSize: 46,
+              letterSpacing: "0.08em",
+              color: INK,
             }}
           >
-            貸出カード
+            県立図書館貸出カード
           </div>
+          <Seal />
+
+          {/* 書名（手書き） */}
           <div
             style={{
               position: "absolute",
-              top: 172,
-              left: 60,
-              right: 60,
-              borderTop: "3px double #7A6448",
+              top: 122,
+              left: 52,
+              right: 52,
+              height: 64,
+              borderBottom: `2px solid ${LINE}`,
+              fontFamily: hand,
+              fontSize: 46,
+              color: HAND_INK,
+              paddingLeft: 40,
+              transform: "rotate(-0.4deg)",
             }}
-          />
+          >
+            {BOOK_TITLE}
+          </div>
 
           {/* 表 */}
           <div
             style={{
               position: "absolute",
-              top: tableTop,
-              left: 50,
-              right: 50,
-              height: ROW_H * (ROWS + 0.7),
-              border: "2px solid #8C7556",
+              top: TABLE_TOP,
+              left: 52,
+              right: 52,
+              height: HEAD_H + ROW_H * ROWS,
+              border: `2.5px solid ${LINE}`,
             }}
           >
             {/* 見出し行 */}
             <div
               style={{
-                height: ROW_H * 0.7,
+                height: HEAD_H,
                 display: "flex",
                 alignItems: "center",
-                borderBottom: "2px solid #8C7556",
+                borderBottom: `2px solid ${LINE}`,
                 fontFamily: mincho,
-                fontWeight: 500,
-                fontSize: 30,
-                color: "#5A4834",
-                letterSpacing: "0.2em",
+                fontWeight: 700,
+                fontSize: 28,
+                color: INK,
+                letterSpacing: "0.1em",
               }}
             >
-              <div style={{ width: DATE_COL, textAlign: "center" }}>貸出日</div>
-              <div style={{ flex: 1, textAlign: "center" }}>{"氏\u3000名"}</div>
-              <div style={{ width: DATE_COL, textAlign: "center" }}>返却日</div>
+              <div style={{ width: OUT_COL, textAlign: "center" }}>貸出日</div>
+              <div style={{ flex: 1, textAlign: "center" }}>
+                {"氏\u3000\u3000名"}
+              </div>
+              <div style={{ width: BACK_COL, textAlign: "center" }}>返却日</div>
             </div>
             {Array.from({ length: ROWS }).map((_, i) => {
               const e = ENTRIES[i];
@@ -279,41 +331,69 @@ export const Hook: React.FC = () => {
                 <div
                   key={i}
                   style={{
+                    position: "relative",
                     height: ROW_H,
                     display: "flex",
                     alignItems: "center",
                     borderBottom:
-                      i === ROWS - 1
-                        ? "none"
-                        : "1.5px solid rgba(122,100,72,0.55)",
-                    fontFamily: hand,
-                    fontSize: 42,
-                    color: i % 2 ? "#2C3A63" : "#2E2A26",
+                      i === ROWS - 1 ? "none" : `1.5px solid ${LINE}`,
                   }}
                 >
+                  {/* 貸出日：空欄は月/日の斜線だけ印刷されている */}
                   <div
                     style={{
-                      width: DATE_COL,
+                      width: OUT_COL,
                       textAlign: "center",
+                      fontFamily: hand,
+                      fontSize: 34,
+                      color: HAND_INK,
                       transform: `rotate(${e?.rot ?? 0}deg)`,
                     }}
                   >
-                    {e?.out}
+                    {e ? (
+                      e.out
+                    ) : (
+                      <svg
+                        width={40}
+                        height={40}
+                        style={{ verticalAlign: "middle" }}
+                      >
+                        <line
+                          x1={30}
+                          y1={6}
+                          x2={10}
+                          y2={34}
+                          stroke={LINE}
+                          strokeWidth={2}
+                        />
+                      </svg>
+                    )}
                   </div>
                   <div
                     style={{
                       flex: 1,
-                      textAlign: "center",
+                      paddingLeft: 36,
+                      fontFamily: hand,
+                      fontSize: 42,
+                      letterSpacing: "0.12em",
+                      color: HAND_INK,
                       transform: `rotate(${-(e?.rot ?? 0)}deg)`,
                     }}
                   >
                     {e?.name}
                   </div>
+                  {/* 返却日は日付印で押した体裁 */}
                   <div
                     style={{
-                      width: DATE_COL,
+                      width: BACK_COL,
                       textAlign: "center",
-                      transform: `rotate(${(e?.rot ?? 0) * 0.6}deg)`,
+                      fontFamily: gothic,
+                      fontWeight: 700,
+                      fontSize: 38,
+                      letterSpacing: "0.02em",
+                      color: DATE_INK,
+                      opacity: 0.88,
+                      transform: `rotate(${(e?.rot ?? 0) * 0.5}deg)`,
                     }}
                   >
                     {e?.back}
@@ -327,8 +407,8 @@ export const Hook: React.FC = () => {
                 position: "absolute",
                 top: 0,
                 bottom: 0,
-                left: DATE_COL,
-                borderLeft: "1.5px solid rgba(122,100,72,0.7)",
+                left: OUT_COL,
+                borderLeft: `2px solid ${LINE}`,
               }}
             />
             <div
@@ -336,8 +416,8 @@ export const Hook: React.FC = () => {
                 position: "absolute",
                 top: 0,
                 bottom: 0,
-                right: DATE_COL,
-                borderLeft: "1.5px solid rgba(122,100,72,0.7)",
+                right: BACK_COL,
+                borderLeft: `2px solid ${LINE}`,
               }}
             />
 
@@ -346,7 +426,7 @@ export const Hook: React.FC = () => {
               style={{
                 position: "absolute",
                 left: 0,
-                top: ROW_H * 0.7 + ROW_H * STAMP_ROW + ROW_H / 2 - 70,
+                top: HEAD_H + ROW_H * STAMP_ROW + ROW_H / 2 - STAMP_H / 2 + 16,
               }}
             >
               <Stamp frame={frame} />
