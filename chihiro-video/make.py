@@ -30,7 +30,7 @@ W, H, FPS, SR = 1080, 1920, 30, 44100
 ENGINE = "http://localhost:50021"
 SPEAKER = 2          # 四国めたん ノーマル
 SPEED = 1.1
-PAUSE = 0.4          # 「、」「。」での間 (1.0 が標準)。20〜25 秒に収めるため短めに
+PAUSE = 0.5          # 「、」「。」での間 (1.0 が標準)
 LEAD = 0.2           # テロップをナレーションより早く出す秒数
 TAIL = 0.3           # ナレーション後の余白
 XFADE = 0.25         # カット間のクロスフェード
@@ -38,8 +38,9 @@ LOOP_FADE = 0.5      # 最後に①の画像へ戻すフェード
 ZOOM = 0.08          # 100% → 108%
 SFX_DB = -12         # 効果音はナレーションより 12dB 下げる
 
-# テロップの置き場所: 上から 35〜45% を中心に、右端 15% と下 20% は避ける
-TELOP_CY = int(H * 0.40)
+# 写真は画面の上下中央。テロップは写真のすぐ下 (右端 15% と下 20% は避ける)
+PIC_TOP = (H - round(W * 1038 / 1920)) // 2
+TELOP_TOP = PIC_TOP + round(W * 1038 / 1920) + 24
 TELOP_CX = int(W * 0.85 / 2) + 20   # 左端 40px〜右端 15% 手前の中央
 TELOP_MAX_W = int(W * 0.85) - 80
 
@@ -49,28 +50,41 @@ TELOP_MAX_W = int(W * 0.85) - 80
 #   box=(x0, 幅) を指定すると、元画像をその範囲で正方形に切り抜いて置く (顔のアップ用。
 #   9:16 に切り抜くと顔がテロップ帯 (上から35〜45%) にかかってしまうため)
 CUTS = [
-    dict(name="① フック", img="chihiro001", layout="crop", focus=(940, 200), face_y=0.2, crop_h=1038,
+    dict(name="① フック", img="chihiro001",
          telop=["千と千尋は", "“10歳の女の子たち”の", "ために作られた"],
          voice="千と千尋は、10歳の女の子たちのために作られた映画なんです",
          sfx=[("start", "question1.mp3")]),
-    dict(name="②", img="chihiro002", layout="blur", top=980,
+    dict(name="② きっかけ", img="chihiro002",
          telop=["宮崎監督の山小屋に", "毎年来ていた", "友人の娘たち（当時10歳）"],
          voice="宮崎監督の山小屋に毎年遊びに来ていた、友人の娘さんたち。当時みんな10歳でした",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
-    dict(name="③", img="chihiro024", layout="blur", top=980,
+    dict(name="③ 監督の思い", img="chihiro024",
          telop=["「あなたたちのための", "映画だ」と言える作品を", "作りたかった"],
          voice="監督は、あなたたちのための映画だ、と言える作品を作りたかったそうです",
          sfx=[("start", "decision22.mp3")]),
-    dict(name="④ 成長", img="chihiro023", img2="chihiro045", layout="blur", top=900,
-         box=(561, 1038), box2=(441, 1038),
+    dict(name="④ 名前", img="chihiro017",
+         telop=["湯婆婆に名前を奪われ", "「千」になる千尋", "名前を忘れないのがカギ"],
+         voice="油屋で千尋は、湯婆婆に名前を奪われて、千になります。自分の名前を忘れないことが、物語のカギなんです",
+         sfx=[("cut_in", "highspeed-movement1.mp3")]),
+    dict(name="⑤ 成長", img="chihiro023", img2="chihiro045",
          telop=["だから千尋は", "親に頼れない場所で", "自分の力で成長していく"],
          voice="だから千尋は、親に頼れない場所で、自分の力で成長していきます",
          sfx=[("swap", "eye-shine1.mp3")]),
-    dict(name="⑤ 締め", img="chihiro050", layout="blur", top=900, box=(481, 1038),
+    dict(name="⑥ 受賞", img="chihiro011",
+         telop=["ベルリン金熊賞と", "アカデミー賞を", "ダブル受賞"],
+         voice="世界でも評価されて、ベルリン国際映画祭のきんぐま賞と、アカデミー賞をダブル受賞",
+         sfx=[("start", "jean1.mp3")]),
+    dict(name="⑦ 記録", img="chihiro048",
+         telop=["日本の興行収入1位を", "19年間キープ"],
+         voice="日本の興行収入1位の記録は、19年間も破られませんでした",
+         sfx=[("cut_in", "highspeed-movement1.mp3")]),
+    dict(name="⑧ 締め", img="chihiro050",
          telop=["次に観るときは", "千尋の“顔つきの変化”に", "注目👀"],
          voice="次に観るときは、千尋の顔つきの変化に注目してみてください",
          sfx=[("start", "decision52.mp3")]),
 ]
+for _c in CUTS:              # 全カット: ぼかし背景＋元の写真を画面の上下中央に
+    _c.update(layout="blur", top=PIC_TOP)
 SWAP_AT = 0.45       # ④ で 2 枚目に切り替える位置 (カット内の比率)
 SWAP_LEN = 0.6
 
@@ -229,7 +243,7 @@ def cut_frame(k, t):
         if a < 1:
             tl = tl.copy()
             tl.putalpha(tl.getchannel("A").point(lambda v: int(v * a)))
-        frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_CY - tl.height // 2))
+        frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_TOP))
     return frame.convert("RGB")
 
 

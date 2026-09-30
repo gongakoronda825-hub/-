@@ -9,11 +9,14 @@ https://www.ghibli.jp/works/chihiro/
 利用条件：「常識の範囲でご自由にお使いください。」（同ページ記載）
 使用した画像：
   ① フック      https://www.ghibli.jp/gallery/chihiro001.jpg
-  ②            https://www.ghibli.jp/gallery/chihiro002.jpg
-  ③            https://www.ghibli.jp/gallery/chihiro024.jpg
-  ④ 成長（前）  https://www.ghibli.jp/gallery/chihiro023.jpg
-  ④ 成長（後）  https://www.ghibli.jp/gallery/chihiro045.jpg
-  ⑤ 締め        https://www.ghibli.jp/gallery/chihiro050.jpg
+  ② きっかけ    https://www.ghibli.jp/gallery/chihiro002.jpg
+  ③ 監督の思い  https://www.ghibli.jp/gallery/chihiro024.jpg
+  ④ 名前        https://www.ghibli.jp/gallery/chihiro017.jpg
+  ⑤ 成長（前）  https://www.ghibli.jp/gallery/chihiro023.jpg
+  ⑤ 成長（後）  https://www.ghibli.jp/gallery/chihiro045.jpg
+  ⑥ 受賞        https://www.ghibli.jp/gallery/chihiro011.jpg
+  ⑦ 記録        https://www.ghibli.jp/gallery/chihiro048.jpg
+  ⑧ 締め        https://www.ghibli.jp/gallery/chihiro050.jpg
 
 ■ ナレーション
 VOICEVOX:四国めたん（ノーマル、話速 1.1）
@@ -27,11 +30,12 @@ VOICEVOX https://voicevox.hiroshiba.jp/
 利用規約 https://soundeffect-lab.info/agreement/
   - 商用利用無料、クレジット表記は不要（任意）。効果音ファイルそのものの再配布は禁止
 使用した効果音：
-  0秒        クイズ出題1（デデン）        https://soundeffect-lab.info/sound/anime/
-  ②の頭      高速移動（シュン）           https://soundeffect-lab.info/sound/battle/
-  ③の頭      決定ボタンを押す22（ピコッ） https://soundeffect-lab.info/sound/button/
-  ④の切替    きらーん1                   https://soundeffect-lab.info/sound/anime/
-  ⑤の頭      決定ボタンを押す52（ポン）   https://soundeffect-lab.info/sound/button/
+  ①の頭（0秒）      クイズ出題1（デデン）        https://soundeffect-lab.info/sound/anime/
+  ②④⑦の切り替わり  高速移動（シュン）           https://soundeffect-lab.info/sound/battle/
+  ③の頭            決定ボタンを押す22（ピコッ） https://soundeffect-lab.info/sound/button/
+  ⑤の画像切替      きらーん1                   https://soundeffect-lab.info/sound/anime/
+  ⑥の頭            ジャン！                    https://soundeffect-lab.info/sound/anime/
+  ⑧の頭            決定ボタンを押す52（ポン）   https://soundeffect-lab.info/sound/button/
 
 ■ フォント
 Noto Sans JP（SIL Open Font License）／ Noto Color Emoji（SIL Open Font License）
