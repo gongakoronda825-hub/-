@@ -46,3 +46,6 @@
 
 `face-chase/` も別物です。[FACE CHASE](face-chase/)で、
 宙に浮かぶ顔から逃げ回る Three.js の3D鬼ごっこです。スマホ・PC両対応。
+
+`ghibli-imax/` も別物です。[『耳をすませば』『借りぐらしのアリエッティ』IMAX上映のTikTok告知動画](ghibli-imax/)で、
+Remotion で作った15秒の縦型動画（`ghibli-imax/out/ghibli_imax.mp4`）です。

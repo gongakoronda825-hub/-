@@ -1,0 +1,18 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# 書き出し物は完成版の mp4 だけ残す
+out/*
+!out/ghibli_imax.mp4
+
+# 場面写真は選定した6枚だけ入れる（全枚は scripts/fetch-stills.sh で取得）
+public/stills/mimi/*
+public/stills/arrietty/*
+!public/stills/mimi/mimi015.jpg
+!public/stills/mimi/mimi020.jpg
+!public/stills/mimi/mimi029.jpg
+!public/stills/arrietty/karigurashi002.jpg
+!public/stills/arrietty/karigurashi022.jpg
+!public/stills/arrietty/karigurashi037.jpg
