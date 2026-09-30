@@ -43,6 +43,9 @@ PIC_TOP = (H - round(W * 1038 / 1920)) // 2
 TELOP_TOP = PIC_TOP + round(W * 1038 / 1920) + 24
 TELOP_CX = int(W * 0.85 / 2) + 20   # 左端 40px〜右端 15% 手前の中央
 TELOP_MAX_W = int(W * 0.85) - 80
+# 題名 (カット①) だけは写真の上に大きく。画面上部には TikTok のボタンがないので横幅いっぱいに使う
+TITLE_MAX_W = W - 80
+TITLE_BOTTOM = PIC_TOP - 40
 
 # ---- カット定義 ------------------------------------------------------------
 # layout "crop": 9:16 に切り抜く。focus=(x, y) 元画像での顔の位置, face_y=出力での顔の高さ(比率), crop_h=切り抜く高さ
@@ -50,7 +53,7 @@ TELOP_MAX_W = int(W * 0.85) - 80
 #   box=(x0, 幅) を指定すると、元画像をその範囲で正方形に切り抜いて置く (顔のアップ用。
 #   9:16 に切り抜くと顔がテロップ帯 (上から35〜45%) にかかってしまうため)
 CUTS = [
-    dict(name="① フック", img="chihiro001",
+    dict(name="① 題名", img="chihiro001", title=True,
          telop=["千と千尋は", "“10歳の女の子たち”の", "ために作られた"],
          voice="千と千尋は、10歳の女の子たちのために作られた映画なんです",
          sfx=[("start", "question1.mp3")]),
@@ -62,23 +65,19 @@ CUTS = [
          telop=["「あなたたちのための", "映画だ」と言える作品を", "作りたかった"],
          voice="監督は、あなたたちのための映画だ、と言える作品を作りたかったそうです",
          sfx=[("start", "decision22.mp3")]),
-    dict(name="④ 名前", img="chihiro017",
-         telop=["湯婆婆に名前を奪われ", "「千」になる千尋", "名前を忘れないのがカギ"],
-         voice="油屋で千尋は、湯婆婆に名前を奪われて、千になります。自分の名前を忘れないことが、物語のカギなんです",
+    dict(name="④ 普通の女の子", img="chihiro004",
+         telop=["主人公の千尋も", "特別な力を持たない", "“普通の女の子”"],
+         voice="主人公の千尋も、特別な力を持たない、どこにでもいる普通の女の子として描かれています",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
     dict(name="⑤ 成長", img="chihiro023", img2="chihiro045",
          telop=["だから千尋は", "親に頼れない場所で", "自分の力で成長していく"],
          voice="だから千尋は、親に頼れない場所で、自分の力で成長していきます",
          sfx=[("swap", "eye-shine1.mp3")]),
-    dict(name="⑥ 受賞", img="chihiro011",
-         telop=["ベルリン金熊賞と", "アカデミー賞を", "ダブル受賞"],
-         voice="世界でも評価されて、ベルリン国際映画祭のきんぐま賞と、アカデミー賞をダブル受賞",
-         sfx=[("start", "jean1.mp3")]),
-    dict(name="⑦ 記録", img="chihiro048",
-         telop=["日本の興行収入1位を", "19年間キープ"],
-         voice="日本の興行収入1位の記録は、19年間も破られませんでした",
+    dict(name="⑥ 最初の一歩", img="chihiro017",
+         telop=["湯婆婆に「ここで", "働かせてください」", "自分で動き出す第一歩"],
+         voice="たとえば、湯婆婆に、ここで働かせてください、と頼み続ける場面。ここが、千尋が自分の力で動き出す、最初の一歩なんです",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
-    dict(name="⑧ 締め", img="chihiro050",
+    dict(name="⑦ 締め", img="chihiro050",
          telop=["次に観るときは", "千尋の“顔つきの変化”に", "注目👀"],
          voice="次に観るときは、千尋の顔つきの変化に注目してみてください",
          sfx=[("start", "decision52.mp3")]),
@@ -213,11 +212,19 @@ def telop_image(lines, size):
     return im
 
 
+def title_size():
+    c = next(c for c in CUTS if c.get("title"))
+    size = 110
+    while telop_image(c["telop"], size).width > TITLE_MAX_W:
+        size -= 2
+    return size
+
+
 def fit_size():
     """全カットで同じ文字サイズ。一番長い行が幅に収まる大きさにする"""
     size = 80
     while size > 30:
-        if all(telop_image(c["telop"], size).width <= TELOP_MAX_W for c in CUTS):
+        if all(telop_image(c["telop"], size).width <= TELOP_MAX_W for c in CUTS if not c.get("title")):
             return size
         size -= 2
     return size
@@ -243,7 +250,10 @@ def cut_frame(k, t):
         if a < 1:
             tl = tl.copy()
             tl.putalpha(tl.getchannel("A").point(lambda v: int(v * a)))
-        frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_TOP))
+        if c.get("title"):
+            frame.alpha_composite(tl, (W // 2 - tl.width // 2, TITLE_BOTTOM - tl.height))
+        else:
+            frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_TOP))
     return frame.convert("RGB")
 
 
@@ -314,7 +324,7 @@ def main():
     total = build_timeline()
     size = fit_size()
     for c in CUTS:
-        c["telop_img"] = telop_image(c["telop"], size)
+        c["telop_img"] = telop_image(c["telop"], title_size() if c.get("title") else size)
     wav, events = make_audio(total)
 
     cmd = [FFMPEG, "-y", "-loglevel", "error",
