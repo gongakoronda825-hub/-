@@ -52,7 +52,7 @@ TITLE_MAX_W = W - 80
 #   box=(x0, 幅) を指定すると、元画像をその範囲で正方形に切り抜いて置く (顔のアップ用。
 #   9:16 に切り抜くと顔がテロップ帯 (上から35〜45%) にかかってしまうため)
 CUTS = [
-    dict(name="① 題名", img="chihiro001", stack=["chihiro045", "chihiro020", "chihiro011"], title=True,
+    dict(name="① 題名", img="chihiro001", stack=["chihiro043", "chihiro001", "chihiro011"], title=True,
          telop=["千と千尋は", "“10歳の女の子たち”の", "ために作られた"],
          voice="千と千尋は、10歳の女の子たちのために作られた映画なんです",
          sfx=[("start", "question1.mp3")]),
