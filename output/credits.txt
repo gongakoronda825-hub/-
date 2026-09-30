@@ -1,0 +1,37 @@
+千と千尋の神隠し 雑学ショート（output/chihiro_trivia.mp4） クレジット
+
+■ 投稿文（キャプション）に必ず入れる表記
+VOICEVOX:四国めたん
+
+■ 場面写真
+出典：スタジオジブリ公式サイト『千と千尋の神隠し』作品ページ
+https://www.ghibli.jp/works/chihiro/
+利用条件：「常識の範囲でご自由にお使いください。」（同ページ記載）
+使用した画像：
+  ① フック      https://www.ghibli.jp/gallery/chihiro001.jpg
+  ②            https://www.ghibli.jp/gallery/chihiro002.jpg
+  ③            https://www.ghibli.jp/gallery/chihiro024.jpg
+  ④ 成長（前）  https://www.ghibli.jp/gallery/chihiro023.jpg
+  ④ 成長（後）  https://www.ghibli.jp/gallery/chihiro045.jpg
+  ⑤ 締め        https://www.ghibli.jp/gallery/chihiro050.jpg
+
+■ ナレーション
+VOICEVOX:四国めたん（ノーマル、話速 1.1）
+VOICEVOX https://voicevox.hiroshiba.jp/
+四国めたん 音源利用規約 https://zunko.jp/con_ongen_kiyaku.html
+  - 商用・非商用ともに利用可。利用時はクレジット表記が必要
+    （動画サイトでは説明欄や動画内など、見に行けばわかる場所に「VOICEVOX:四国めたん」と記載）
+
+■ 効果音
+出典：効果音ラボ https://soundeffect-lab.info/
+利用規約 https://soundeffect-lab.info/agreement/
+  - 商用利用無料、クレジット表記は不要（任意）。効果音ファイルそのものの再配布は禁止
+使用した効果音：
+  0秒        クイズ出題1（デデン）        https://soundeffect-lab.info/sound/anime/
+  ②の頭      高速移動（シュン）           https://soundeffect-lab.info/sound/battle/
+  ③の頭      決定ボタンを押す22（ピコッ） https://soundeffect-lab.info/sound/button/
+  ④の切替    きらーん1                   https://soundeffect-lab.info/sound/anime/
+  ⑤の頭      決定ボタンを押す52（ポン）   https://soundeffect-lab.info/sound/button/
+
+■ フォント
+Noto Sans JP（SIL Open Font License）／ Noto Color Emoji（SIL Open Font License）
