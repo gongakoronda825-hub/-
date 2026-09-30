@@ -19,7 +19,7 @@ https://www.ghibli.jp/works/chihiro/
   ⑨ 締め（序盤→終盤） https://www.ghibli.jp/gallery/chihiro001.jpg → https://www.ghibli.jp/gallery/chihiro050.jpg
 
 ■ ナレーション
-VOICEVOX:四国めたん（ノーマル、話速 1.1）
+VOICEVOX:四国めたん（ノーマル、話速 1.25）
 VOICEVOX https://voicevox.hiroshiba.jp/
 四国めたん 音源利用規約 https://zunko.jp/con_ongen_kiyaku.html
   - 商用・非商用ともに利用可。利用時はクレジット表記が必要

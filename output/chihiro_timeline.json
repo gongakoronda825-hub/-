@@ -1,5 +1,5 @@
 {
- "total": 51.4,
+ "total": 45.467,
  "font_size": 62,
  "sfx": [
   [
@@ -7,39 +7,39 @@
    "question1.mp3"
   ],
   [
-   4.38,
+   3.88,
    "highspeed-movement1.mp3"
   ],
   [
-   11.0,
+   9.77,
    "decision22.mp3"
   ],
   [
-   19.05,
+   16.81,
    "highspeed-movement1.mp3"
   ],
   [
-   25.35,
+   22.35,
    "highspeed-movement1.mp3"
   ],
   [
-   29.07,
+   25.67,
    "question1.mp3"
   ],
   [
-   35.37,
+   31.2,
    "eye-shine1.mp3"
   ],
   [
-   40.28,
+   35.58,
    "highspeed-movement1.mp3"
   ],
   [
-   46.8,
+   41.38,
    "eye-shine1.mp3"
   ],
   [
-   44.97,
+   39.77,
    "decision52.mp3"
   ]
  ],
@@ -49,89 +49,89 @@
    "img": "chihiro001",
    "img2": null,
    "start": 0.0,
-   "end": 4.5,
+   "end": 4.0,
    "voice_start": 0.2,
-   "voice_end": 4.193,
+   "voice_end": 3.709,
    "kana": "セ'ント/チ'ヒロワ、ジュッ'サイノ/オンナノコ'タチノ/タメ'ニ/_ツク'ラレタ/エエガナ'/ン'デ_ス"
   },
   {
    "name": "② きっかけ",
    "img": "chihiro002",
    "img2": null,
-   "start": 4.5,
-   "end": 11.0,
-   "voice_start": 4.7,
-   "voice_end": 10.705,
+   "start": 4.0,
+   "end": 9.767,
+   "voice_start": 4.2,
+   "voice_end": 9.481,
    "kana": "ミヤザ_キカ'ントクノ/ヤマゴヤニ'/マイトシ'/アソビニ'/キ'テ/イタ'、ユウジンノ'/ムスメサン'タチ、ト'オジ/ミンナ'/ジュッ'サイデ_シタ"
   },
   {
    "name": "③ 監督の思い",
    "img": "chihiro018",
    "img2": null,
-   "start": 11.0,
-   "end": 19.167,
-   "voice_start": 11.2,
-   "voice_end": 18.882,
+   "start": 9.767,
+   "end": 16.933,
+   "voice_start": 9.967,
+   "voice_end": 16.641,
    "kana": "カントクワ'、アナタ'タチノ/タメ'ノ/エエガダ'、ト'/イエル'/サ_クヒンオ'/_ツクリタ'カッタ、ダ'カラ/シュジ'ンコオノ/チ'ヒロモ、オナジ'/ジュッ'サイノ/オンナ'ノコナ/ン'デ_ス"
   },
   {
    "name": "④ 序盤",
    "img": "chihiro004",
    "img2": null,
-   "start": 19.167,
-   "end": 25.467,
-   "voice_start": 19.367,
-   "voice_end": 25.154,
+   "start": 16.933,
+   "end": 22.467,
+   "voice_start": 17.133,
+   "voice_end": 22.181,
    "kana": "トクベツナ'/_チカラ'ナンテ/ナ'イ、_フツウノ'/オンナ'ノコ、ジョバンワ'、_フテ_クサレ'テ、オカ'アサンニ/クッツ'イテバカリ"
   },
   {
    "name": "⑤ 序盤",
    "img": "chihiro023",
    "img2": null,
-   "start": 25.467,
-   "end": 29.067,
-   "voice_start": 25.667,
-   "voice_end": 28.762,
+   "start": 22.467,
+   "end": 25.667,
+   "voice_start": 22.667,
+   "voice_end": 25.379,
    "kana": "シラナイ'/セ'カイデ、フアンデ'/ナイテ'/シマウ'/オンナ'ノコデ_シタ"
   },
   {
    "name": "⑥ 転機",
    "img": "chihiro017",
    "img2": null,
-   "start": 29.067,
-   "end": 35.367,
-   "voice_start": 29.267,
-   "voice_end": 35.073,
+   "start": 25.667,
+   "end": 31.2,
+   "voice_start": 25.867,
+   "voice_end": 30.905,
    "kana": "デ'モ、ユバ'アバニ、ココデ'/ハタラカセテ'/クダサ'イ、ト'/タノ'ミツズケタ/トコロカラ'、_スコ'シズ_ツ/カワッテ'/イキマ'_ス"
   },
   {
    "name": "⑦ 終盤",
    "img": "chihiro042",
    "img2": null,
-   "start": 35.367,
-   "end": 40.4,
-   "voice_start": 35.567,
-   "voice_end": 40.116,
+   "start": 31.2,
+   "end": 35.7,
+   "voice_start": 31.4,
+   "voice_end": 35.39,
    "kana": "シュウバンデワ'、ハ'クオ/タ_スケ'ル/タメ'ニ、_ヒト'リデ/デンシャニ'/ノッテ'、ゼ'ニイバノ/モト'エ"
   },
   {
    "name": "⑧ 終盤",
    "img": "chihiro047",
    "img2": null,
-   "start": 40.4,
-   "end": 44.967,
-   "voice_start": 40.6,
-   "voice_end": 44.67,
+   "start": 35.7,
+   "end": 39.767,
+   "voice_start": 35.9,
+   "voice_end": 39.451,
    "kana": "サ'イゴワ、ユバ'アバノ/ダ'_シタ/ナンダイニモ'、ジブンノ'/_チカラ'デ/コタ'エオ/ダシマ'_ス"
   },
   {
    "name": "⑨ 締め",
    "img": "chihiro001",
    "img2": "chihiro050",
-   "start": 44.967,
-   "end": 51.4,
-   "voice_start": 45.167,
-   "voice_end": 51.087,
+   "start": 39.767,
+   "end": 45.467,
+   "voice_start": 39.967,
+   "voice_end": 45.151,
    "kana": "オナジ'/オンナ'ノコトワ/オモエ'ナイホドノ、カオ_ツキノ'/ヘ'ンカ、ツギ'ニ/ミ'ル/ト'キワ、ゼ'_ヒ/チュウモク'/_シテ'/ミ'テ/クダサ'イ"
   }
  ]
