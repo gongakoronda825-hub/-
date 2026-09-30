@@ -3,7 +3,7 @@
 『耳をすませば』『借りぐらしのアリエッティ』4Kデジタルリマスター IMAX上映の TikTok 告知動画（Remotion）。
 
 - 完成物：`out/ghibli_imax.mp4`（1080×1920、30fps、15秒、**音声なし**。BGM は TikTok アプリ内で付ける）
-- 場面写真：スタジオジブリ公式サイトの公開画像のみ。選定理由は `public/stills/SELECTED.md`
+- 場面写真：スタジオジブリ公式サイトの公開画像。冒頭の図書カードのみ依頼者提供の劇中カット。詳細は `public/stills/SELECTED.md`
 
 ## 使い方
 
@@ -20,7 +20,7 @@ npm run render                       # out/ghibli_imax.mp4 を書き出す
 
 | 秒 | シーン | ファイル |
 |---|---|---|
-| 0〜2 | 図書カードに「IMAX 10.23」のスタンプ | `src/scenes/Hook.tsx` |
+| 0〜2 | 劇中の図書カードに「IMAX 10.23」のスタンプ | `src/scenes/Hook.tsx` |
 | 2〜6 | 耳をすませば（Ken Burns ＋ クロスフェード） | `src/scenes/Mimi.tsx` |
 | 6〜10 | アリエッティ（切手サイズ → 0.8秒で全画面） | `src/scenes/Arrietty.tsx` |
 | 10〜14 | 上映情報 | `src/scenes/Info.tsx` |
@@ -30,7 +30,7 @@ npm run render                       # out/ghibli_imax.mp4 を書き出す
 
 ## フォント
 
-`@remotion/google-fonts` で Zen Old Mincho（見出し）、Zen Kaku Gothic New（情報）、Yomogi（図書カードの手書き欄）を読む。
+`@remotion/google-fonts` で Zen Old Mincho（見出し）、Zen Kaku Gothic New（情報）を読む。
 日本語フォントは約120個のチャンクに分かれているので、`src/theme.ts` の `TEXT_*` に並べた文字を含むチャンクだけを読んでいる。
 **画面の文言を変えたら `TEXT_*` にもその文字を足すこと**（足さないとその字だけ別書体になる）。
 
