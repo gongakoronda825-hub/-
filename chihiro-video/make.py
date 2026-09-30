@@ -61,26 +61,30 @@ CUTS = [
          telop=["宮崎監督の山小屋に", "毎年来ていた", "友人の娘たち（当時10歳）"],
          voice="宮崎監督の山小屋に毎年遊びに来ていた、友人の娘さんたち。当時みんな10歳でした",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
-    dict(name="③ 監督の思い", img="chihiro024",
-         telop=["「あなたたちのための", "映画だ」と言える作品を", "作りたかった"],
-         voice="監督は、あなたたちのための映画だ、と言える作品を作りたかったそうです",
+    dict(name="③ 序盤", img="chihiro004", badge="序盤",
+         telop=["普通の女の子・千尋", "ふてくされて", "お母さんにくっついてばかり"],
+         voice="主人公の千尋は、特別な力のない普通の女の子。序盤は、ふてくされて、お母さんにくっついてばかり",
          sfx=[("start", "decision22.mp3")]),
-    dict(name="④ 普通の女の子", img="chihiro004",
-         telop=["主人公の千尋も", "特別な力を持たない", "“普通の女の子”"],
-         voice="主人公の千尋も、特別な力を持たない、どこにでもいる普通の女の子として描かれています",
+    dict(name="④ 序盤", img="chihiro023", badge="序盤",
+         telop=["知らない世界で", "不安で泣いてしまう"],
+         voice="知らない世界で、不安で泣いてしまう女の子でした",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
-    dict(name="⑤ 成長", img="chihiro023", img2="chihiro045",
-         telop=["だから千尋は", "親に頼れない場所で", "自分の力で成長していく"],
-         voice="だから千尋は、親に頼れない場所で、自分の力で成長していきます",
-         sfx=[("swap", "eye-shine1.mp3")]),
-    dict(name="⑥ 最初の一歩", img="chihiro017",
-         telop=["湯婆婆に「ここで", "働かせてください」", "自分で動き出す第一歩"],
-         voice="たとえば、湯婆婆に、ここで働かせてください、と頼み続ける場面。ここが、千尋が自分の力で動き出す、最初の一歩なんです",
+    dict(name="⑤ 転機", img="chihiro017",
+         telop=["湯婆婆に", "「ここで働かせてください」", "ここから変わり始める"],
+         voice="でも、湯婆婆に、ここで働かせてください、と頼み続けたところから、少しずつ変わっていきます",
+         sfx=[("start", "question1.mp3")]),
+    dict(name="⑥ 終盤", img="chihiro042", badge="終盤",
+         telop=["ハクを助けるため", "ひとりで電車に乗り", "銭婆のもとへ"],
+         voice="終盤では、ハクを助けるために、ひとりで電車に乗って、ゼニーバのもとへ",
+         sfx=[("start", "eye-shine1.mp3")]),
+    dict(name="⑦ 終盤", img="chihiro047", badge="終盤",
+         telop=["湯婆婆の難題にも", "自分の力で答えを出す"],
+         voice="最後は、湯婆婆の出した難題にも、自分の力で答えを出します",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
-    dict(name="⑦ 締め", img="chihiro050",
-         telop=["次に観るときは", "千尋の“顔つきの変化”に", "注目👀"],
-         voice="次に観るときは、千尋の顔つきの変化に注目してみてください",
-         sfx=[("start", "decision52.mp3")]),
+    dict(name="⑧ 締め", img="chihiro001", img2="chihiro050", badge="序盤", badge2="終盤", swap_at=0.3,
+         telop=["同じ子とは思えない", "“顔つきの変化”に注目👀"],
+         voice="同じ女の子とは思えないほどの、顔つきの変化。次に観るときは、ぜひ注目してみてください",
+         sfx=[("swap", "eye-shine1.mp3"), ("start", "decision52.mp3")]),
 ]
 for _c in CUTS:              # 全カット: ぼかし背景＋元の写真を画面の上下中央に
     _c.update(layout="blur", top=PIC_TOP)
@@ -230,20 +234,42 @@ def fit_size():
     return size
 
 
+BADGE_COLOR = {"序盤": (47, 111, 214), "終盤": (240, 130, 30)}
+BADGES = {}
+
+
+def make_badges():
+    f = ImageFont.truetype(str(FONT), 60)
+    f.set_variation_by_name(b"Black")
+    for text, color in BADGE_COLOR.items():
+        label = f"{text}の千尋"
+        w = int(f.getlength(label)) + 56
+        im = Image.new("RGBA", (w, 96), (0, 0, 0, 0))
+        d = ImageDraw.Draw(im)
+        d.rounded_rectangle((0, 0, w - 1, 95), radius=22, fill=color + (255,), outline=(255, 255, 255, 255), width=5)
+        d.text((w // 2, 46), label, font=f, fill="white", anchor="mm")
+        BADGES[text] = im
+
+
 def cut_frame(k, t):
     """カット k を絶対時刻 t で描く (クロスフェードのため前後にはみ出してもよい)"""
     c = CUTS[k]
     lt = t - c["start"]
     dur = c["end"] - c["start"]
     if "img2" in c:
-        s0 = dur * SWAP_AT - SWAP_LEN / 2
+        s0 = dur * c.get("swap_at", SWAP_AT) - SWAP_LEN / 2
         a = min(max((lt - s0) / SWAP_LEN, 0), 1)
         frame = picture(c, lt, dur, 1)
         if a > 0:
             frame = Image.blend(frame, picture(c, lt, dur, 2), a)
     else:
+        a = 0
         frame = picture(c, lt, dur)
     frame = frame.convert("RGBA")
+    if c.get("badge"):  # 写真の左上に【序盤】【終盤】ラベル。切り替えのあるカットは途中で差し替え
+        label = c["badge2"] if (c.get("badge2") and a >= 0.5) else c["badge"]
+        b = BADGES[label]
+        frame.alpha_composite(b, (32, PIC_TOP - b.height - 20))
     a = min(max(lt / 0.12, 0), 1)  # テロップはカット頭 (ナレーションの 0.2 秒前) に出す
     if a > 0:
         tl = c["telop_img"]
@@ -307,7 +333,7 @@ def make_audio(total):
                 t = max(0.0, c["start"] - 0.12)
             else:                                            # ④ の 2 枚目への切り替え
                 d = c["end"] - c["start"]
-                t = c["start"] + d * SWAP_AT - 0.1
+                t = c["start"] + d * c.get("swap_at", SWAP_AT) - 0.1
             clip = load_sfx(name)
             clip = clip * target / active_rms(clip)
             a = int(t * SR)
@@ -325,6 +351,7 @@ def main():
     size = fit_size()
     for c in CUTS:
         c["telop_img"] = telop_image(c["telop"], title_size() if c.get("title") else size)
+    make_badges()
     wav, events = make_audio(total)
 
     cmd = [FFMPEG, "-y", "-loglevel", "error",
