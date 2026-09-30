@@ -45,7 +45,6 @@ TELOP_CX = int(W * 0.85 / 2) + 20   # 左端 40px〜右端 15% 手前の中央
 TELOP_MAX_W = int(W * 0.85) - 80
 # 題名 (カット①) だけは写真の上に大きく。画面上部には TikTok のボタンがないので横幅いっぱいに使う
 TITLE_MAX_W = W - 80
-TITLE_BOTTOM = PIC_TOP - 40
 
 # ---- カット定義 ------------------------------------------------------------
 # layout "crop": 9:16 に切り抜く。focus=(x, y) 元画像での顔の位置, face_y=出力での顔の高さ(比率), crop_h=切り抜く高さ
@@ -53,7 +52,7 @@ TITLE_BOTTOM = PIC_TOP - 40
 #   box=(x0, 幅) を指定すると、元画像をその範囲で正方形に切り抜いて置く (顔のアップ用。
 #   9:16 に切り抜くと顔がテロップ帯 (上から35〜45%) にかかってしまうため)
 CUTS = [
-    dict(name="① 題名", img="chihiro001", title=True,
+    dict(name="① 題名", img="chihiro001", stack=["chihiro001", "chihiro043", "chihiro011"], title=True,
          telop=["千と千尋は", "“10歳の女の子たち”の", "ために作られた"],
          voice="千と千尋は、10歳の女の子たちのために作られた映画なんです",
          sfx=[("start", "question1.mp3")]),
@@ -90,8 +89,8 @@ CUTS = [
          voice="同じ女の子とは思えないほどの、顔つきの変化。次に観るときは、ぜひ注目してみてください",
          sfx=[("swap", "eye-shine1.mp3"), ("start", "decision52.mp3")]),
 ]
-for _c in CUTS:              # 全カット: ぼかし背景＋元の写真を画面の上下中央に
-    _c.update(layout="blur", top=PIC_TOP)
+for _c in CUTS:              # 全カット: ぼかし背景＋元の写真を画面の上下中央に (①だけ 3 枚を縦に 3 分割)
+    _c.update(layout="stack" if "stack" in _c else "blur", top=PIC_TOP)
 SWAP_AT = 0.45       # ④ で 2 枚目に切り替える位置 (カット内の比率)
 SWAP_LEN = 0.6
 
@@ -171,8 +170,26 @@ def blur_frame(name, top, z, box=None):
     return frame
 
 
+STACK_GAP = 12
+
+
+def stack_frame(names, z):
+    """3 枚を縦に並べる。それぞれの写真の中でゆっくりズーム"""
+    ph = round(W * 1038 / 1920)
+    frame = Image.new("RGB", (W, H), (10, 10, 10))
+    top = (H - 3 * ph - 2 * STACK_GAP) // 2
+    for k, name in enumerate(names):
+        im = load(name)
+        cw, ch = im.width / z, im.height / z
+        cx, cy = (im.width - cw) / 2, (im.height - ch) / 2
+        frame.paste(im.resize((W, ph), Image.BICUBIC, box=(cx, cy, cx + cw, cy + ch)), (0, top + k * (ph + STACK_GAP)))
+    return frame
+
+
 def picture(c, lt, dur, which=1):
     z = 1 + ZOOM * min(max(lt / dur, 0), 1)
+    if c["layout"] == "stack":
+        return stack_frame(c["stack"], z)
     if c["layout"] == "blur":
         if which == 2:
             return blur_frame(c["img2"], c["top"], z, c.get("box2"))
@@ -281,7 +298,7 @@ def cut_frame(k, t):
             tl = tl.copy()
             tl.putalpha(tl.getchannel("A").point(lambda v: int(v * a)))
         if c.get("title"):
-            frame.alpha_composite(tl, (W // 2 - tl.width // 2, TITLE_BOTTOM - tl.height))
+            frame.alpha_composite(tl, (W // 2 - tl.width // 2, H // 2 - tl.height // 2))
         else:
             frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_TOP))
     return frame.convert("RGB")
@@ -355,6 +372,11 @@ def main():
     size = fit_size()
     for c in CUTS:
         c["telop_img"] = telop_image(c["telop"], title_size() if c.get("title") else size)
+        if c.get("title"):   # 画面中央に置くので、読みやすいよう半透明の黒い帯を敷く
+            t = c["telop_img"]
+            band = Image.new("RGBA", (W, t.height + 60), (0, 0, 0, 165))
+            band.alpha_composite(t, ((W - t.width) // 2, 30))
+            c["telop_img"] = band
     make_badges()
     wav, events = make_audio(total)
 

@@ -8,7 +8,9 @@ VOICEVOX:四国めたん
 https://www.ghibli.jp/works/chihiro/
 利用条件：「常識の範囲でご自由にお使いください。」（同ページ記載）
 使用した画像：
-  ① 題名            https://www.ghibli.jp/gallery/chihiro001.jpg
+  ① 題名（3分割・上）https://www.ghibli.jp/gallery/chihiro001.jpg
+  ① 題名（3分割・中）https://www.ghibli.jp/gallery/chihiro043.jpg
+  ① 題名（3分割・下）https://www.ghibli.jp/gallery/chihiro011.jpg
   ② きっかけ        https://www.ghibli.jp/gallery/chihiro002.jpg
   ③ 監督の思い      https://www.ghibli.jp/gallery/chihiro018.jpg
   ④ 序盤            https://www.ghibli.jp/gallery/chihiro004.jpg
