@@ -10,7 +10,7 @@ import sys
 import urllib.parse
 import urllib.request
 
-from script import SCENES, SPEAKER, SPEED
+from script import PAUSE_SCALE, SCENES, SPEAKER, SPEED
 
 ENGINE = os.environ.get("VOICEVOX_URL", "http://localhost:50021")
 OUT = sys.argv[1] if len(sys.argv) > 1 else "build"
@@ -27,6 +27,7 @@ def post(path, params, body=None):
 def query(text):
     q = json.loads(post("/audio_query", {"text": text, "speaker": SPEAKER}))
     q["speedScale"] = SPEED
+    q["pauseLengthScale"] = PAUSE_SCALE  # 読点などの間を詰める
     q["prePhonemeLength"] = 0.05
     q["postPhonemeLength"] = 0.1
     q["outputSamplingRate"] = 48000
@@ -40,7 +41,7 @@ def moras(q):
         for m in ap["moras"]:
             out.append(((m["consonant_length"] or 0) + m["vowel_length"], True))
         if ap.get("pause_mora"):
-            out.append((ap["pause_mora"]["vowel_length"], False))
+            out.append((ap["pause_mora"]["vowel_length"] * PAUSE_SCALE, False))
     return out
 
 

@@ -82,4 +82,5 @@ CTA_TEXT = "保存して劇場へ"
 
 # VOICEVOX:青山龍星（ノーマル）。落ち着いた低めの男性の声
 SPEAKER = 13
-SPEED = 1.15
+SPEED = 1.25
+PAUSE_SCALE = 0.6  # 読点などの間の長さ（1.0 が標準）

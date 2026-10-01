@@ -15,7 +15,7 @@ from script import CTA_TEXT, SCENES
 B = "build"
 OUT = sys.argv[1] if len(sys.argv) > 1 else "mimi_imax_tiktok.mp4"
 W, H, FPS = 1080, 1920, 30
-LEAD, TAIL, LAST_TAIL = 0.15, 0.32, 0.9  # 各シーンの前後の間（秒）
+LEAD, TAIL, LAST_TAIL = 0.08, 0.14, 0.7  # 各シーンの前後の間（秒）
 XFADE = 0.16  # 画像の切り替えのクロスフェード（秒）
 LAST_XFADE = 0.6  # 締めのシーンへの切り替え
 
