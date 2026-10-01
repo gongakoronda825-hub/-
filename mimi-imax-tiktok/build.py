@@ -157,7 +157,7 @@ for sc in scenes:
     sc["telop_spr"] = text_sprite(sc["telop"], F_TELOP, 132, 13, line_gap=1.12, max_w=980)
     sc["badge_spr"] = badge_sprite(sc["badge"]) if sc["badge"] else None
     for c in sc["subs"]:
-        c["spr"] = None if not c["text"] else text_sprite(c["text"].split("\n"), F_SUB, 68, 8, line_gap=1.3, shadow=6, max_w=SUB_MAX_W)
+        c["spr"] = None if not c["text"] else text_sprite(c["text"].split("\n"), F_SUB, 76, 9, line_gap=1.3, shadow=6, max_w=SUB_MAX_W)
 
 
 cta_spr = badge_sprite(CTA_TEXT, fill=(254, 44, 85), fg=WHITE, size=78)
