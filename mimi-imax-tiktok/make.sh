@@ -16,7 +16,7 @@ for w in Black ExtraBold; do
 done
 
 # 効果音: 効果音ラボ（https://soundeffect-lab.info/）の素材。再配布は禁止なのでリポジトリには入れない
-for f in anime/shakin1 anime/sceneswitch1 anime/question1 anime/kira1 anime/slide1; do
+for f in anime/shakin1 anime/sceneswitch1 anime/kira1 anime/slide1; do
   n=$(basename $f); c=$(dirname $f)
   [ -f build/sfx/$n.mp3 ] || curl -fsS -A "Mozilla/5.0" -e "https://soundeffect-lab.info/sound/$c/" \
     -o build/sfx/$n.mp3 "https://soundeffect-lab.info/sound/$c/mp3/$n.mp3"

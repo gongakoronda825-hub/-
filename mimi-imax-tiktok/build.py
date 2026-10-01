@@ -19,9 +19,10 @@ LEAD, TAIL, LAST_TAIL = 0.15, 0.32, 0.9  # 各シーンの前後の間（秒）
 XFADE = 0.16  # 画像の切り替えのクロスフェード（秒）
 
 # レイアウト（TikTok の UI がかぶる上端 ~150px・下端 ~350px・右端の操作ボタンを避ける）
-CARD_W, CARD_H, CARD_Y, CARD_R = 1000, 760, 620, 34
+CARD_W, CARD_H, CARD_Y, CARD_R = 1080, 1000, 580, 34  # 横長の写真は横幅いっぱい・縦1000pxで大きく見せる
 TELOP_TOP = 205
-SUB_CY = 1500  # 字幕ブロックの中心
+SUB_CY = 1468  # 字幕ブロックの中心（写真の下部に重ねる）
+POSTER_H, POSTER_SUB_CY = 890, 1545  # 縦長ポスターは少し低めにして、字幕はロゴにかぶらないよう下に出す
 SUB_MAX_W = 900
 
 YELLOW = (255, 226, 60)
@@ -165,6 +166,12 @@ for sc in scenes:
 credit_spr = text_sprite(["VOICEVOX:青山龍星"], F_SUB, 26, 3, shadow=2)
 credit_spr.putalpha(credit_spr.getchannel("A").point(lambda a: a * 0.75))
 
+# 写真の下部に重ねる字幕が読みやすいよう、下からうっすら暗くする
+sub_shade = Image.new("RGBA", (W, H))
+_sd = ImageDraw.Draw(sub_shade)
+for y in range(1280, CARD_Y + CARD_H):
+    _sd.line((0, y, W, y), fill=(0, 0, 0, int(150 * ((y - 1280) / (CARD_Y + CARD_H - 1280)) ** 1.5)))
+
 # ---- 画像の下ごしらえ ----------------------------------------------------------
 cache = {}
 _card_parts = {}
@@ -174,9 +181,10 @@ def card_parts(cw, ch):
     """角丸カードのマスクと影（サイズごとにキャッシュ）。"""
     if (cw, ch) not in _card_parts:
         mask = Image.new("L", (cw, ch))
-        ImageDraw.Draw(mask).rounded_rectangle((0, 0, cw - 1, ch - 1), CARD_R, fill=255)
+        r = 0 if cw >= W else CARD_R  # 横幅いっぱいのときは角を丸めない
+        ImageDraw.Draw(mask).rounded_rectangle((0, 0, cw - 1, ch - 1), r, fill=255)
         sh = Image.new("RGBA", (cw + 120, ch + 120))
-        ImageDraw.Draw(sh).rounded_rectangle((60, 76, 60 + cw, 76 + ch), CARD_R, fill=(0, 0, 0, 170))
+        ImageDraw.Draw(sh).rounded_rectangle((60, 76, 60 + cw, 76 + ch), r, fill=(0, 0, 0, 170))
         _card_parts[(cw, ch)] = (mask, sh.filter(ImageFilter.GaussianBlur(22)))
     return _card_parts[(cw, ch)]
 
@@ -222,7 +230,7 @@ def render(seg_idx, tt):
     e = ease_in_out(u)
     if src.width < src.height:
         # 縦長（ポスター）: カードも縦長にして、横パンせず中央へゆっくり寄る
-        bw, bh = round(780 * src.width / src.height), 780
+        bw, bh = round(POSTER_H * src.width / src.height), POSTER_H
         z, pan = 1.0 + 0.08 * e, 0.5
     else:
         bw, bh = CARD_W, CARD_H
@@ -241,7 +249,7 @@ def render(seg_idx, tt):
         card = card.resize((cw, ch), Image.BILINEAR)
         mask = mask.resize((cw, ch), Image.BILINEAR)
         shadow = shadow.resize((round(shadow.width * punch), round(shadow.height * punch)), Image.BILINEAR)
-    cx, cy = W // 2, CARD_Y + CARD_H // 2
+    cx, cy = W // 2, CARD_Y + bh // 2
     frame.alpha_composite(shadow, (cx - shadow.width // 2, cy - shadow.height // 2))
     frame.paste(card, (cx - cw // 2, cy - ch // 2), mask)
     return frame
@@ -259,11 +267,18 @@ def picture_at(tt):
     return img
 
 
+def is_portrait(sc):
+    src, _ = load(sc["image"][0])
+    return len(sc["image"]) == 1 and src.width < src.height
+
+
 def frame_at(tt):
     frame = picture_at(tt)
     frame.alpha_composite(vig_layer)
     sc = next(s for s in scenes if tt < s["end"] or s is scenes[-1])
     st = tt - sc["start"]
+    if not is_portrait(sc):
+        frame.alpha_composite(sub_shade)
     # シーン頭の白フラッシュ（最初のシーン以外）
     if sc is not scenes[0] and st < 0.12:
         fl = Image.new("RGBA", (W, H), (255, 255, 255, int(150 * (1 - st / 0.12))))
@@ -286,8 +301,9 @@ def frame_at(tt):
         if c["abs"] <= tt < c["end"]:
             u = (tt - c["abs"]) / 0.16
             spr = c["spr"]
-            place(frame, spr, W / 2, SUB_CY - spr.height / 2, scale=0.88 + 0.12 * ease_out_back(u, 2.4), alpha=clamp(u * 2.5))
-    frame.alpha_composite(credit_spr, (W - credit_spr.width - 30, CARD_Y - credit_spr.height + 4))
+            cy = POSTER_SUB_CY if is_portrait(sc) else SUB_CY
+            place(frame, spr, W / 2, cy - spr.height / 2, scale=0.88 + 0.12 * ease_out_back(u, 2.4), alpha=clamp(u * 2.5))
+    frame.alpha_composite(credit_spr, (W - credit_spr.width - 24, CARD_Y + 12))
     # 最後の 0.35 秒でフェードアウト
     if tt > TOTAL - 0.35:
         frame.alpha_composite(Image.new("RGBA", (W, H), (0, 0, 0, int(255 * clamp((tt - (TOTAL - 0.35)) / 0.35)))))
@@ -315,8 +331,6 @@ for i, sc in enumerate(scenes):
         add(f"{SFX}/shakin1.mp3", 0.02, 0.45)  # タイトルの「シャキーン」
     else:
         add(f"{SFX}/sceneswitch1.mp3", sc["start"] - 0.06, 0.45)  # 場面転換の「シュッ」
-    if sc["badge"]:
-        add(f"{SFX}/question1.mp3", sc["start"] + 0.06, 0.35)  # 「理由 1」などのラベルに出題音
     if i == len(scenes) - 1:
         add(f"{SFX}/kira1.mp3", sc["start"] + 0.12, 0.45)  # 締めの「キラーン」
 for a, b, _, scene_start in segments:
