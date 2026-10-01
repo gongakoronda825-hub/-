@@ -35,13 +35,13 @@ timing = json.load(open(f"{B}/timing.json"))
 # ---- タイムライン -------------------------------------------------------------
 scenes, t = [], 0.0
 for i, (sc, tm) in enumerate(zip(SCENES, timing)):
-    speech = tm["words"][-1]["end"]
+    speech = tm["end"]
     dur = LEAD + speech + (LAST_TAIL if i == len(SCENES) - 1 else TAIL)
     subs = tm["subs"]
     for k, c in enumerate(subs):
         c["abs"] = t + LEAD + c["start"] - (0.05 if k else 0)  # 字幕は声よりほんの少し先に出す
         c["end"] = t + LEAD + subs[k + 1]["start"] - 0.05 if k + 1 < len(subs) else t + dur
-    scenes.append({"start": t, "end": t + dur, "narr_at": t + LEAD, **sc, "subs": subs})
+    scenes.append({"start": t, "end": t + dur, "narr_at": t + LEAD, "audio": tm["audio"], **sc, "subs": subs})
     t += dur
 TOTAL = t
 
@@ -160,6 +160,10 @@ for sc in scenes:
     for c in sc["subs"]:
         c["spr"] = text_sprite(c["text"].split("\n"), F_SUB, 68, 8, line_gap=1.3, shadow=6, max_w=SUB_MAX_W)
 
+
+# VOICEVOX の利用規約に沿ったクレジット表記
+credit_spr = text_sprite(["VOICEVOX:青山龍星"], F_SUB, 26, 3, shadow=2)
+credit_spr.putalpha(credit_spr.getchannel("A").point(lambda a: a * 0.75))
 
 # ---- 画像の下ごしらえ ----------------------------------------------------------
 cache = {}
@@ -283,6 +287,7 @@ def frame_at(tt):
             u = (tt - c["abs"]) / 0.16
             spr = c["spr"]
             place(frame, spr, W / 2, SUB_CY - spr.height / 2, scale=0.88 + 0.12 * ease_out_back(u, 2.4), alpha=clamp(u * 2.5))
+    frame.alpha_composite(credit_spr, (W - credit_spr.width - 30, CARD_Y - credit_spr.height + 4))
     # 最後の 0.35 秒でフェードアウト
     if tt > TOTAL - 0.35:
         frame.alpha_composite(Image.new("RGBA", (W, H), (0, 0, 0, int(255 * clamp((tt - (TOTAL - 0.35)) / 0.35)))))
@@ -302,19 +307,21 @@ def add(path, at, vol):
     )
 
 
+# 効果音は効果音ラボ（https://soundeffect-lab.info/）の定番素材。make.sh が build/sfx に取ってくる
+SFX = f"{B}/sfx"
 for i, sc in enumerate(scenes):
-    add(f"{B}/narr{i}.mp3", sc["narr_at"], 1.0)
+    add(sc["audio"], sc["narr_at"], 1.0)
     if i == 0:
-        add(f"{B}/impact.wav", 0.0, 0.5)
+        add(f"{SFX}/shakin1.mp3", 0.02, 0.45)  # タイトルの「シャキーン」
     else:
-        add(f"{B}/whoosh.wav", sc["start"] - 0.3, 0.5)
+        add(f"{SFX}/sceneswitch1.mp3", sc["start"] - 0.06, 0.45)  # 場面転換の「シュッ」
+    if sc["badge"]:
+        add(f"{SFX}/question1.mp3", sc["start"] + 0.06, 0.35)  # 「理由 1」などのラベルに出題音
     if i == len(scenes) - 1:
-        add(f"{B}/chime.wav", sc["start"] + 0.1, 0.32)
-    else:
-        add(f"{B}/telop.wav", sc["start"] + 0.1, 0.4)
+        add(f"{SFX}/kira1.mp3", sc["start"] + 0.12, 0.45)  # 締めの「キラーン」
 for a, b, _, scene_start in segments:
     if not scene_start:
-        add(f"{B}/swish.wav", a - 0.18, 0.3)
+        add(f"{SFX}/slide1.mp3", a - 0.05, 0.25)  # シーン内の画像切り替え
 
 mix_in = "".join(f"[a{k}]" for k in range(len(chains)))
 fc = ";".join(chains) + (
