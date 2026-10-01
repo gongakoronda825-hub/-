@@ -10,13 +10,14 @@ import sys
 
 from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
-from script import SCENES
+from script import CTA_TEXT, SCENES
 
 B = "build"
 OUT = sys.argv[1] if len(sys.argv) > 1 else "mimi_imax_tiktok.mp4"
 W, H, FPS = 1080, 1920, 30
 LEAD, TAIL, LAST_TAIL = 0.15, 0.32, 0.9  # 各シーンの前後の間（秒）
 XFADE = 0.16  # 画像の切り替えのクロスフェード（秒）
+LAST_XFADE = 0.6  # 締めのシーンへの切り替え
 
 # レイアウト（TikTok の UI がかぶる上端 ~150px・下端 ~350px・右端の操作ボタンを避ける）
 CARD_W, CARD_H, CARD_Y, CARD_R = 1080, 1000, 580, 34  # 横長の写真は横幅いっぱい・縦1000pxで大きく見せる
@@ -46,17 +47,14 @@ for i, (sc, tm) in enumerate(zip(SCENES, timing)):
     t += dur
 TOTAL = t
 
-# シーン内で画像が2枚あるときは、真ん中に一番近い字幕の切れ目で切り替える
+# シーン内の画像は、script.py の cuts で指定した字幕の区切りで切り替える（2〜3秒ごとに画が変わる）
 segments = []  # (start, end, image, scene_start?)
 for sc in scenes:
     imgs = sc["image"]
-    if len(imgs) == 1:
-        segments.append((sc["start"], sc["end"], imgs[0], True))
-    else:
-        mid = (sc["start"] + sc["end"]) / 2
-        cut = min((c["abs"] for c in sc["subs"][1:]), key=lambda x: abs(x - mid))
-        segments.append((sc["start"], cut, imgs[0], True))
-        segments.append((cut, sc["end"], imgs[1], False))
+    edges = [sc["start"]] + [sc["subs"][k]["abs"] for k in sc.get("cuts", [])] + [sc["end"]]
+    assert len(edges) == len(imgs) + 1, sc["image"]
+    for k, name in enumerate(imgs):
+        segments.append((edges[k], edges[k + 1], name, k == 0))
 
 
 # ---- 補間 ---------------------------------------------------------------------
@@ -159,8 +157,11 @@ for sc in scenes:
     sc["telop_spr"] = text_sprite(sc["telop"], F_TELOP, 132, 13, line_gap=1.12, max_w=980)
     sc["badge_spr"] = badge_sprite(sc["badge"]) if sc["badge"] else None
     for c in sc["subs"]:
-        c["spr"] = text_sprite(c["text"].split("\n"), F_SUB, 68, 8, line_gap=1.3, shadow=6, max_w=SUB_MAX_W)
+        c["spr"] = None if not c["text"] else text_sprite(c["text"].split("\n"), F_SUB, 68, 8, line_gap=1.3, shadow=6, max_w=SUB_MAX_W)
 
+
+cta_spr = badge_sprite(CTA_TEXT, fill=(254, 44, 85), fg=WHITE, size=78)
+CTA_Y = 1230
 
 # VOICEVOX の利用規約に沿ったクレジット表記
 credit_spr = text_sprite(["VOICEVOX:青山龍星"], F_SUB, 26, 3, shadow=2)
@@ -204,6 +205,10 @@ vig_layer.putalpha(vig)
 def load(name):
     if name not in cache:
         src = Image.open(f"{B}/img/{name}").convert("RGB")
+        if src.height < 1000:  # 小さい画像（ポスター）は先に高品質に拡大して輪郭を締める
+            s = 1100 / src.height
+            src = src.resize((round(src.width * s), 1100), Image.LANCZOS)
+            src = src.filter(ImageFilter.UnsharpMask(radius=2, percent=90, threshold=2))
         s = (H / 2) / src.height
         bg = src.resize((round(src.width * s), H // 2), Image.LANCZOS)
         x0 = (bg.width - W // 2) // 2
@@ -242,7 +247,7 @@ def render(seg_idx, tt):
     y0 = (src.height - vh) * 0.5
     card = src.transform((bw, bh), Image.AFFINE, (1 / k, 0, x0, 0, 1 / k, y0), Image.BICUBIC)
     # 区間の頭でカードが少しだけ寄って落ち着く（パンチイン）
-    punch = 1 + 0.07 * (1 - ease_out((tt - a) / 0.35)) if tt >= a else 1.07
+    punch = 1.0 if a == 0 else (1 + 0.07 * (1 - ease_out((tt - a) / 0.35)) if tt >= a else 1.07)
     cw, ch = round(bw * punch), round(bh * punch)
     mask, shadow = card_parts(bw, bh)
     if punch > 1.001:
@@ -255,15 +260,21 @@ def render(seg_idx, tt):
     return frame
 
 
+def xfade_len(boundary):
+    """締めのシーンへの切り替えだけは、フラッシュなしのゆっくりしたクロスフェードにする。"""
+    return LAST_XFADE if abs(boundary - scenes[-1]["start"]) < 1e-6 else XFADE
+
+
 def picture_at(tt):
     for i, (a, b, _, _) in enumerate(segments):
         if a <= tt < b or i == len(segments) - 1:
             break
     img = render(i, tt)
-    if i + 1 < len(segments) and tt > b - XFADE / 2:
-        img = Image.blend(img, render(i + 1, tt), (tt - (b - XFADE / 2)) / XFADE)
-    elif i > 0 and tt < a + XFADE / 2:
-        img = Image.blend(render(i - 1, tt), img, (tt - (a - XFADE / 2)) / XFADE)
+    xb, xa = xfade_len(b), xfade_len(a)
+    if i + 1 < len(segments) and tt > b - xb / 2:
+        img = Image.blend(img, render(i + 1, tt), (tt - (b - xb / 2)) / xb)
+    elif i > 0 and tt < a + xa / 2:
+        img = Image.blend(render(i - 1, tt), img, (tt - (a - xa / 2)) / xa)
     return img
 
 
@@ -280,7 +291,7 @@ def frame_at(tt):
     if not is_portrait(sc):
         frame.alpha_composite(sub_shade)
     # シーン頭の白フラッシュ（最初のシーン以外）
-    if sc is not scenes[0] and st < 0.12:
+    if sc is not scenes[0] and sc is not scenes[-1] and st < 0.12:
         fl = Image.new("RGBA", (W, H), (255, 255, 255, int(150 * (1 - st / 0.12))))
         frame.alpha_composite(fl)
     # ラベル: 左からすべり込む
@@ -290,7 +301,7 @@ def frame_at(tt):
         place(frame, sc["badge_spr"], W / 2, top, alpha=clamp(u * 2), dx=-260 * (1 - ease_out(u)))
         top += sc["badge_spr"].height - 8
     # テロップ: 大きく出て弾むように収まる
-    u = (st - 0.08) / 0.3
+    u = (st - 0.08) / 0.3 if sc is not scenes[0] else 1.0  # 冒頭は0フレーム目から出ている
     if u > 0:
         tsp = sc["telop_spr"]
         if sc["badge_spr"] is None:
@@ -298,15 +309,18 @@ def frame_at(tt):
         place(frame, tsp, W / 2, top, scale=0.55 + 0.45 * ease_out_back(u), alpha=clamp(u * 3))
     # 字幕: 区切りごとに小さく弾んで出る
     for c in sc["subs"]:
-        if c["abs"] <= tt < c["end"]:
+        if c["spr"] is not None and c["abs"] <= tt < c["end"]:
             u = (tt - c["abs"]) / 0.16
             spr = c["spr"]
             cy = POSTER_SUB_CY if is_portrait(sc) else SUB_CY
             place(frame, spr, W / 2, cy - spr.height / 2, scale=0.88 + 0.12 * ease_out_back(u, 2.4), alpha=clamp(u * 2.5))
     frame.alpha_composite(credit_spr, (W - credit_spr.width - 24, CARD_Y + 12))
-    # 最後の 0.35 秒でフェードアウト
-    if tt > TOTAL - 0.35:
-        frame.alpha_composite(Image.new("RGBA", (W, H), (0, 0, 0, int(255 * clamp((tt - (TOTAL - 0.35)) / 0.35)))))
+    # 締めの呼びかけ: 最後の字幕と一緒に弾んで出る
+    if sc is scenes[-1]:
+        u = (tt - sc["subs"][-1]["abs"]) / 0.3
+        if u > 0:
+            place(frame, cta_spr, W / 2, CTA_Y, scale=0.5 + 0.5 * ease_out_back(u), alpha=clamp(u * 3))
+    # ループ再生で冒頭にそのまま戻れるよう、最後は暗転しない
     return frame.convert("RGB")
 
 
@@ -329,7 +343,7 @@ for i, sc in enumerate(scenes):
     add(sc["audio"], sc["narr_at"], 1.0)
     if i == 0:
         add(f"{SFX}/shakin1.mp3", 0.02, 0.45)  # タイトルの「シャキーン」
-    else:
+    elif i < len(scenes) - 1:  # 締めのシーンはクロスフェード＋「キラーン」だけにする
         add(f"{SFX}/sceneswitch1.mp3", sc["start"] - 0.06, 0.45)  # 場面転換の「シュッ」
     if i == len(scenes) - 1:
         add(f"{SFX}/kira1.mp3", sc["start"] + 0.12, 0.45)  # 締めの「キラーン」

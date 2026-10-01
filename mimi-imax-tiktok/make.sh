@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 mkdir -p build/img build/sfx fonts
 
 # 画像はスタジオジブリ公式の場面写真ページ (https://www.ghibli.jp/works/mimi/) のものだけを使う
-for n in 012 015 020 021 024 025 048; do
+for n in 011 012 015 020 021 023 024 025 033 048; do
   [ -f build/img/mimi$n.jpg ] || curl -fsS -o build/img/mimi$n.jpg https://www.ghibli.jp/gallery/mimi$n.jpg
 done
 # 冒頭の IMAX 版ポスターは手元のファイルを build/img/imax_poster.jpg に置いておく
