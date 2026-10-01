@@ -14,7 +14,7 @@ SCENES = [
         "telop": ["アリエッティ、", "*IMAX*で観ないと損"],
         "image": ["imax_poster.jpg"],  # ユーザー提供の IMAX 版ポスター（リポジトリには含めない）
         "subs": [
-            ("", "アリエッティは、"),  # テロップと同じ文言なので字幕は出さない
+            ("", "アリエッティは"),  # テロップと同じ文言なので字幕は出さない
             ("", "アイマックスでみないと損。"),
             ("理由は*3つ*", "理由は3つ。"),
         ],
@@ -22,7 +22,7 @@ SCENES = [
     {
         "badge": "理由 1",
         "telop": ["*小人の目線*を体感"],
-        "image": ["karigurashi012.jpg", "karigurashi036.jpg", "karigurashi038.jpg"],
+        "image": ["karigurashi012.jpg", "karigurashi020.jpg", "karigurashi038.jpg"],  # 020: 巨大なレンガの間に立つ小人
         "cuts": [1, 2],
         "subs": [
             ("1つ目は、小人の目線。", "1つ目は、こびとの目線。"),
@@ -43,8 +43,8 @@ SCENES = [
     },
     {
         "badge": "理由 3",
-        "telop": ["*音*に包まれる"],
-        "image": ["karigurashi021.jpg", "karigurashi041.jpg", "karigurashi050.jpg"],
+        "telop": ["*主題歌*が心に響く"],
+        "image": ["karigurashi021.jpg", "karigurashi024.jpg", "karigurashi050.jpg"],
         "cuts": [1, 3],
         "subs": [
             ("3つ目は、音。", "3つ目は、音。"),
@@ -56,7 +56,8 @@ SCENES = [
     {
         "badge": None,
         "telop": ["*10/23〜11/2*", "IMAX限定"],
-        "image": ["karigurashi026.jpg"],
+        "image": ["karigurashi037.jpg", "karigurashi047.jpg", "karigurashi026.jpg"],
+        "cuts": [1, 2],
         "subs": [
             ("*IMAX*上映は", "アイマックス上映は、"),
             ("*10月23日から11月2日*\nまでの期間限定。", "10月23日から11月2日までの期間限定。"),

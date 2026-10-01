@@ -161,7 +161,7 @@ for sc in scenes:
 
 
 cta_spr = badge_sprite(CTA_TEXT, fill=(254, 44, 85), fg=WHITE, size=78)
-CTA_Y = 1230
+CTA_Y = 1170
 
 # VOICEVOX の利用規約に沿ったクレジット表記
 credit_spr = text_sprite(["VOICEVOX:青山龍星"], F_SUB, 26, 3, shadow=2)
@@ -315,9 +315,9 @@ def frame_at(tt):
             cy = POSTER_SUB_CY if is_portrait(sc) else SUB_CY
             place(frame, spr, W / 2, cy - spr.height / 2, scale=0.88 + 0.12 * ease_out_back(u, 2.4), alpha=clamp(u * 2.5))
     frame.alpha_composite(credit_spr, (W - credit_spr.width - 24, CARD_Y + 12))
-    # 締めの呼びかけ: 最後の字幕と一緒に弾んで出る
+    # 締めの呼びかけ: 日付の字幕と一緒に弾んで出て、最後まで残る
     if sc is scenes[-1]:
-        u = (tt - sc["subs"][-1]["abs"]) / 0.3
+        u = (tt - sc["subs"][1]["abs"]) / 0.3
         if u > 0:
             place(frame, cta_spr, W / 2, CTA_Y, scale=0.5 + 0.5 * ease_out_back(u), alpha=clamp(u * 3))
     # ループ再生で冒頭にそのまま戻れるよう、最後は暗転しない
