@@ -1,6 +1,6 @@
 # 借りぐらしのアリエッティ IMAX 告知（TikTok 縦型動画）
 
-`arrietty_imax_tiktok.mp4` — 1080×1920 / 30fps / 約33.3秒 / H.264 + AAC。BGM なし（TikTok の楽曲ライブラリで後付けする前提）。
+`arrietty_imax_tiktok.mp4` — 1080×1920 / 30fps / 約35.3秒 / H.264 + AAC。BGM なし（TikTok の楽曲ライブラリで後付けする前提）。
 [耳をすませば版](../mimi-imax-tiktok/)と同じ仕組み・同じ構成（フック → 理由3つ → 上映期間）のシリーズ2本目。
 
 ## 作り直す
