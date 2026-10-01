@@ -13,7 +13,7 @@ if CA:
 
 import edge_tts
 
-from script import RATE, SCENES, VOICE
+from script import PITCH, RATE, SCENES, VOICE
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else "build"
 
@@ -22,7 +22,7 @@ async def synth(i, scene):
     text = "".join(r for _, r in scene["subs"])
     words = []
     mp3 = f"{OUT}/narr{i}.mp3"
-    com = edge_tts.Communicate(text, VOICE, rate=RATE, boundary="WordBoundary")
+    com = edge_tts.Communicate(text, VOICE, rate=RATE, pitch=PITCH, boundary="WordBoundary")
     with open(mp3, "wb") as f:
         async for chunk in com.stream():
             if chunk["type"] == "audio":

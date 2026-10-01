@@ -1,6 +1,7 @@
 """ショート動画で定番の効果音を合成する（素材のライセンスを気にしなくていいように、全部 numpy で作る）。
 
-whoosh: 場面転換の「シュッ」/ pop: テロップが出る「ポンッ」/ impact: 冒頭の「ドンッ」/ chime: 締めの「キラーン」
+whoosh: 場面転換の「シュッ」/ swish: シーン内の画像切り替えの軽い「スッ」/ telop: テロップが出る「ピコン」
+impact: 冒頭の「ドンッ」/ chime: 締めの「キラーン」
 """
 import sys
 import wave
@@ -39,6 +40,26 @@ def whoosh():
     env = np.sin(np.pi * np.clip(tt / d, 0, 1)) ** 2.2
     env *= np.exp(-((tt / d - 0.62) ** 2) / 0.08)
     return y * env
+
+
+def swish():
+    d = 0.28
+    x = rng.standard_normal(len(t(d)))
+    y = bandpass_sweep(x, 2500, 7000)
+    tt = t(d)
+    return y * np.sin(np.pi * tt / d) ** 3
+
+
+def telop():
+    """バラエティ番組のテロップでおなじみの2音「ピコン」。倍音を少し足してベルっぽくする。"""
+    out = np.zeros(int(SR * 0.42))
+    for start, f in [(0.0, 1318.5), (0.075, 1975.5)]:
+        tt = t(0.42 - start)
+        tone = np.sin(2 * np.pi * f * tt) + 0.25 * np.sin(2 * np.pi * f * 2 * tt) + 0.08 * np.sin(2 * np.pi * f * 3 * tt)
+        env = np.minimum(tt * 900, 1) * np.exp(-tt * 11)
+        i = int(SR * start)
+        out[i:] += (tone * env)[: len(out) - i] * (0.75 if start == 0 else 1.0)
+    return out
 
 
 def pop():
@@ -81,5 +102,7 @@ def save(name, y, peak):
 out = sys.argv[1] if len(sys.argv) > 1 else "build"
 save(f"{out}/whoosh.wav", whoosh(), 0.9)
 save(f"{out}/pop.wav", pop(), 0.9)
+save(f"{out}/swish.wav", swish(), 0.8)
+save(f"{out}/telop.wav", telop(), 0.85)
 save(f"{out}/impact.wav", impact(), 0.95)
 save(f"{out}/chime.wav", chime(), 0.8)
