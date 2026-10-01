@@ -56,8 +56,7 @@ SCENES = [
     {
         "badge": None,
         "telop": ["*10/23〜11/2*", "IMAX限定"],
-        "image": ["karigurashi037.jpg", "karigurashi047.jpg", "karigurashi026.jpg"],
-        "cuts": [1, 2],
+        "image": ["karigurashi026.jpg"],
         "subs": [
             ("*IMAX*上映は", "アイマックス上映は、"),
             ("*10月23日から11月2日*\nまでの期間限定。", "10月23日から11月2日までの期間限定。"),
