@@ -46,3 +46,5 @@
 
 `face-chase/` も別物です。[FACE CHASE](face-chase/)で、
 宙に浮かぶ顔から逃げ回る Three.js の3D鬼ごっこです。スマホ・PC両対応。
+
+`mimi-imax-tiktok/` も別物です。[『耳をすませば』IMAX 上映の告知用 TikTok 縦型動画](mimi-imax-tiktok/)と、それを作る台本・スクリプトです。
