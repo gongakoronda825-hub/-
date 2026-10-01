@@ -278,9 +278,11 @@ def picture_at(tt):
     return img
 
 
-def is_portrait(sc):
-    src, _ = load(sc["image"][0])
-    return len(sc["image"]) == 1 and src.width < src.height
+def portrait_at(tt):
+    """その時刻に出ている画像が縦長（ポスター）か。ポスターの間は字幕などをポスター用の位置に出す。"""
+    seg = next((s for s in segments if s[0] <= tt < s[1]), segments[-1])
+    src, _ = load(seg[2])
+    return src.width < src.height
 
 
 def frame_at(tt):
@@ -288,7 +290,8 @@ def frame_at(tt):
     frame.alpha_composite(vig_layer)
     sc = next(s for s in scenes if tt < s["end"] or s is scenes[-1])
     st = tt - sc["start"]
-    if not is_portrait(sc):
+    portrait = portrait_at(tt)
+    if not portrait:
         frame.alpha_composite(sub_shade)
     # シーン頭の白フラッシュ（最初のシーン以外）
     if sc is not scenes[0] and sc is not scenes[-1] and st < 0.12:
@@ -308,18 +311,21 @@ def frame_at(tt):
             top = TELOP_TOP + 30
         place(frame, tsp, W / 2, top, scale=0.55 + 0.45 * ease_out_back(u), alpha=clamp(u * 3))
     # 字幕: 区切りごとに小さく弾んで出る
+    # 締めでポスターが出ている間は、字幕の代わりに「保存して劇場へ」をポスターの下に出す
+    show_subs = not (portrait and sc is scenes[-1])
     for c in sc["subs"]:
-        if c["spr"] is not None and c["abs"] <= tt < c["end"]:
+        if show_subs and c["spr"] is not None and c["abs"] <= tt < c["end"]:
             u = (tt - c["abs"]) / 0.16
             spr = c["spr"]
-            cy = POSTER_SUB_CY if is_portrait(sc) else SUB_CY
+            cy = POSTER_SUB_CY if portrait else SUB_CY
             place(frame, spr, W / 2, cy - spr.height / 2, scale=0.88 + 0.12 * ease_out_back(u, 2.4), alpha=clamp(u * 2.5))
     frame.alpha_composite(credit_spr, (W - credit_spr.width - 24, CARD_Y + 12))
     # 締めの呼びかけ: 日付の字幕と一緒に弾んで出て、最後まで残る
     if sc is scenes[-1]:
         u = (tt - sc["subs"][1]["abs"]) / 0.3
         if u > 0:
-            place(frame, cta_spr, W / 2, CTA_Y, scale=0.5 + 0.5 * ease_out_back(u), alpha=clamp(u * 3))
+            cta_y = POSTER_SUB_CY - cta_spr.height / 2 if portrait else CTA_Y
+            place(frame, cta_spr, W / 2, cta_y, scale=0.5 + 0.5 * ease_out_back(u), alpha=clamp(u * 3))
     # ループ再生で冒頭にそのまま戻れるよう、最後は暗転しない
     return frame.convert("RGB")
 

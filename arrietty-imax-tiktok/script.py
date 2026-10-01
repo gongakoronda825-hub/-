@@ -56,7 +56,8 @@ SCENES = [
     {
         "badge": None,
         "telop": ["*10/23〜11/2*", "IMAX限定"],
-        "image": ["karigurashi026.jpg"],
+        "image": ["karigurashi026.jpg", "imax_poster.jpg"],
+        "cuts": [2],  # 「ぜひ、劇場で」で IMAX 版ポスターに切り替える（ループで冒頭のポスターにつながる）
         "subs": [
             ("*IMAX*上映は", "アイマックス上映は、"),
             ("*10月23日から11月2日*\nまでの期間限定。", "10月23日から11月2日までの期間限定。"),
