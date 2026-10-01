@@ -10,6 +10,10 @@ for n in 001 012 018 020 021 024 026 033 038 050; do
 done
 # 冒頭の IMAX 版ポスターは手元のファイルを build/img/imax_poster.jpg に置いておく
 [ -f build/img/imax_poster.jpg ] || { echo "build/img/imax_poster.jpg がありません" >&2; exit 1; }
+# エンドカードの過去動画サムネイルも手元のファイルを置いておく
+for f in follow_1 follow_2; do
+  [ -f build/img/$f.jpg ] || { echo "build/img/$f.jpg がありません" >&2; exit 1; }
+done
 for w in Black ExtraBold; do
   [ -f fonts/MPLUSRounded1c-$w.ttf ] || curl -fsSL -o fonts/MPLUSRounded1c-$w.ttf \
     "https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/mplusrounded1c/MPLUSRounded1c-$w.ttf"

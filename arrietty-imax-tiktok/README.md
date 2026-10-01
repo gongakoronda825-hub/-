@@ -1,6 +1,6 @@
 # 借りぐらしのアリエッティ IMAX 告知（TikTok 縦型動画）
 
-`arrietty_imax_tiktok.mp4` — 1080×1920 / 30fps / 約35.3秒 / H.264 + AAC。BGM なし（TikTok の楽曲ライブラリで後付けする前提）。
+`arrietty_imax_tiktok.mp4` — 1080×1920 / 30fps / 約38.7秒 / H.264 + AAC。BGM なし（TikTok の楽曲ライブラリで後付けする前提）。
 [耳をすませば版](../mimi-imax-tiktok/)と同じ仕組み・同じ構成（フック → 理由3つ → 上映期間）のシリーズ2本目。
 
 ## 作り直す
@@ -26,3 +26,4 @@ cp <IMAX版ポスター画像> build/img/imax_poster.jpg
 画像の番号は https://www.ghibli.jp/works/karigurashi/ の場面写真（karigurashi〜）。
 上映期間と見どころは [スタジオジブリ公式の告知](https://www.ghibli.jp/info/015304/) に合わせている。
 読み上げでは「小人」を「こびと」、「IMAX」を「アイマックス」、「4K」を「ヨンケー」と読ませている。
+| 6 | — | ジブリの最新情報は フォローでチェック | ジブリの最新情報を知りたい人は、フォローしてね。（字幕なし） | エンドカード: 過去動画2本のサムネイル（提供画像）＋「＋フォロー」ボタン |

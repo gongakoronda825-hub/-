@@ -46,6 +46,8 @@ for i, (sc, tm) in enumerate(zip(SCENES, timing)):
     scenes.append({"start": t, "end": t + dur, "narr_at": t + LEAD, "audio": tm["audio"], **sc, "subs": subs})
     t += dur
 TOTAL = t
+ENDCARD = scenes[-1] if scenes[-1].get("endcard") else None
+FINAL = scenes[-2] if ENDCARD else scenes[-1]  # 「保存して劇場へ」を出す締めのシーン
 
 # シーン内の画像は、script.py の cuts で指定した字幕の区切りで切り替える（2〜3秒ごとに画が変わる）
 segments = []  # (start, end, image, scene_start?)
@@ -230,6 +232,8 @@ def render(seg_idx, tt):
         (1 / (2 * zb), 0, W / 4 - W / (4 * zb), 0, 1 / (2 * zb), H / 4 - H / (4 * zb)),
         Image.BILINEAR,
     ).convert("RGBA")
+    if ENDCARD and a >= ENDCARD["start"] - 1e-6:
+        return frame
     # Ken Burns: 偶数番目はズームイン＋右へ、奇数番目はズームアウト＋左へ
     zin = seg_idx % 2 == 0
     e = ease_in_out(u)
@@ -262,7 +266,7 @@ def render(seg_idx, tt):
 
 def xfade_len(boundary):
     """締めのシーンへの切り替えだけは、フラッシュなしのゆっくりしたクロスフェードにする。"""
-    return LAST_XFADE if abs(boundary - scenes[-1]["start"]) < 1e-6 else XFADE
+    return LAST_XFADE if abs(boundary - FINAL["start"]) < 1e-6 else XFADE
 
 
 def picture_at(tt):
@@ -285,6 +289,45 @@ def portrait_at(tt):
     return src.width < src.height
 
 
+# ---- エンドカード（フォロー誘導） ----------------------------------------------
+def thumb_sprite(name, width, angle):
+    """過去動画のサムネイルを、白フチ＋影つきの角丸カードにして少し傾ける。"""
+    img = Image.open(f"{B}/img/{name}").convert("RGB")
+    h = round(img.height * width / img.width)
+    img = img.resize((width, h), Image.LANCZOS)
+    bd, r, m = 8, 26, 40
+    card = Image.new("RGBA", (width + 2 * bd + 2 * m, h + 2 * bd + 2 * m))
+    sh = Image.new("RGBA", card.size)
+    ImageDraw.Draw(sh).rounded_rectangle((m, m + 14, m + width + 2 * bd, m + h + 2 * bd + 14), r + bd, fill=(0, 0, 0, 160))
+    card.alpha_composite(sh.filter(ImageFilter.GaussianBlur(16)))
+    ImageDraw.Draw(card).rounded_rectangle((m, m, m + width + 2 * bd, m + h + 2 * bd), r + bd, fill=WHITE)
+    mask = Image.new("L", (width, h))
+    ImageDraw.Draw(mask).rounded_rectangle((0, 0, width - 1, h - 1), r, fill=255)
+    card.paste(img, (m + bd, m + bd), mask)
+    return card.rotate(angle, resample=Image.BICUBIC, expand=True)
+
+
+if ENDCARD:
+    thumbs = [thumb_sprite(n, 450, ang) for n, ang in zip(ENDCARD["endcard"], (5, -5))]
+    follow_spr = badge_sprite("＋ フォロー", fill=(254, 44, 85), fg=WHITE, size=84)
+
+
+def draw_endcard(frame, st):
+    # サムネイル: 下から弾んで、少しずらして2枚出る
+    for k, (spr, cx) in enumerate(zip(thumbs, (285, 795))):
+        u = (st - 0.12 - 0.14 * k) / 0.4
+        if u <= 0:
+            continue
+        dy = 300 * (1 - ease_out_back(u, 1.4))
+        place(frame, spr, cx, 1050 - spr.height / 2 + dy, alpha=clamp(u * 3))
+    # フォローボタン: 遅れて出て、ゆっくり脈打つ
+    u = (st - 0.5) / 0.3
+    if u > 0:
+        pulse = 1 + 0.045 * math.sin(2 * math.pi * 1.5 * (st - 0.5)) if u >= 1 else 1
+        s = (0.5 + 0.5 * ease_out_back(u)) * pulse
+        place(frame, follow_spr, W / 2, 1395, scale=s, alpha=clamp(u * 3))
+
+
 def frame_at(tt):
     frame = picture_at(tt)
     frame.alpha_composite(vig_layer)
@@ -294,7 +337,7 @@ def frame_at(tt):
     if not portrait:
         frame.alpha_composite(sub_shade)
     # シーン頭の白フラッシュ（最初のシーン以外）
-    if sc is not scenes[0] and sc is not scenes[-1] and st < 0.12:
+    if sc is not scenes[0] and sc is not FINAL and sc is not ENDCARD and st < 0.12:
         fl = Image.new("RGBA", (W, H), (255, 255, 255, int(150 * (1 - st / 0.12))))
         frame.alpha_composite(fl)
     # ラベル: 左からすべり込む
@@ -312,7 +355,7 @@ def frame_at(tt):
         place(frame, tsp, W / 2, top, scale=0.55 + 0.45 * ease_out_back(u), alpha=clamp(u * 3))
     # 字幕: 区切りごとに小さく弾んで出る
     # 締めでポスターが出ている間は、字幕の代わりに「保存して劇場へ」をポスターの下に出す
-    show_subs = not (portrait and sc is scenes[-1])
+    show_subs = not (portrait and sc is FINAL)
     for c in sc["subs"]:
         if show_subs and c["spr"] is not None and c["abs"] <= tt < c["end"]:
             u = (tt - c["abs"]) / 0.16
@@ -321,11 +364,13 @@ def frame_at(tt):
             place(frame, spr, W / 2, cy - spr.height / 2, scale=0.88 + 0.12 * ease_out_back(u, 2.4), alpha=clamp(u * 2.5))
     frame.alpha_composite(credit_spr, (W - credit_spr.width - 24, CARD_Y + 12))
     # 締めの呼びかけ: 日付の字幕と一緒に弾んで出て、最後まで残る
-    if sc is scenes[-1]:
+    if sc is FINAL:
         u = (tt - sc["subs"][1]["abs"]) / 0.3
         if u > 0:
             cta_y = POSTER_SUB_CY - cta_spr.height / 2 if portrait else CTA_Y
             place(frame, cta_spr, W / 2, cta_y, scale=0.5 + 0.5 * ease_out_back(u), alpha=clamp(u * 3))
+    if sc is ENDCARD:
+        draw_endcard(frame, st)
     # ループ再生で冒頭にそのまま戻れるよう、最後は暗転しない
     return frame.convert("RGB")
 
@@ -349,10 +394,13 @@ for i, sc in enumerate(scenes):
     add(sc["audio"], sc["narr_at"], 1.0)
     if i == 0:
         add(f"{SFX}/shakin1.mp3", 0.02, 0.45)  # タイトルの「シャキーン」
-    elif i < len(scenes) - 1:  # 締めのシーンはクロスフェード＋「キラーン」だけにする
+    elif sc is not FINAL:  # 締めのシーンはクロスフェード＋「キラーン」だけにする
         add(f"{SFX}/sceneswitch1.mp3", sc["start"] - 0.06, 0.45)  # 場面転換の「シュッ」
-    if i == len(scenes) - 1:
+    if sc is FINAL:
         add(f"{SFX}/kira1.mp3", sc["start"] + 0.12, 0.45)  # 締めの「キラーン」
+    if sc is ENDCARD:
+        add(f"{SFX}/slide1.mp3", sc["start"] + 0.12, 0.3)  # サムネイルが出る
+        add(f"{SFX}/slide1.mp3", sc["start"] + 0.26, 0.3)
 for a, b, _, scene_start in segments:
     if not scene_start:
         add(f"{SFX}/slide1.mp3", a - 0.05, 0.25)  # シーン内の画像切り替え
