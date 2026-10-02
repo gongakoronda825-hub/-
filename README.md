@@ -50,3 +50,5 @@
 `mimi-imax-tiktok/` も別物です。[『耳をすませば』IMAX 上映の告知用 TikTok 縦型動画](mimi-imax-tiktok/)と、それを作る台本・スクリプトです。
 
 `arrietty-imax-tiktok/` も同じシリーズです。[『借りぐらしのアリエッティ』IMAX 上映の告知用 TikTok 縦型動画](arrietty-imax-tiktok/)です。
+
+`yubaba-tiktok/` も同じ仕組みで作った TikTok 縦型動画です。[「湯婆婆、実はいい上司」](yubaba-tiktok/)という考察動画です。
