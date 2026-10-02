@@ -14,6 +14,7 @@ import script
 from script import CTA_TEXT, SCENES
 
 FOCUS = getattr(script, "FOCUS", {})  # 画像ごとの横の見せどころ（0=左端, 1=右端）
+HOOK_TELOP_CY = getattr(script, "HOOK_TELOP_CY", None)  # 冒頭のテロップの中心の高さ（None なら上部）
 
 B = "build"
 OUT = sys.argv[1] if len(sys.argv) > 1 else "mimi_imax_tiktok.mp4"
@@ -357,6 +358,8 @@ def frame_at(tt):
         tsp = sc["telop_spr"]
         if sc["badge_spr"] is None:
             top = TELOP_TOP + 30
+        if sc is scenes[0] and HOOK_TELOP_CY:  # 冒頭のフックだけテロップの高さを変えられる
+            top = HOOK_TELOP_CY - tsp.height / 2
         place(frame, tsp, W / 2, top, scale=0.55 + 0.45 * ease_out_back(u), alpha=clamp(u * 3))
     # 字幕: 区切りごとに小さく弾んで出る
     # 締めでポスターが出ている間は、字幕の代わりに「保存して劇場へ」をポスターの下に出す
