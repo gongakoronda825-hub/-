@@ -5,7 +5,7 @@ cd "$(dirname "$0")"
 mkdir -p build/img build/sfx fonts
 
 # 画像はスタジオジブリ公式の場面写真ページ (https://www.ghibli.jp/works/chihiro/) のものだけを使う
-for n in 011 016 017 018 019 027 028 047 049 050; do
+for n in 011 016 017 018 019 026 027 028 047 050; do
   [ -f build/img/chihiro$n.jpg ] || curl -fsS -o build/img/chihiro$n.jpg https://www.ghibli.jp/gallery/chihiro$n.jpg
 done
 # 理由2の「応援する湯婆婆」の画像は手元のファイルを build/img/yubaba_cheer.jpg に置いておく
