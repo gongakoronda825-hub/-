@@ -46,3 +46,7 @@
 
 `face-chase/` も別物です。[FACE CHASE](face-chase/)で、
 宙に浮かぶ顔から逃げ回る Three.js の3D鬼ごっこです。スマホ・PC両対応。
+
+`tiktok-experiment/` も別物です。[TikTok改善実験トラッカー](tiktok-experiment/)で、
+「仮説→検証→改善」を数字で記録してガクチカ素材に書き出す、Python + Streamlit のローカルアプリです
+（ブラウザだけでは動かないので、起動手順は中の README を見てください）。

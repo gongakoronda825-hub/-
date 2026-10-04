@@ -1,0 +1,6 @@
+# 自分の実験データ・書き出したファイルはコミットしない
+# （このリポジトリは main がそのまま GitHub Pages に公開されるため）
+data/*.csv
+exports/*.md
+__pycache__/
+.pytest_cache/
