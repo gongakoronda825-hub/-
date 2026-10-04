@@ -92,7 +92,7 @@ section.page { display: grid; gap: 22px; padding-top: 20px; }
 /* フォーム */
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 14px; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.grid4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
 @media (max-width: 480px) { .at-row { grid-template-columns: 1fr; } .grid4 { grid-template-columns: 1fr 1fr; } }
 label.f { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); min-width: 0; }
 input, select, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
@@ -191,7 +191,7 @@ tr:last-child td { border-bottom: 0; }
 .gdot { display: inline-flex; align-items: center; gap: 6px; }
 .gfs { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; margin: 0; display: grid; gap: 10px; min-width: 0; }
 .gfs legend { padding: 0 4px; font-weight: 700; font-size: 14px; }
-.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.grid3 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 @media (max-width: 480px) { .grid3 { grid-template-columns: 1fr 1fr; } }
 .wrap > *, section.page > *, .card > *, .sheet > * { min-width: 0; }
 .scope { max-width: 100%; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
@@ -393,10 +393,11 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
 const GENRES = [{ id: "trivia", label: "雑学" }, { id: "event", label: "イベント告知" }, { id: "goods", label: "グッズ紹介" }];
 const GENRE_IDS = GENRES.map((g) => g.id);
 const CATEGORIES = ["冒頭", "尺", "投稿時間", "ハッシュタグ", "テーマ", "その他"];
-const GOAL_METRICS = { "再生数": ["回", 0], "視聴維持率": ["%", 1], "保存数": ["件", 1], "フォロワー増加数": ["人", 0] };
-const GOAL_COL = { "再生数": "avg_views", "視聴維持率": "avg_retention", "保存数": "avg_saves" };
-const B_METRICS = [["avg_views", "平均再生数", "回", 0], ["avg_retention", "平均視聴維持率", "%", 1], ["avg_saves", "平均保存数", "件", 1]];
-const POST_METRICS = [["views", "再生数", "1"], ["retention", "視聴維持率(%)", "any"], ["saves", "保存数", "1"], ["likes", "いいね数", "1"]];
+const GOAL_METRICS = { "再生数": ["回", 0], "視聴維持率": ["%", 1], "いいね数": ["件", 0], "フォロワー増加数": ["人", 0] };
+const GOAL_COL = { "再生数": "avg_views", "視聴維持率": "avg_retention", "いいね数": "avg_likes" };
+const B_METRICS = [["avg_views", "平均再生数", "回", 0], ["avg_retention", "平均視聴維持率", "%", 1], ["avg_likes", "平均いいね数", "件", 0], ["avg_follows", "平均フォロワー増加数", "人", 1]];
+const B_REQUIRED = ["avg_views", "avg_retention", "avg_likes"];
+const POST_METRICS = [["views", "再生数", "1"], ["retention", "視聴維持率(%)", "any"], ["likes", "いいね数", "1"], ["follows", "フォロワー増加数", "1"]];
 const WAIT_H = 48;
 const COLLECTIONS = ["baseline", "goals", "posts", "reviews"];
 
@@ -518,7 +519,7 @@ function categorySummary(rows) {
     const ps = rows.filter((p) => p.category === c);
     const byGenre = GENRES.map((g) => [g.id, ps.filter((p) => p.genre === g.id).length]).filter(([, n]) => n);
     return { category: c, n: ps.length, byGenre, pct: mean(ps.map((p) => p.pct)), views: mean(ps.map((p) => p.views)),
-      retention: mean(ps.map((p) => p.retention)), saves: mean(ps.map((p) => p.saves)) };
+      retention: mean(ps.map((p) => p.retention)), likes: mean(ps.map((p) => p.likes)), follows: mean(ps.map((p) => p.follows)) };
   });
 }
 function splitByEffect(rows, threshold) {
@@ -606,7 +607,8 @@ function divergingBars(rows) {
 $("b-genres").innerHTML = GENRES.map((g) => `<fieldset class="gfs"><legend class="gdot" data-g="${g.id}">${g.label}</legend><div class="grid3">
   <label class="f">平均再生数<input type="number" id="b-${g.id}-avg_views" inputmode="decimal" min="0" step="any"></label>
   <label class="f">視聴維持率（%）<input type="number" id="b-${g.id}-avg_retention" inputmode="decimal" min="0" max="100" step="any"></label>
-  <label class="f">平均保存数<input type="number" id="b-${g.id}-avg_saves" inputmode="decimal" min="0" step="any"></label>
+  <label class="f">平均いいね数<input type="number" id="b-${g.id}-avg_likes" inputmode="decimal" min="0" step="any"></label>
+  <label class="f">平均フォロワー増加数<input type="number" id="b-${g.id}-avg_follows" inputmode="decimal" min="0" step="any" placeholder="任意"></label>
 </div></fieldset>`).join("");
 
 let bGenre = lsGet("bGenre");
@@ -639,9 +641,10 @@ function renderBaseline() {
     });
     h += `</div>`;
   }
-  h += `</div><div style="display:grid;gap:10px"><h3>記録一覧</h3><div class="table-scroll"><table><thead><tr><th>日付</th><th>フォロワー</th>${GENRES.map((g) => `<th><span class="gdot" data-g="${g.id}">${g.label}</span></th>`).join("")}<th></th></tr></thead><tbody>`;
+  h += `</div><div style="display:grid;gap:10px"><h3>記録一覧</h3><div class="table-scroll"><table><thead><tr><th>日付</th><th>フォロワー</th><th>前回から</th>${GENRES.map((g) => `<th><span class="gdot" data-g="${g.id}">${g.label}</span></th>`).join("")}<th></th></tr></thead><tbody>`;
+  bs.forEach((b, i) => { b._inc = i && isNum(b.followers) && isNum(bs[i - 1].followers) ? b.followers - bs[i - 1].followers : null; });
   bs.slice().reverse().forEach((b) => {
-    h += `<tr><td class="num">${esc(b.date)}</td><td>${fmt(b.followers)}</td>${GENRES.map((g) => { const gv = genreVals(b, g.id); return `<td>${gv ? fmt(gv.avg_views) : "—"}</td>`; }).join("")}
+    h += `<tr><td class="num">${esc(b.date)}</td><td>${fmt(b.followers)}</td><td>${isNum(b._inc) ? (b._inc >= 0 ? "+" : "") + fmt(b._inc) : "—"}</td>${GENRES.map((g) => { const gv = genreVals(b, g.id); return `<td>${gv ? fmt(gv.avg_views) : "—"}</td>`; }).join("")}
       <td><button class="btn small danger del" type="button" data-col="baseline" data-id="${esc(b._id)}">削除</button></td></tr>`;
   });
   v.innerHTML = h + `</tbody></table></div><p class="muted">ジャンルの列は平均再生数。数字を直すときは、同じ日付でもう一度登録してください。</p></div>`;
@@ -653,9 +656,10 @@ $("f-baseline").addEventListener("submit", async (e) => {
   const genres = {};
   for (const g of GENRES) {
     const vals = Object.fromEntries(B_METRICS.map(([col]) => [col, readNum($(`b-${g.id}-${col}`))]));
-    const filled = Object.values(vals).filter((x) => x !== null).length;
-    if (filled === 0) continue;
-    if (filled < B_METRICS.length) { toast(`${g.label}の3つの数字をすべて入れるか、すべて空欄にしてください。`); return; }
+    const filled = B_REQUIRED.filter((c) => vals[c] !== null).length;
+    if (filled === 0 && vals.avg_follows === null) continue;
+    if (filled < B_REQUIRED.length) { toast(`${g.label}の平均再生数・視聴維持率・いいね数をすべて入れるか、すべて空欄にしてください。`); return; }
+    if (vals.avg_follows === null) delete vals.avg_follows;
     genres[g.id] = vals;
   }
   if (!Object.keys(genres).length) { toast("少なくとも1つのジャンルの平均を入力してください。"); return; }
@@ -898,12 +902,12 @@ function renderReview() {
   let h = `<div style="display:grid;gap:18px">`;
 
   // ジャンル別の概要（どの範囲を見ていても出す）
-  h += `<div style="display:grid;gap:8px"><h3>${rMonth} のジャンル別まとめ</h3><div class="table-scroll"><table><thead><tr><th>ジャンル</th><th>本数</th><th>平均再生</th><th>基準</th><th>基準比</th></tr></thead><tbody>`;
+  h += `<div style="display:grid;gap:8px"><h3>${rMonth} のジャンル別まとめ</h3><div class="table-scroll"><table><thead><tr><th>ジャンル</th><th>本数</th><th>平均再生</th><th>基準</th><th>基準比</th><th>フォロワー増</th></tr></thead><tbody>`;
   GENRES.forEach((g) => {
     const ps = mp.filter((p) => p.genre === g.id), rs = allRows.filter((p) => p.genre === g.id), b = baselineFor(rMonth, g.id);
-    h += `<tr><td><span class="gdot" data-g="${g.id}">${g.label}</span></td><td>${ps.length}</td><td>${fmt(mean(rs.map((p) => p.views)))}</td><td>${b ? fmt(b.avg_views) : "未登録"}</td><td>${fmtPct(mean(rs.map((p) => p.pct)))}</td></tr>`;
+    h += `<tr><td><span class="gdot" data-g="${g.id}">${g.label}</span></td><td>${ps.length}</td><td>${fmt(mean(rs.map((p) => p.views)))}</td><td>${b ? fmt(b.avg_views) : "未登録"}</td><td>${fmtPct(mean(rs.map((p) => p.pct)))}</td><td>${fmt(ps.reduce((a, p) => a + (isNum(p.follows) ? p.follows : 0), 0))}</td></tr>`;
   });
-  h += `</tbody></table></div><p class="muted">基準 = 月初以前で最新の、そのジャンルのベースライン（平均再生数）。基準比は各投稿の伸び率の平均です。</p></div>`;
+  h += `</tbody></table></div><p class="muted">基準 = 月初以前で最新の、そのジャンルのベースライン（平均再生数）。基準比は各投稿の伸び率の平均、フォロワー増はその月の投稿で増えた人数の合計です。</p></div>`;
 
   const notes = [];
   if (skipped.noViews) notes.push(`再生数が未入力 ${skipped.noViews}本`);
@@ -925,17 +929,17 @@ function renderReview() {
     h += `<div style="display:grid;gap:8px"><h3>変更カテゴリ別（${esc(scopeName)}）</h3>`;
     if (single) h += `<p class="muted">${gLabel(rScope)}の基準：${esc(base.date)} の記録（平均再生数 <span class="num">${fmt(base.avg_views, "回")}</span>）</p>`;
     else h += `<p class="muted">ジャンルごとに再生数の水準が違うので、各投稿を<b>同じジャンルの基準</b>と比べた伸び率（%）を平均しています。</p>`;
-    h += `<div class="table-scroll"><table><thead><tr><th>カテゴリ</th><th>本数</th>${single ? "<th>平均再生</th><th>維持率</th><th>保存</th>" : "<th style=\"text-align:left\">内訳</th>"}<th>基準比</th></tr></thead><tbody>`;
+    h += `<div class="table-scroll"><table><thead><tr><th>カテゴリ</th><th>本数</th>${single ? "<th>平均再生</th><th>維持率</th><th>いいね</th>" : "<th style=\"text-align:left\">内訳</th>"}<th>フォロワー増</th><th>基準比</th></tr></thead><tbody>`;
     sum.forEach((r) => {
-      h += `<tr><td>${esc(r.category)}</td><td>${r.n}</td>${single ? `<td>${fmt(r.views)}</td><td>${fmt(r.retention, "%", 1)}</td><td>${fmt(r.saves, "", 1)}</td>`
-        : `<td style="text-align:left;font-family:var(--f-body)">${r.byGenre.map(([g, n]) => `${gLabel(g)}${n}`).join("・")}</td>`}<td>${fmtPct(r.pct)}</td></tr>`;
+      h += `<tr><td>${esc(r.category)}</td><td>${r.n}</td>${single ? `<td>${fmt(r.views)}</td><td>${fmt(r.retention, "%", 1)}</td><td>${fmt(r.likes)}</td>`
+        : `<td style="text-align:left;font-family:var(--f-body)">${r.byGenre.map(([g, n]) => `${gLabel(g)}${n}`).join("・")}</td>`}<td>${fmt(r.follows, "", 1)}</td><td>${fmtPct(r.pct)}</td></tr>`;
     });
     h += `</tbody></table></div>`;
     h += `<div class="chart"><div class="head"><b>基準比</b><span class="muted">右に伸びるほど、いつもより再生された</span></div>${divergingBars(sum.filter((r) => isNum(r.pct)).map((r) => ({ label: r.category, pct: r.pct })))}</div>`;
-    if (sum.some((r) => r.n < 2)) h += `<p class="muted">※ 1本だけのカテゴリは偶然の影響が大きいので、結論は控えめに。</p>`;
+    if (sum.some((r) => r.n < 2)) h += `<p class="muted">※ 1本だけのカテゴリは偶然の影響が大きいので、結論は控えめに。フォロワー増は1本あたりの平均です。</p>`;
     h += `</div>`;
     split = splitByEffect(rows, th);
-    const li = (p) => `<li>${rScope === "all" ? gChip(p.genre) + " " : ""}<b>${esc(p.change || "（変えた点 未記入）")}</b> <span class="muted">［${esc(p.category)}］</span> <span class="num">${fmt(p.views, "回")}（${fmtPct(p.pct)}）</span></li>`;
+    const li = (p) => `<li>${rScope === "all" ? gChip(p.genre) + " " : ""}<b>${esc(p.change || "（変えた点 未記入）")}</b> <span class="muted">［${esc(p.category)}］</span> <span class="num">${fmt(p.views, "回")}（${fmtPct(p.pct)}）${isNum(p.follows) ? `・フォロワー+${fmt(p.follows)}` : ""}</span></li>`;
     h += `<div class="effects">
       <div><h3><span class="chip good">✓ 効いた</span> +${th}%以上</h3>${split.worked.length ? `<ul>${split.worked.map(li).join("")}</ul>` : `<p class="muted">該当なし</p>`}</div>
       <div><h3><span class="chip bad">× 効かなかった</span> +${th}%未満</h3>${split.notWorked.length ? `<ul>${split.notWorked.map(li).join("")}</ul>` : `<p class="muted">該当なし</p>`}</div>
@@ -978,8 +982,8 @@ function buildMarkdown() {
   else {
     if (fol.length) o.push(`- フォロワー数: ${fmt(fol[0].followers, "人")}（${fol[0].date}）`, "");
     o.push(`投稿は${GENRES.map((x) => x.label).join("・")}のジャンルに分かれていて、ジャンルごとに再生数の水準が大きく違う。そのため、ベースラインもジャンル別に記録した。`, "",
-      "| ジャンル | 記録日 | 平均再生数 | 平均視聴維持率 | 平均保存数 |", "|---|---|---|---|---|");
-    GENRES.forEach((x) => { const s0 = genreSeries(x.id)[0]; if (s0) o.push(`| ${x.label} | ${s0.date} | ${fmt(s0.avg_views, "回")} | ${fmt(s0.avg_retention, "%", 1)} | ${fmt(s0.avg_saves, "件", 1)} |`); });
+      "| ジャンル | 記録日 | 平均再生数 | 平均視聴維持率 | 平均いいね数 | 平均フォロワー増加数 |", "|---|---|---|---|---|---|");
+    GENRES.forEach((x) => { const s0 = genreSeries(x.id)[0]; if (s0) o.push(`| ${x.label} | ${s0.date} | ${fmt(s0.avg_views, "回")} | ${fmt(s0.avg_retention, "%", 1)} | ${fmt(s0.avg_likes, "件")} | ${fmt(s0.avg_follows, "人", 1)} |`); });
     o.push("");
   }
 
@@ -1000,10 +1004,10 @@ function buildMarkdown() {
     o.push(`期間 ${dates[0]}〜${dates[dates.length - 1]} に **${posts.length}本** の検証投稿を行った（${byG.map(([l, n]) => `${l} ${n}本`).join("、")}）。`, "",
       "変更カテゴリ別の本数: " + byC.map(([c, n]) => `${c} ${n}本`).join("、"), "",
       "※ 各投稿の結果は、**同じジャンルのベースライン**と比べている（ジャンルが違う投稿を同じ物差しで比べないため）。", "",
-      "| 投稿日 | ジャンル | 今回変えた点 | カテゴリ | 仮説 | 再生数 | 同ジャンル基準比 |", "|---|---|---|---|---|---|---|");
+      "| 投稿日 | ジャンル | 今回変えた点 | カテゴリ | 仮説 | 再生数 | 同ジャンル基準比 | フォロワー増 |", "|---|---|---|---|---|---|---|---|");
     posts.forEach((p) => {
       const l = postLift(p);
-      o.push(`| ${cell(String(p.posted_at).slice(0, 10))} | ${cell(gLabel(p.genre))} | ${cell(p.change)} | ${cell(p.category)} | ${cell(p.hypothesis)} | ${fmt(p.views, "回")} | ${fmtPct(l ? l.pct : null)} |`);
+      o.push(`| ${cell(String(p.posted_at).slice(0, 10))} | ${cell(gLabel(p.genre))} | ${cell(p.change)} | ${cell(p.category)} | ${cell(p.hypothesis)} | ${fmt(p.views, "回")} | ${fmtPct(l ? l.pct : null)} | ${fmt(p.follows, "人")} |`);
     });
     o.push("");
   }
@@ -1015,17 +1019,22 @@ function buildMarkdown() {
     o.push("ジャンル別：最初と最新のベースラインの比較", "", "| ジャンル | 指標 | 開始時 | 最新 | 変化 |", "|---|---|---|---|---|");
     trend.forEach(([x, xs]) => {
       const a = xs[0], z = xs[xs.length - 1];
-      B_METRICS.forEach(([col, label, u, d]) => o.push(`| ${x.label} | ${label} | ${fmt(a[col], u, d)} | ${fmt(z[col], u, d)} | ${fmtPct(diffPct(z[col], a[col]))} |`));
+      B_METRICS.forEach(([col, label, u, d]) => { if (isNum(a[col]) || isNum(z[col])) o.push(`| ${x.label} | ${label} | ${fmt(a[col], u, d)} | ${fmt(z[col], u, d)} | ${fmtPct(diffPct(z[col], a[col]))} |`); });
     });
     o.push("");
   } else o.push("（同じジャンルのベースラインを2回以上記録すると、開始時と最新の比較が入ります）", "");
   if (rows.length) {
     const sum = categorySummary(rows).sort((a, b) => (b.pct ?? -Infinity) - (a.pct ?? -Infinity));
-    o.push("変更カテゴリ別の伸び率（各投稿を同じジャンルの基準と比べ、その平均）:", "", "| カテゴリ | 投稿数 | 内訳 | 基準比の平均 |", "|---|---|---|---|");
-    sum.forEach((r) => o.push(`| ${r.category} | ${r.n} | ${r.byGenre.map(([x, n]) => `${gLabel(x)}${n}`).join("・")} | ${fmtPct(r.pct)} |`));
+    o.push("変更カテゴリ別の伸び率（各投稿を同じジャンルの基準と比べ、その平均）:", "", "| カテゴリ | 投稿数 | 内訳 | 基準比の平均 | 1本あたりフォロワー増 |", "|---|---|---|---|---|");
+    sum.forEach((r) => o.push(`| ${r.category} | ${r.n} | ${r.byGenre.map(([x, n]) => `${gLabel(x)}${n}`).join("・")} | ${fmtPct(r.pct)} | ${fmt(r.follows, "人", 1)} |`));
     o.push("");
     const best = rows.slice().sort((a, b) => b.pct - a.pct)[0];
     o.push(`最も伸びた投稿: 「${best.title}」［${gLabel(best.genre)}］（${fmt(best.views, "回")}、同ジャンル基準比 ${fmtPct(best.pct)}／変えた点: ${best.change || "未記入"}）`, "");
+    const withF = posts.filter((p) => isNum(p.follows));
+    if (withF.length) {
+      const total = withF.reduce((a, p) => a + p.follows, 0), topF = withF.slice().sort((a, b) => b.follows - a.follows)[0];
+      o.push(`検証投稿${withF.length}本で増えたフォロワー: 合計 ${fmt(total, "人")}。最もフォロワーを増やした投稿: 「${topF.title}」［${gLabel(topF.genre)}］（+${fmt(topF.follows, "人")}／変えた点: ${topF.change || "未記入"}）`, "");
+    }
   }
 
   o.push("## 5. 学び", "");
@@ -1070,9 +1079,9 @@ $("x-backup").addEventListener("click", () => {
   offer(`tiktok_backup_${stamp()}.json`, JSON.stringify(out, null, 2));
 });
 $("x-csv").addEventListener("click", () => {
-  const cols = ["posted_at", "genre", "title", "change", "category", "hypothesis", "views", "retention", "saves", "likes", "insight"];
+  const cols = ["posted_at", "genre", "title", "change", "category", "hypothesis", "views", "retention", "likes", "follows", "insight"];
   const q = (v) => { const s = v === null || v === undefined ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const lines = [["投稿日時", "ジャンル", "動画タイトル", "今回変えた点", "変更カテゴリ", "仮説", "再生数", "視聴維持率(%)", "保存数", "いいね数", "気づき"].join(",")];
+  const lines = [["投稿日時", "ジャンル", "動画タイトル", "今回変えた点", "変更カテゴリ", "仮説", "再生数", "視聴維持率(%)", "いいね数", "フォロワー増加数", "気づき"].join(",")];
   S.posts.slice().sort((a, b) => String(a.posted_at).localeCompare(String(b.posted_at)))
     .forEach((p) => lines.push(cols.map((c) => q(c === "genre" ? gLabel(p.genre) : p[c])).join(",")));
   offer(`tiktok_posts_${stamp()}.csv`, "﻿" + lines.join("\r\n"));
