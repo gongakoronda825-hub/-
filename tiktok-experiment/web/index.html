@@ -197,6 +197,20 @@ tr:last-child td { border-bottom: 0; }
 .scope { max-width: 100%; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
 .scope .seg { flex-wrap: nowrap; }
 
+/* PDCAの流れ */
+.flow { position: relative; display: grid; padding-left: 20px; }
+.flow::before { content: ""; position: absolute; left: 6px; top: 14px; bottom: 14px; width: 2px; background: var(--line); }
+.fstep { position: relative; padding-bottom: 14px; display: grid; gap: 6px; min-width: 0; }
+.fstep::before { content: ""; position: absolute; left: -19px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+.fstep.open::before { background: var(--accent); }
+.fstep.pre::before { border-color: var(--muted); }
+.pdca { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; }
+.pl { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-family: var(--f-data); font-weight: 500; font-size: 13px; background: var(--accent-soft); color: var(--accent); }
+.pl.a { background: var(--accent); color: var(--accent-ink); }
+.mini { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
+.mini .k { font-family: var(--f-data); font-size: 11px; color: var(--muted); margin-right: 4px; }
+.carry { font-size: 12px; color: var(--accent); }
+
 pre.md { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--f-data); font-size: 12.5px; line-height: 1.65;
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin: 0; max-height: 60vh; overflow: auto; color: var(--ink); }
 
@@ -244,11 +258,15 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
   <!-- ③ 仮説 -->
   <section class="page" id="p-hypo" data-tab="hypo" hidden>
     <div>
-      <h2>③ ジャンル別の仮説検証</h2>
-      <p class="lead">ジャンルごとに試すことを1つ決めて、3本試したら「当たり／外れ」を判断します。1本ごとの気づきは、記録のときの「次の動画でどうするか」に残します。決めるのはあなたです。</p>
+      <h2>③ PDCA</h2>
+      <p class="lead">ジャンルごとに、試すこと（P）→ 投稿（D）→ いつもの何倍か（C）→ 判断と学び（A）の流れを見ます。3本試したら判断。決めるのはあなたです。</p>
     </div>
+    <div class="scope"><div class="seg genre" id="flow-genre" role="radiogroup" aria-label="ジャンル"></div></div>
     <div id="v-tracks"></div>
-    <form class="card" id="f-hypo" autocomplete="off">
+    <div id="v-flow"></div>
+    <details class="card" id="hypo-box"><summary><b>仮説の一覧・追加</b></summary>
+    <div style="display:grid;gap:16px">
+    <form id="f-hypo" autocomplete="off" style="display:grid;gap:14px">
       <h3>仮説を追加する</h3>
       <label class="f">仮説（〜すれば、〜が伸びる）<input type="text" id="h-text" placeholder="例: 冒頭1秒で答えを言えば、視聴数が伸びる" required></label>
       <div class="f"><span class="muted">対象のジャンル</span><div class="seg genre" id="h-genres" role="radiogroup" aria-label="ジャンル"></div></div>
@@ -256,6 +274,7 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
       <div class="row"><button class="btn primary save-btn" type="submit">追加する</button></div>
     </form>
     <div id="v-hypo"></div>
+    </div></details>
   </section>
 
   <!-- ④ AI分析 -->
@@ -312,7 +331,7 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
 <nav class="tabs" role="tablist" aria-label="画面">
   <button role="tab" data-go="log" aria-selected="true"><span class="n">①</span>記録</button>
   <button role="tab" data-go="study" aria-selected="false"><span class="n">②</span>研究</button>
-  <button role="tab" data-go="hypo" aria-selected="false"><span class="n">③</span>検証<span class="badge" id="badge" hidden></span></button>
+  <button role="tab" data-go="hypo" aria-selected="false"><span class="n">③</span>PDCA<span class="badge" id="badge" hidden></span></button>
   <button role="tab" data-go="ai" aria-selected="false"><span class="n">④</span>AI分析</button>
   <button role="tab" data-go="export" aria-selected="false"><span class="n">⑤</span>ガクチカ</button>
 </nav>
@@ -910,7 +929,7 @@ let tracksDirty = false;
 function trackCard(g) {
   const sm = trackSummary(g.id), t = sm.t, hy = t && S.hypotheses.find((x) => x._id === t.hid);
   const cands = S.hypotheses.filter((x) => (x.status || "testing") === "testing" && (x.genre === g.id || x.genre === "all"));
-  let h = `<div class="card" data-g="${g.id}"><h3><span class="gdot" data-g="${g.id}">${g.label}</span></h3>`;
+  let h = `<div class="card" data-g="${g.id}"><h3>いま：<span class="gdot" data-g="${g.id}">${g.label}</span>で試していること</h3>`;
   if (!hy) {
     h += `<p class="ink2" style="font-size:14px">いま試している仮説はありません。次の${g.label}で試すことを1つ決めましょう。</p>`;
     h += cands.length ? `<div class="row"><select id="tr-sel-${g.id}" style="flex:1 1 220px"><option value="">選ぶ…</option>${cands.map((x) => `<option value="${esc(x._id)}">${esc(x.text.slice(0, 50))}</option>`).join("")}</select><button class="btn save-btn tr-set" type="button" data-g="${g.id}">これを試す</button></div>`
@@ -934,19 +953,94 @@ function trackCard(g) {
   }
   return h + `</div>`;
 }
+let flowGenre = isGenre(lsGet("flowGenre")) ? lsGet("flowGenre") : "trivia";
+$("flow-genre").addEventListener("change", (e) => { flowGenre = e.target.value; lsSet("flowGenre", flowGenre); tracksDirty = false; renderTracks(); });
+/** ジャンルの仮説の回（判断済み＋いま試しているもの）と、それぞれの投稿 */
+function genreCycles(g) {
+  const closed = S.cycles.filter((c) => c.genre === g).sort((a, b) => String(a.closed_at).localeCompare(String(b.closed_at)));
+  const lastClose = {}, items = [];
+  closed.forEach((c) => {
+    const end = String(c.closed_at).slice(0, 10), from = lastClose[c.hypothesis_id] || "";
+    const ps = genrePosts(g).filter((p) => p.hypothesis_id === c.hypothesis_id && String(p.posted_at) > from && String(p.posted_at) <= end);
+    lastClose[c.hypothesis_id] = end;
+    items.push({ kind: "cycle", open: false, c, hid: c.hypothesis_id, ps, date: ps.length ? ps[0].posted_at : (c.started || end), end });
+  });
+  const t = trackOf(g);
+  if (t) {
+    const from = lastClose[t.hid] || "";
+    const ps = genrePosts(g).filter((p) => p.hypothesis_id === t.hid && String(p.posted_at) > from);
+    items.push({ kind: "cycle", open: true, t, hid: t.hid, ps, date: ps.length ? ps[0].posted_at : t.started });
+  }
+  return items;
+}
+function miniPost(p) {
+  const ev = evaluate(p), v = verdict(ev && ev.score);
+  return `<div class="mini"><div class="meta"><span class="num">${md(p.posted_at)}</span><span class="ink2">${esc((p.caption || "（タイトルなし）").slice(0, 22))}</span><span class="chip ${v.cls}">${v.label}${isNum(ev && ev.score) ? `・${fmtX(ev.score)}` : ""}</span></div>
+    ${p.aim ? `<div><span class="k">P ねらい</span>${esc(p.aim)}</div>` : ""}${p.next ? `<div><span class="k">A 次へ</span>${esc(p.next)}</div>` : ""}</div>`;
+}
+function scoreLine(ps) {
+  const sc = ps.map((p) => evaluate(p)).filter((ev) => ev && isNum(ev.score)).map((ev) => ev.score);
+  return sc.length ? `いつもの <b class="num">${fmtX(median(sc))}</b>（中央値）・当たり以上 ${sc.filter((x) => x >= 1.15).length}/${sc.length}本` : `<span class="muted">まだ数字がありません</span>`;
+}
+function cycleStep(it) {
+  const hy = S.hypotheses.find((x) => x._id === it.hid);
+  const st = it.open ? ["検証中", ""] : { hit: ["当たり", "good"], miss: ["外れ", "bad"], more: ["もう少し試す", "warn"] }[it.c.decision] || ["—", ""];
+  const need = it.open ? (it.t.judge_at || JUDGE_AT) : null;
+  const a = it.open ? (it.ps.length >= need ? `<b>判断できます</b>（上のカードで）` : `<span class="muted">あと${need - it.ps.length}本で判断</span>`)
+    : `<b>${esc(DECISIONS[it.c.decision] ? DECISIONS[it.c.decision].split("（")[0] : "—")}</b>　${esc(it.c.learning || "")}`;
+  return `<div class="fstep ${it.open ? "open" : ""}"><div class="card" style="gap:10px">
+    <div class="meta"><span class="chip ${st[1]}">${st[0]}</span><span class="num muted">${md(it.date)}〜${it.open ? "いま" : md(it.end)}</span></div>
+    <div class="pdca">
+      <span class="pl">P</span><div><b>${esc(hy ? hy.text : "（削除された仮説）")}</b>${hy && hy.why ? `<div class="muted">なぜ：${esc(hy.why)}</div>` : ""}</div>
+      <span class="pl">D</span><div style="display:grid;gap:6px"><span class="muted">${it.ps.length}本で試した</span>${it.ps.map(miniPost).join("")}</div>
+      <span class="pl">C</span><div>${!it.open && isNum(it.c.median_score) ? `いつもの <b class="num">${fmtX(it.c.median_score)}</b>（中央値）・当たり以上 ${it.c.hits ?? "—"}/${it.c.posts_n ?? it.ps.length}本<div class="muted">判断したときの数字</div>` : scoreLine(it.ps)}</div>
+      <span class="pl a">A</span><div>${a}</div>
+    </div></div>
+    ${!it.open && it.c.learning ? `<div class="carry">↓ この学びをもとに、次に試すことを決める</div>` : ""}</div>`;
+}
+function freeStep(ps, label) {
+  const shown = ps.slice(-3), rest = ps.slice(0, -3);
+  return `<div class="fstep pre"><div class="card" style="gap:10px;background:var(--bg)">
+    <div class="meta"><span class="chip">${label}</span><span class="num muted">${md(ps[0].posted_at)}〜${md(ps[ps.length - 1].posted_at)}・${ps.length}本</span></div>
+    <div>${scoreLine(ps)}</div>
+    ${rest.length ? `<details><summary>ほか${rest.length}本</summary><div style="display:grid;gap:6px">${rest.map(miniPost).join("")}</div></details>` : ""}
+    <div style="display:grid;gap:6px">${shown.map(miniPost).join("")}</div></div></div>`;
+}
+function renderFlow(g) {
+  const cycles = genreCycles(g), used = new Set(cycles.flatMap((c) => c.ps.map((p) => p._id)));
+  const free = genrePosts(g).filter((p) => !used.has(p._id));
+  const gl = goal();
+  const rank = { start: 0, post: 1, cycle: 2 };
+  const entries = [...cycles.map((c) => ({ ...c, key: c.date })), ...free.map((p) => ({ kind: "post", p, key: p.posted_at })),
+    ...(gl && genrePosts(g).length ? [{ kind: "start", key: gl.start }] : [])]
+    .sort((a, b) => String(a.key).localeCompare(String(b.key)) || rank[a.kind] - rank[b.kind]);
+  let h = "", run = [];
+  const flush = () => {
+    if (!run.length) return;
+    const pre = gl && String(run[run.length - 1].posted_at) < gl.start;
+    h += freeStep(run, pre ? "取り組み前" : "仮説なしの投稿"); run = [];
+  };
+  entries.forEach((e) => {
+    if (e.kind === "post") { run.push(e.p); return; }
+    flush();
+    h += e.kind === "start" ? `<div class="fstep open"><div class="meta" style="padding-top:10px"><span class="chip good">目標スタート</span><span class="num muted">${md(gl.start)}</span><span class="ink2">${esc(goalName(gl))}</span></div></div>` : cycleStep(e);
+  });
+  flush();
+  if (!entries.length) return `<div class="empty"><b>${gLabel(g)}の記録がまだありません</b>①で投稿を記録し、上のカードで試すことを決めると、ここにPDCAの流れが並びます。</div>`;
+  const nc = S.cycles.filter((c) => c.genre === g).length;
+  return `<div style="display:grid;gap:10px"><h3>${gLabel(g)}のPDCAの流れ <span class="muted">判断${nc}回・投稿${genrePosts(g).length}本（古い順）</span></h3><div class="flow">${h}</div></div>`;
+}
 function renderTracks() {
   const sums = GENRES.map((g) => trackSummary(g.id));
   const n = sums.filter((x) => x.ready).length + sums.filter((x) => !x.t).length;
   const badge = $("badge"); badge.hidden = !n; badge.textContent = n;
   if (tracksDirty && document.activeElement && document.activeElement.closest && document.activeElement.closest("#v-tracks")) return;
-  let h = `<div style="display:grid;gap:12px">${GENRES.map(trackCard).join("")}</div>`;
-  const cs = S.cycles.slice().sort((a, b) => String(b.closed_at).localeCompare(String(a.closed_at)));
-  if (cs.length) {
-    h += `<details class="card"><summary><b>これまでの判断（${cs.length}回）</b></summary><div class="table-scroll"><table><thead><tr><th>判断日</th><th>ジャンル</th><th style="text-align:left">仮説</th><th>本数</th><th>何倍</th><th style="text-align:left">判断</th><th style="text-align:left">学び</th></tr></thead><tbody>${cs.map((c) => {
-      const hy = S.hypotheses.find((x) => x._id === c.hypothesis_id);
-      return `<tr><td>${md(String(c.closed_at).slice(0, 10))}</td><td style="font-family:var(--f-body)">${gLabel(c.genre)}</td><td style="text-align:left;font-family:var(--f-body);white-space:normal;min-width:160px">${esc(hy ? hy.text : "—")}</td><td>${c.posts_n ?? "—"}</td><td>${fmtX(c.median_score)}</td><td style="text-align:left;font-family:var(--f-body)">${DECISIONS[c.decision] ? DECISIONS[c.decision].split("（")[0] : "—"}</td><td style="text-align:left;font-family:var(--f-body);white-space:normal;min-width:180px">${esc(c.learning || "")}</td></tr>`;
-    }).join("")}</tbody></table></div></details>`;
-  }
+  $("flow-genre").innerHTML = GENRES.map((g, i) => {
+    const need = sums[i].ready || !sums[i].t;
+    return `<label data-g="${g.id}"><input type="radio" name="flow-genre" value="${g.id}" ${g.id === flowGenre ? "checked" : ""}><span>${g.label}${need ? `<b style="color:var(--bad);margin-left:2px" aria-label="要対応">!</b>` : ""}</span></label>`;
+  }).join("");
+  $("v-flow").innerHTML = renderFlow(flowGenre);
+  let h = `<div style="display:grid;gap:12px">${trackCard(GENRES.find((g) => g.id === flowGenre))}</div>`;
   $("v-tracks").innerHTML = h;
   tracksDirty = false;
 }
