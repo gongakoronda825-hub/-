@@ -1,9 +1,9 @@
-<title>TikTok実験ノート</title>
+<title>TikTok PDCAノート</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
 <style>
-/* Layout: 1カラムの実験ノート。上に状態、下に5つのタブ。数字は等幅で揃える */
+/* Layout: 1カラム。上に「いま次にやること」、その下にPDCAのカードを古い順に縦の流れで並べる */
 :root {
   --bg: #F1F4F2;
   --surface: #FFFFFF;
@@ -14,17 +14,12 @@
   --accent: #0D7A69;
   --accent-ink: #FFFFFF;
   --accent-soft: #DCEFE9;
-  --neg: #B9573E;
-  --good: #1D7A3A;
-  --good-bg: #E2F3E6;
   --bad: #B3362A;
   --bad-bg: #FBE6E2;
-  --warn: #8A5A00;
-  --warn-bg: #FFF2D6;
-  --grid: #E6EBE8;
-  --g1: #2F6FD0;
-  --g2: #C27A12;
-  --g3: #A2449A;
+  --p: #2F6FD0;
+  --d: #C27A12;
+  --c: #A2449A;
+  --a: #0D7A69;
   --f-display: "Dela Gothic One", "Hiragino Sans", "Noto Sans JP", sans-serif;
   --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
   --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -32,365 +27,158 @@
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --bg: #0E1412; --surface: #17201D; --ink: #E5ECE9; --ink-2: #B2BEBA; --muted: #84918C;
-    --line: #2A3532; --accent: #3DBDA4; --accent-ink: #06201B; --accent-soft: #15372F;
-    --neg: #E08B70; --good: #63CB80; --good-bg: #16301E; --bad: #F08D80; --bad-bg: #3A1D19;
-    --warn: #EBB957; --warn-bg: #33290F; --grid: #222C29; --g1: #5B8EE0; --g2: #C28427; --g3: #C065B8; color-scheme: dark;
+    --bg: #0E1412; --surface: #17201D; --ink: #E5ECE9; --ink-2: #B2BEBA; --muted: #84918C; --line: #2A3532;
+    --accent: #3DBDA4; --accent-ink: #06201B; --accent-soft: #15372F; --bad: #F08D80; --bad-bg: #3A1D19;
+    --p: #5B8EE0; --d: #C28427; --c: #C065B8; --a: #3DBDA4; color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
-  --bg: #0E1412; --surface: #17201D; --ink: #E5ECE9; --ink-2: #B2BEBA; --muted: #84918C;
-  --line: #2A3532; --accent: #3DBDA4; --accent-ink: #06201B; --accent-soft: #15372F;
-  --neg: #E08B70; --good: #63CB80; --good-bg: #16301E; --bad: #F08D80; --bad-bg: #3A1D19;
-  --warn: #EBB957; --warn-bg: #33290F; --grid: #222C29; --g1: #5B8EE0; --g2: #C28427; --g3: #C065B8; color-scheme: dark;
+  --bg: #0E1412; --surface: #17201D; --ink: #E5ECE9; --ink-2: #B2BEBA; --muted: #84918C; --line: #2A3532;
+  --accent: #3DBDA4; --accent-ink: #06201B; --accent-soft: #15372F; --bad: #F08D80; --bad-bg: #3A1D19;
+  --p: #5B8EE0; --d: #C28427; --c: #C065B8; --a: #3DBDA4; color-scheme: dark;
 }
-
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { background: var(--bg); }
-body {
-  color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6;
-  padding-inline: 16px; padding-block: 0 calc(84px + env(safe-area-inset-bottom, 0px));
-  -webkit-text-size-adjust: 100%;
-}
-.wrap { max-width: 640px; margin: 0 auto; display: grid; gap: 28px; }
-h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.3; }
-h2 { font-family: var(--f-display); font-weight: 400; font-size: 22px; letter-spacing: .01em; }
+body { color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.65; padding-inline: 16px; padding-block: 0 48px; -webkit-text-size-adjust: 100%; }
+.wrap { max-width: 640px; margin: 0 auto; display: grid; gap: 24px; padding-top: 18px; }
+.wrap > *, .card > *, .sheet > * { min-width: 0; }
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.35; }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 22px; }
 h3 { font-size: 15px; font-weight: 700; }
 p { margin: 0; }
-.num, .tile b, input[type=number] { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
 .muted { color: var(--muted); font-size: 13px; }
 .ink2 { color: var(--ink-2); }
+.num { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
 
-/* 上部 */
-.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
-  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); display: flex; align-items: center; justify-content: space-between; gap: 12px;
   padding-block: 12px 10px; border-bottom: 1px solid var(--line); margin-inline: -16px; padding-inline: 16px; }
-.brand { font-family: var(--f-display); font-size: 17px; letter-spacing: .02em; }
+.brand { font-family: var(--f-display); font-size: 17px; }
 .brand small { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); letter-spacing: .04em; }
 .pill { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
 .pill.ok { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
 .pill.ng { border-color: transparent; background: var(--bad-bg); color: var(--bad); }
 
-/* タブ */
-.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--surface);
-  border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr);
-  padding-bottom: env(safe-area-inset-bottom, 0px); }
-.tabs button { appearance: none; border: 0; background: none; color: var(--muted); font: inherit;
-  font-size: 11px; padding: 8px 2px 10px; display: grid; justify-items: center; gap: 2px; position: relative; cursor: pointer; }
-.tabs button .n { font-family: var(--f-display); font-size: 17px; line-height: 1.2; }
-.tabs button[aria-selected=true] { color: var(--accent); }
-.tabs button[aria-selected=true]::before { content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
-.badge { position: absolute; top: 4px; right: calc(50% - 22px); min-width: 18px; height: 18px; border-radius: 9px;
-  background: var(--bad); color: #fff; font-size: 11px; line-height: 18px; text-align: center; padding: 0 5px; font-family: var(--f-data); }
-:root[data-theme="dark"] .badge { color: #1a0d0b; }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge { color: #1a0d0b; } }
-
-section.page { display: grid; gap: 22px; padding-top: 20px; }
-.lead { color: var(--ink-2); font-size: 14px; margin-top: 6px; }
-
-/* フォーム */
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 14px; }
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.grid4 { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
-@media (max-width: 480px) { .at-row { grid-template-columns: 1fr; } .grid4 { grid-template-columns: 1fr 1fr; } }
-label.f { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); min-width: 0; }
-input, select, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
-  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
-textarea { resize: vertical; min-height: 64px; }
-input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible {
-  outline: 2px solid var(--accent); outline-offset: 2px; }
-.btn { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
-  font: inherit; font-size: 15px; font-weight: 500; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 12px; }
+.btn { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 15px; font-weight: 500; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
 .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.btn.danger { color: var(--bad); }
 .btn.small { font-size: 13px; padding: 6px 10px; }
+.btn.danger { color: var(--bad); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.seg { display: flex; flex-wrap: wrap; gap: 6px; }
-.seg label { position: relative; }
-.seg input { position: absolute; opacity: 0; pointer-events: none; }
-.seg span { display: inline-block; white-space: nowrap; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; cursor: pointer; background: var(--bg); }
-.seg input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+label.f { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); min-width: 0; }
+input, select, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+textarea { resize: vertical; min-height: 72px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+@media (max-width: 440px) { .grid2 { grid-template-columns: 1fr; } }
 details > summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
-details[open] > summary { margin-bottom: 12px; }
-
-/* お知らせ */
-.note { border-radius: 8px; padding: 10px 12px; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
-.note::before { font-weight: 700; flex: none; }
-.note.warn { background: var(--warn-bg); color: var(--warn); }
-.note.warn::before { content: "!"; }
-.note.bad { background: var(--bad-bg); color: var(--bad); }
-.note.bad::before { content: "×"; }
-.note.info { background: var(--accent-soft); color: var(--accent); }
-.note.info::before { content: "i"; font-family: var(--f-data); }
+details[open] > summary { margin-bottom: 10px; }
+.steps { margin: 0; padding-left: 1.3em; display: grid; gap: 4px; font-size: 14px; color: var(--ink-2); }
 .empty { border: 1.5px dashed var(--line); border-radius: var(--r); padding: 22px 16px; text-align: center; color: var(--ink-2); font-size: 14px; display: grid; gap: 6px; }
 .empty b { color: var(--ink); }
+.note { border-radius: 8px; padding: 10px 12px; font-size: 14px; background: var(--accent-soft); color: var(--accent); }
+.note.bad { background: var(--bad-bg); color: var(--bad); }
+pre.md { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--f-data); font-size: 12.5px; line-height: 1.65; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; margin: 0; max-height: 50vh; overflow: auto; }
 
-/* 数字タイル */
-.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-@media (max-width: 480px) { .tiles { grid-template-columns: 1fr 1fr; } }
-.tile { display: grid; gap: 2px; min-width: 0; }
-.tile span { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
-.tile b { font-size: 22px; font-weight: 500; line-height: 1.2; }
-.tile em { font-style: normal; font-size: 12px; font-family: var(--f-data); color: var(--ink-2); }
-.bar { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; }
-.bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+/* 絞り込み */
+.chips { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.chips label { position: relative; flex: none; }
+.chips input { position: absolute; opacity: 0; pointer-events: none; }
+.chips span { display: inline-block; white-space: nowrap; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; cursor: pointer; background: var(--surface); }
+.chips input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chips input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
 
-/* グラフ */
-.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 16px; }
-@media (max-width: 520px) { .charts { grid-template-columns: 1fr; } }
-.chart { display: grid; gap: 4px; min-width: 0; }
-.chart .head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.chart .head b { font-size: 14px; }
-.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
-.chart .tip { font-size: 12px; color: var(--ink-2); min-height: 1.2em; font-family: var(--f-data); }
-svg text { fill: var(--muted); font-family: var(--f-data); font-size: 10px; }
-svg .val { fill: var(--ink); font-weight: 500; }
-svg .lab { fill: var(--ink-2); font-family: var(--f-body); font-size: 11px; }
-
-/* リスト */
-.list { display: grid; gap: 10px; }
-.item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 6px; min-width: 0; }
-.item .meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--muted); }
-.item .title { font-weight: 700; overflow-wrap: anywhere; }
-.item .change { overflow-wrap: anywhere; }
-.item .nums { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--ink-2); }
-.item .nums b { font-family: var(--f-data); font-weight: 500; color: var(--ink); }
-.chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
-.chip.warn { background: var(--warn-bg); color: var(--warn); }
-.chip.bad { background: var(--bad-bg); color: var(--bad); }
-.chip.good { background: var(--good-bg); color: var(--good); }
-.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
-table { border-collapse: collapse; width: 100%; font-size: 13px; }
-th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
-th:first-child, td:first-child { text-align: left; }
-th { font-weight: 500; color: var(--muted); font-size: 12px; }
-td { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
-td:first-child { font-family: var(--f-body); }
-tr:last-child td { border-bottom: 0; }
-.effects { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-@media (max-width: 520px) { .effects { grid-template-columns: 1fr; } }
-.effects ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 14px; }
-.effects h3 { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
-.rev-groups { display: grid; gap: 16px; }
-.rev-groups fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
-.rev-groups legend { font-weight: 700; font-size: 14px; margin-bottom: 4px; padding: 0; }
-
-/* ジャンル（色は補助。必ず文字と一緒に出す） */
-[data-g="trivia"] { --gc: var(--g1); }
-[data-g="event"] { --gc: var(--g2); }
-[data-g="goods"] { --gc: var(--g3); }
-.gchip { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; padding: 1px 9px 1px 7px; border-radius: 999px;
-  border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; background: var(--surface); }
-.gchip::before, .seg.genre span::before, .gdot::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--gc, var(--muted)); flex: none; }
-.gchip.none { border-style: dashed; color: var(--warn); }
-.seg.genre span { display: inline-flex; align-items: center; gap: 6px; }
-.seg.genre input:checked + span::before { background: var(--accent-ink); }
-.gdot { display: inline-flex; align-items: center; gap: 6px; }
-.gfs { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px 12px; margin: 0; display: grid; gap: 10px; min-width: 0; }
-.gfs legend { padding: 0 4px; font-weight: 700; font-size: 14px; }
-.grid3 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-@media (max-width: 480px) { .grid3 { grid-template-columns: 1fr 1fr; } }
-.wrap > *, section.page > *, .card > *, .sheet > * { min-width: 0; }
-.scope { max-width: 100%; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
-.scope .seg { flex-wrap: nowrap; }
+/* いま */
+.now { border: 2px solid var(--a); }
+.now .big { font-size: 17px; font-weight: 700; overflow-wrap: anywhere; white-space: pre-wrap; }
 
 /* PDCAの流れ */
-.flow { position: relative; display: grid; padding-left: 20px; }
-.flow::before { content: ""; position: absolute; left: 6px; top: 14px; bottom: 14px; width: 2px; background: var(--line); }
-.fstep { position: relative; padding-bottom: 14px; display: grid; gap: 6px; min-width: 0; }
-.fstep::before { content: ""; position: absolute; left: -19px; top: 16px; width: 10px; height: 10px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
-.fstep.open::before { background: var(--accent); }
-.fstep.pre::before { border-color: var(--muted); }
-.pdca { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 10px; align-items: start; }
-.pl { width: 24px; height: 24px; border-radius: 6px; display: grid; place-items: center; font-family: var(--f-data); font-weight: 500; font-size: 13px; background: var(--accent-soft); color: var(--accent); }
-.pl.a { background: var(--accent); color: var(--accent-ink); }
-.mini { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); font-size: 13px; min-width: 0; overflow-wrap: anywhere; }
-.mini .k { font-family: var(--f-data); font-size: 11px; color: var(--muted); margin-right: 4px; }
+.flow { position: relative; display: grid; padding-left: 22px; }
+.flow::before { content: ""; position: absolute; left: 7px; top: 18px; bottom: 30px; width: 2px; background: var(--line); }
+.step { position: relative; display: grid; gap: 6px; padding-bottom: 14px; min-width: 0; }
+.step::before { content: ""; position: absolute; left: -20px; top: 18px; width: 12px; height: 12px; border-radius: 50%; background: var(--surface); border: 2px solid var(--accent); }
+.step.last::before { background: var(--accent); }
+.step .head { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: baseline; }
+.step .head .num { font-size: 13px; color: var(--muted); }
+.tag { font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.pdca { display: grid; gap: 8px; }
+.q { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 10px; align-items: start; }
+.q b.l { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-family: var(--f-data); font-weight: 500; color: #FFFFFF; }
+:root[data-theme="dark"] .q b.l { color: #0E1412; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .q b.l { color: #0E1412; } }
+.q.P b.l { background: var(--p); } .q.D b.l { background: var(--d); } .q.C b.l { background: var(--c); } .q.A b.l { background: var(--a); }
+.q .t { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; }
+.q .t small { display: block; font-size: 11px; color: var(--muted); letter-spacing: .04em; }
 .carry { font-size: 12px; color: var(--accent); }
-
-pre.md { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--f-data); font-size: 12.5px; line-height: 1.65;
-  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin: 0; max-height: 60vh; overflow: auto; color: var(--ink); }
 
 /* シート */
 dialog { border: 0; padding: 0; background: transparent; max-width: 640px; width: 100%; margin: auto auto 0; color: var(--ink); }
 dialog::backdrop { background: rgba(8, 14, 12, .45); }
-.sheet { background: var(--surface); border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
-  display: grid; gap: 14px; max-height: 88vh; overflow-y: auto; }
+.sheet { background: var(--surface); border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); display: grid; gap: 12px; max-height: 90vh; overflow-y: auto; }
 .sheet .bar-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(80px + env(safe-area-inset-bottom, 0px));
-  background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 14px; z-index: 30; max-width: calc(100% - 32px); }
-@media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s; } }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 14px; z-index: 30; max-width: calc(100% - 32px); }
 </style>
 
 <header class="top">
-  <div class="brand">TikTok実験ノート<small>仮説 → 検証 → 改善 を数字で残す</small></div>
+  <div class="brand">TikTok PDCAノート<small>Claudeの分析を、PDCAの流れで残す</small></div>
   <span id="sync" class="pill">接続中…</span>
 </header>
 
 <div class="wrap">
   <div id="global-note" hidden></div>
 
-  <!-- ① 記録 -->
-  <section class="page" id="p-log" data-tab="log">
-    <div>
-      <h2>① 記録</h2>
-      <p class="lead">投稿の2日後くらいに、視聴数・いいね数・新規フォロワーの3つを入れるだけ。「いつもと比べてどうだったか」をアプリが計算します。</p>
-    </div>
-    <div id="v-goal"></div>
-    <div class="row"><button class="btn primary save-btn" type="button" id="open-record">＋ 投稿を記録する</button></div>
-    <div id="v-log"></div>
-  </section>
+  <div id="v-now"></div>
 
-  <!-- ② 研究 -->
-  <section class="page" id="p-study" data-tab="study" hidden>
-    <div>
-      <h2>② 研究</h2>
-      <p class="lead">同じジャンルの「いつも」と比べて、伸びた投稿・伸びなかった投稿を並べます。なぜそうなったか、思うことを1行メモしておくと、AI分析の材料になります。</p>
-    </div>
-    <div class="scope"><div class="seg genre" id="s-genre" role="radiogroup" aria-label="ジャンル"></div></div>
-    <div id="v-study"></div>
-  </section>
-
-  <!-- ③ 仮説 -->
-  <section class="page" id="p-hypo" data-tab="hypo" hidden>
-    <div>
-      <h2>③ PDCA</h2>
-      <p class="lead">ジャンルごとに、試すこと（P）→ 投稿（D）→ いつもの何倍か（C）→ 判断と学び（A）の流れを見ます。3本試したら判断。決めるのはあなたです。</p>
-    </div>
-    <div class="scope"><div class="seg genre" id="flow-genre" role="radiogroup" aria-label="ジャンル"></div></div>
-    <div id="v-tracks"></div>
-    <div id="v-flow"></div>
-    <details class="card" id="hypo-box"><summary><b>仮説の一覧・追加</b></summary>
-    <div style="display:grid;gap:16px">
-    <form id="f-hypo" autocomplete="off" style="display:grid;gap:14px">
-      <h3>仮説を追加する</h3>
-      <label class="f">仮説（〜すれば、〜が伸びる）<input type="text" id="h-text" placeholder="例: 冒頭1秒で答えを言えば、視聴数が伸びる" required></label>
-      <div class="f"><span class="muted">対象のジャンル</span><div class="seg genre" id="h-genres" role="radiogroup" aria-label="ジャンル"></div></div>
-      <label class="f">なぜこれを試すのか<input type="text" id="h-why" placeholder="例: 伸びた3本は、どれも最初に答えを見せていたから"></label>
-      <div class="row"><button class="btn primary save-btn" type="submit">追加する</button></div>
-    </form>
-    <div id="v-hypo"></div>
-    </div></details>
-  </section>
-
-  <!-- ④ AI分析 -->
-  <section class="page" id="p-ai" data-tab="ai" hidden>
-    <div>
-      <h2>④ AI分析</h2>
-      <p class="lead">記録をまとめた文章をコピーして、Claudeのチャットに貼ると、伸びた投稿の共通点・仮説の見立て・次に試すことを答えてくれます。月に1〜2回が目安です。</p>
-    </div>
-    <div class="card">
-      <h3>1. 分析用の文章をコピー</h3>
-      <p class="ink2" style="font-size:14px" id="ai-ready"></p>
-      <div class="row"><button class="btn primary" type="button" id="ai-copy">分析用の文章をコピー</button><span class="muted" id="ai-status"></span></div>
-      <p class="muted">コピーしたら、Claudeのアプリかclaude.aiで<b>新しいチャット</b>を開いて貼り付け、送信してください。</p>
-      <details id="ai-prompt-box"><summary>コピーする文章を見る</summary><pre class="md" id="ai-prompt"></pre></details>
-    </div>
-    <div class="card">
-      <h3>2. Claudeの答えを保存</h3>
-      <p class="muted">答えをコピーしてここに貼ると、分析の履歴として残り、ガクチカ素材にも使えます。提案の中で試したいものは、③で仮説として追加してください。</p>
-      <label class="f">Claudeの答え<textarea id="ai-answer" style="min-height:140px"></textarea></label>
-      <div class="row"><button class="btn primary save-btn" type="button" id="ai-save">保存する</button></div>
-    </div>
-    <div id="v-ai"></div>
-  </section>
-
-  <!-- ⑤ ガクチカ -->
-  <section class="page" id="p-export" data-tab="export" hidden>
-    <div>
-      <h2>⑤ ガクチカ素材</h2>
-      <p class="lead">目標 → 取り組み前 → 試したこと → 結果 → 学び の順にまとめたMarkdownです。ESを書くときの下書きにどうぞ。</p>
-    </div>
+  <section class="card">
+    <h3>Claudeの分析を追加する</h3>
+    <ol class="steps">
+      <li>いつものように、Claudeのチャットで投稿の結果を相談・分析する</li>
+      <li>最後に下の「頼み方」をコピーして、同じチャットに送る</li>
+      <li>返ってきた答えを「貼り付けて追加」に貼る</li>
+    </ol>
     <div class="row">
-      <button class="btn primary" type="button" id="x-copy">コピー</button>
-      <button class="btn dl-btn" type="button" id="x-save-md">Markdownファイルで保存</button>
+      <button class="btn" type="button" id="copy-ask">頼み方をコピー</button>
+      <button class="btn primary save-btn" type="button" id="open-paste">貼り付けて追加</button>
     </div>
-    <pre class="md" id="x-md"></pre>
-    <div class="card">
-      <h3>バックアップ</h3>
-      <p class="ink2" style="font-size:14px">記録は claude.ai に保存されていて、iPhoneのデータを消しても残ります。念のため、ときどきファイルにも保存しておくと安心です。</p>
-      <div class="row">
-        <button class="btn dl-btn" type="button" id="x-backup">バックアップを保存（JSON）</button>
-        <button class="btn dl-btn" type="button" id="x-csv">投稿の記録をCSVで保存</button>
-      </div>
-      <details>
-        <summary>バックアップから復元する</summary>
-        <div style="display:grid;gap:10px">
-          <input type="file" id="x-restore-file" accept=".json,application/json">
-          <div id="x-restore-info"></div>
-        </div>
-      </details>
+    <details id="ask-box"><summary>頼み方の中身を見る</summary><pre class="md" id="ask-text"></pre></details>
+  </section>
+
+  <section style="display:grid;gap:12px">
+    <div class="row" style="justify-content:space-between"><h2>PDCAの流れ</h2><span class="muted" id="count"></span></div>
+    <div class="chips" id="filter" role="radiogroup" aria-label="ジャンルで絞り込む"></div>
+    <div id="v-flow"></div>
+  </section>
+
+  <section class="card">
+    <h3>ガクチカ用にまとめる</h3>
+    <p class="muted">これまでのPDCAを古い順にMarkdownでまとめます。ESの下書きや、Claudeに「これをもとにガクチカを書いて」と頼むときに使えます。</p>
+    <div class="row">
+      <button class="btn" type="button" id="x-copy">まとめをコピー</button>
+      <button class="btn dl-btn" type="button" id="x-save">Markdownで保存</button>
+      <button class="btn dl-btn" type="button" id="x-backup">バックアップ（JSON）</button>
     </div>
+    <details><summary>まとめを見る</summary><pre class="md" id="x-md"></pre></details>
   </section>
 </div>
 
-<nav class="tabs" role="tablist" aria-label="画面">
-  <button role="tab" data-go="log" aria-selected="true"><span class="n">①</span>記録</button>
-  <button role="tab" data-go="study" aria-selected="false"><span class="n">②</span>研究</button>
-  <button role="tab" data-go="hypo" aria-selected="false"><span class="n">③</span>PDCA<span class="badge" id="badge" hidden></span></button>
-  <button role="tab" data-go="ai" aria-selected="false"><span class="n">④</span>AI分析</button>
-  <button role="tab" data-go="export" aria-selected="false"><span class="n">⑤</span>ガクチカ</button>
-</nav>
-
-<!-- 投稿の記録シート -->
-<dialog id="rec-sheet">
-  <form class="sheet" id="f-rec" method="dialog" autocomplete="off">
-    <div class="bar-top"><h3 id="rec-heading">投稿を記録</h3><button class="btn small" type="button" id="rec-close">閉じる</button></div>
-    <div class="f"><span class="muted">ジャンル</span><div class="seg genre" id="rec-genres" role="radiogroup" aria-label="ジャンル"></div></div>
-    <div class="grid2 at-row">
-      <label class="f">投稿日<input type="date" id="rec-date" required></label>
-      <label class="f">試した仮説<select id="rec-hypo"></select></label>
-    </div>
-    <label class="f">タイトル・キャプション<input type="text" id="rec-caption"></label>
-    <div class="grid4" style="grid-template-columns:repeat(3,1fr)">
-      <label class="f">視聴数<input type="number" id="rec-views" inputmode="numeric" min="0" step="1"></label>
-      <label class="f">いいね数<input type="number" id="rec-likes" inputmode="numeric" min="0" step="1"></label>
-      <label class="f">新規フォロワー<input type="number" id="rec-follows" inputmode="numeric" min="0" step="1"></label>
-    </div>
-    <p class="note info" id="rec-prev" hidden></p>
-    <label class="f">今回のねらい・工夫（1行・空欄でもOK）<input type="text" id="rec-aim" placeholder="例: 冒頭で答えを先に言った"></label>
-    <label class="f">次の動画でどうするか（1行）<input type="text" id="rec-next" placeholder="例: 冒頭をさらに短く、0.5秒で答えを出す"></label>
-    <div class="row" style="justify-content:space-between">
-      <div class="row"><button class="btn primary save-btn" type="submit" value="close">保存</button><button class="btn save-btn" type="submit" value="next" id="rec-save-next">保存して次を記録</button></div>
-      <button class="btn danger" type="button" id="rec-delete" hidden>この記録を削除</button>
-    </div>
+<!-- 貼り付けシート -->
+<dialog id="paste-sheet">
+  <form class="sheet" id="f-paste" method="dialog" autocomplete="off">
+    <div class="bar-top"><h3>Claudeの答えを貼り付け</h3><button class="btn small" type="button" id="paste-close">閉じる</button></div>
+    <label class="f">Claudeの答え<textarea id="paste-text" style="min-height:200px" placeholder="【PDCA】から始まる答えをそのまま貼り付けてください"></textarea></label>
+    <div class="row"><button class="btn primary" type="button" id="paste-read">読み込む</button><span class="muted" id="paste-status"></span></div>
+    <div id="paste-preview" style="display:grid;gap:12px"></div>
+    <div class="row" id="paste-actions" hidden><button class="btn primary save-btn" type="submit">この内容で追加</button></div>
   </form>
 </dialog>
 
-<!-- 目標シート -->
-<dialog id="goal-sheet">
-  <form class="sheet" id="f-goal" method="dialog" autocomplete="off">
-    <div class="bar-top"><h3>目標を決める</h3><button class="btn small" type="button" id="goal-close">閉じる</button></div>
-    <p class="ink2" style="font-size:14px">ガクチカの軸になる目標を1つ。開始日の時点が「取り組み前」になります。</p>
-    <div class="f"><span class="muted">指標</span><div class="seg" id="goal-metrics" role="radiogroup" aria-label="指標"></div></div>
-    <div class="f" id="goal-genre-wrap"><span class="muted">ジャンル（投稿1本あたりの中央値で見ます）</span><div class="seg genre" id="goal-genres" role="radiogroup" aria-label="ジャンル"></div></div>
-    <div class="grid2">
-      <label class="f">開始日<input type="date" id="goal-start" required></label>
-      <label class="f">終了日<input type="date" id="goal-end" required></label>
-    </div>
-    <div class="grid2">
-      <label class="f">開始時の値<input type="number" id="goal-base" inputmode="decimal" min="0" step="any"></label>
-      <label class="f">目標値<input type="number" id="goal-target" inputmode="decimal" min="0" step="any" required></label>
-    </div>
-    <p class="muted" id="goal-hint"></p>
-    <label class="f">なぜこの目標にしたか（1行）<input type="text" id="goal-why" placeholder="例: 雑学は再生数の上下が大きく、まず安定して見られる型を作りたい"></label>
-    <div class="row"><button class="btn primary save-btn" type="submit">この目標にする</button></div>
-  </form>
-</dialog>
-
-<!-- 仮説を採用するシート -->
-<dialog id="adopt-sheet">
-  <form class="sheet" id="f-adopt" method="dialog" autocomplete="off">
-    <div class="bar-top"><h3>この仮説を試す</h3><button class="btn small" type="button" id="adopt-close">閉じる</button></div>
-    <p id="adopt-text" style="font-weight:700"></p>
-    <p class="muted" id="adopt-how"></p>
-    <label class="f">なぜこれを試すのか（あなたの言葉で1行）<input type="text" id="adopt-why" placeholder="例: 自分でも、伸びた動画は冒頭が短いと感じていた"></label>
-    <p class="muted">ここがガクチカで「自分で判断した」証拠になります。</p>
-    <div class="row"><button class="btn primary save-btn" type="submit">仮説に追加する</button></div>
+<!-- 編集シート -->
+<dialog id="edit-sheet">
+  <form class="sheet" id="f-edit" method="dialog" autocomplete="off">
+    <div class="bar-top"><h3>PDCAを編集</h3><button class="btn small" type="button" id="edit-close">閉じる</button></div>
+    <div id="edit-fields" style="display:grid;gap:12px"></div>
+    <div class="row" style="justify-content:space-between"><button class="btn primary save-btn" type="submit">保存</button><button class="btn danger" type="button" id="edit-delete">削除</button></div>
   </form>
 </dialog>
 
@@ -398,1063 +186,207 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
 
 <script>
 "use strict";
-// ---------- 定数 ----------
-const GENRES = [
-  { id: "trivia", label: "雑学", kpis: ["views", "likes"] },
-  { id: "event", label: "イベント告知", kpis: ["views", "likes", "follows"] },
-  { id: "goods", label: "グッズ紹介", kpis: ["views", "likes", "follows"] },
-];
-const GENRE_IDS = GENRES.map((g) => g.id);
-const METRICS = { views: ["視聴数", "回"], likes: ["いいね数", "件"], follows: ["新規フォロワー", "人"] };
-const BASE_N = 10;      // 「いつも」= 同じジャンルの直近10本の中央値
-const MIN_BASE = 3;     // 基準を出すのに最低限ほしい本数
-const COLLECTIONS = ["posts", "hypotheses", "analyses", "settings", "followers", "cycles"];
-const FOL = "followers_total";   // 目標の指標：アカウントのフォロワー数
-const VX = "views_x";            // 目標の指標：全ジャンルの視聴数（各ジャンルの取り組み前の中央値の何倍か）
-const STATUS = { testing: "検証中", hit: "当たり", miss: "外れ", unclear: "わからない" };
+const GENRES = ["雑学", "イベント告知", "グッズ紹介", "全体"];
+const PARTS = [["p", "P", "計画", "何を、なぜ試すか"], ["d", "D", "実行", "実際にやったこと・投稿"], ["c", "C", "評価", "結果と数字・わかったこと"], ["a", "A", "改善", "次にやること"]];
+const COL = "pdca";
 
-const S = { posts: [], hypotheses: [], analyses: [], settings: [], followers: [], cycles: [] };
-let db = null, downloads = null, canWrite = false;
-
+const S = { items: [] };
+let db = null, downloads = null, canWrite = false, filter = "all";
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 const pad = (n) => String(n).padStart(2, "0");
 const todayStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const addDays = (s, n) => { const [y, m, d] = s.split("-").map(Number); return todayStr(new Date(y, m - 1, d + n)); };
-const daysBetween = (a, b) => { const p = (s) => { const [y, m, d] = s.split("-").map(Number); return Date.UTC(y, m - 1, d); }; return Math.round((p(b) - p(a)) / 864e5); };
-function readNum(el) { const v = el.value.trim(); if (v === "") return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
+const md = (ds) => /^\d{4}-\d{2}-\d{2}$/.test(ds || "") ? `${Number(ds.slice(5, 7))}/${Number(ds.slice(8, 10))}` : (ds || "");
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } };
 const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
-const isGenre = (id) => GENRE_IDS.includes(id);
-const genre = (id) => GENRES.find((g) => g.id === id);
-const gLabel = (id) => (genre(id) || {}).label || "ジャンル未設定";
-const gChip = (id) => isGenre(id) ? `<span class="gchip" data-g="${id}">${gLabel(id)}</span>` : `<span class="gchip none">ジャンル未設定</span>`;
-function genreRadios(name, checked, extra = []) {
-  return [...extra, ...GENRES].map((g) =>
-    `<label${isGenre(g.id) ? ` data-g="${g.id}"` : ""}><input type="radio" name="${name}" value="${g.id}" ${g.id === checked ? "checked" : ""}><span>${esc(g.label)}</span></label>`).join("");
-}
-const radioVal = (name) => { const el = document.querySelector(`input[name="${name}"]:checked`); return el ? el.value : null; };
-function setRadio(name, value) { document.querySelectorAll(`input[name="${name}"]`).forEach((el) => { el.checked = el.value === value; }); }
-function fmt(v, unit = "", digits = 0) {
-  if (!isNum(v)) return "—";
-  return v.toLocaleString("ja-JP", { minimumFractionDigits: digits, maximumFractionDigits: digits }) + unit;
-}
-const fmtX = (r) => isNum(r) ? `${r.toFixed(r >= 10 ? 0 : 1)}倍` : "—";
-const fmtPct = (v) => isNum(v) ? `${v >= 0 ? "+" : ""}${v.toFixed(0)}%` : "—";
+let toastTimer;
+function toast(m) { const t = $("toast"); t.textContent = m; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+const sorted = () => S.items.slice().sort((a, b) => String(a.date).localeCompare(String(b.date)) || String(a.created_at).localeCompare(String(b.created_at)));
 
-// ---------- 計算：中央値と「いつもの何倍か」 ----------
-function median(xs) {
-  const v = xs.filter(isNum).sort((a, b) => a - b);
-  if (!v.length) return null;
-  const m = Math.floor(v.length / 2);
-  return v.length % 2 ? v[m] : (v[m - 1] + v[m]) / 2;
-}
-const byDate = (a, b) => String(a.posted_at).localeCompare(String(b.posted_at)) || String(a._id).localeCompare(String(b._id));
-const genrePosts = (g) => S.posts.filter((p) => p.genre === g).sort(byDate);
-/** その投稿の「いつも」：同じジャンルで、それより前の直近10本の中央値。足りなければ他の投稿で暫定値 */
-function baseFor(p, metric) {
-  const same = genrePosts(p.genre).filter((x) => x._id !== p._id && isNum(x[metric]));
-  const prior = same.filter((x) => byDate(x, p) < 0).slice(-BASE_N);
-  if (prior.length >= MIN_BASE) return { value: median(prior.map((x) => x[metric])), n: prior.length, tentative: false };
-  if (same.length >= MIN_BASE) return { value: median(same.slice(-BASE_N).map((x) => x[metric])), n: Math.min(same.length, BASE_N), tentative: true };
-  return null;
-}
-/** 投稿の評価：ジャンルの目的の指標ごとに「いつもの何倍か」と、その平均（1本のバズで振り切れないよう5倍で頭打ち） */
-function evaluate(p) {
-  const g = genre(p.genre);
-  if (!g) return null;
-  const ratios = {};
-  let tentative = false;
-  g.kpis.forEach((m) => {
-    if (!isNum(p[m])) return;
-    const b = baseFor(p, m);
-    if (!b || !(b.value > 0)) return;
-    ratios[m] = { ratio: p[m] / b.value, base: b.value };
-    tentative = tentative || b.tentative;
-  });
-  const rs = Object.values(ratios).map((r) => Math.min(r.ratio, 5));
-  if (!rs.length) return { ratios, score: null, tentative };
-  return { ratios, score: rs.reduce((a, b) => a + b, 0) / rs.length, tentative };
-}
-function verdict(score) {
-  if (!isNum(score)) return { key: "none", label: "基準づくり中", cls: "" };
-  if (score >= 1.5) return { key: "big", label: "大当たり", cls: "good" };
-  if (score >= 1.15) return { key: "hit", label: "当たり", cls: "good" };
-  if (score > 0.85) return { key: "norm", label: "いつも通り", cls: "" };
-  return { key: "low", label: "下振れ", cls: "bad" };
-}
-const likeRate = (p) => isNum(p.likes) && p.views > 0 ? p.likes / p.views * 100 : null;
-const followRate = (p) => isNum(p.follows) && p.views > 0 ? p.follows / p.views * 10000 : null;
+// ---------- Claudeへの頼み方 ----------
+const ASK = `ここまでの分析を、次の形式でまとめてください。
+- 1つのPDCAごとに「【PDCA】」から始まるブロックにしてください（複数あれば、ジャンルや試したことごとに分けて）。
+- 項目名と「：」は変えないでください。各項目は1〜3文で、数字（視聴数・いいね数・新規フォロワーなど）はそのまま書いてください。
+- ジャンルは「雑学」「イベント告知」「グッズ紹介」「全体」のどれかにしてください。
+- A（改善）には、次の投稿で具体的に何をするかを書いてください。
+- 形式の外の説明は書かないでください。
 
-// ---------- ジャンルごとの検証 ----------
-const JUDGE_AT = 3;
-const md = (ds) => `${Number(ds.slice(5, 7))}/${Number(ds.slice(8, 10))}`;
-/** ジャンルごとの「いま試している仮説」：settings/tracks に {genre: {hid, started, judge_at}} */
-const tracks = () => { const t = S.settings.find((x) => x._id === "tracks"); return t ? clean(t) : {}; };
-const trackOf = (g) => { const t = tracks()[g]; return t && t.hid && S.hypotheses.some((h) => h._id === t.hid) ? t : null; };
-const trackPosts = (g, t) => t ? S.posts.filter((p) => p.genre === g && p.hypothesis_id === t.hid).sort(byDate) : [];
-function trackSummary(g) {
-  const t = trackOf(g), ps = trackPosts(g, t);
-  const scores = ps.map((p) => evaluate(p)).filter((ev) => ev && isNum(ev.score)).map((ev) => ev.score);
-  return { t, ps, scores, med: median(scores), hits: scores.filter((x) => x >= 1.15).length, ready: t && ps.length >= (t.judge_at || JUDGE_AT) };
-}
-const DECISIONS = { hit: "当たり（この工夫を続ける）", miss: "外れ（やめる）", more: "まだわからない（あと2本試す）" };
-/** 新しい記録の「試した仮説」の初期値：そのジャンルでいま試している仮説（開始日以降の投稿だけ） */
-function defaultHypoFor(g, ds) {
-  const t = isGenre(g) ? trackOf(g) : null;
-  return t && ds && ds >= t.started ? t.hid : "";
-}
-/** 同じジャンルの直前の投稿で決めた「次の動画でどうするか」 */
-function prevNext(g, ds) {
-  const prev = genrePosts(g).filter((p) => (!editingPost || p._id !== editingPost._id) && (!ds || String(p.posted_at) <= ds) && (p.next || "").trim());
-  return prev.length ? prev[prev.length - 1] : null;
-}
-
-// ---------- 目標 ----------
-const goal = () => (S.settings.find((s) => s._id === "goal") || null);
-const folRecords = () => S.followers.filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.date || "") && isNum(f.count)).sort((a, b) => a.date.localeCompare(b.date));
-const goalName = (gl) => gl.metric === FOL ? "アカウントのフォロワー数" : gl.metric === VX ? "全ジャンルの視聴数（各ジャンルの取り組み前の中央値に対する倍率・中央値）" : `${gLabel(gl.genre)}の${METRICS[gl.metric][0]}（1本あたり中央値）`;
-const goalUnit = (gl) => gl.metric === FOL ? "人" : gl.metric === VX ? "倍" : METRICS[gl.metric][1];
-const goalFmt = (gl, v) => gl.metric === VX ? fmt(v, "倍", 2) : fmt(v, goalUnit(gl));
-/** 各ジャンルの「取り組み前」の視聴数の中央値（開始日より前の直近10本。3本未満のジャンルは出さない） */
-function preMedians(start) {
-  const out = {};
-  GENRES.forEach((g) => {
-    const b = genrePosts(g.id).filter((p) => String(p.posted_at) < start && isNum(p.views)).slice(-BASE_N);
-    if (b.length >= MIN_BASE) out[g.id] = { value: median(b.map((p) => p.views)), n: b.length };
-  });
-  return out;
-}
-/** 期間中の各投稿が、そのジャンルの取り組み前の何倍だったか */
-function vxRatios(start) {
-  const pm = preMedians(start);
-  return S.posts.filter((p) => String(p.posted_at) >= start && isNum(p.views) && pm[p.genre] && pm[p.genre].value > 0)
-    .sort(byDate).map((p) => ({ p, ratio: p.views / pm[p.genre].value }));
-}
-function goalBase(g, metric, start) {
-  if (metric === VX) {
-    const pm = preMedians(start), n = Object.keys(pm).length;
-    return n ? { value: 1, n, pm } : null;
-  }
-  if (metric === FOL) {
-    const fs = folRecords(), before = fs.filter((f) => f.date <= start);
-    const f = before.length ? before[before.length - 1] : null;
-    return f ? { value: f.count, n: 1, date: f.date } : null;
-  }
-  const before = genrePosts(g).filter((p) => String(p.posted_at) < start && isNum(p[metric])).slice(-BASE_N);
-  return before.length ? { value: median(before.map((p) => p[metric])), n: before.length } : null;
-}
-function goalCurrent(gl) {
-  if (gl.metric === VX) {
-    const rs = vxRatios(gl.start);
-    return rs.length ? { value: median(rs.map((r) => r.ratio)), n: rs.length } : null;
-  }
-  if (gl.metric === FOL) {
-    const fs = folRecords(), f = fs[fs.length - 1];
-    return f ? { value: f.count, n: 1, date: f.date } : null;
-  }
-  const during = genrePosts(gl.genre).filter((p) => String(p.posted_at) >= gl.start && isNum(p[gl.metric])).slice(-BASE_N);
-  return during.length ? { value: median(during.map((p) => p[gl.metric])), n: during.length } : null;
-}
-
-// ---------- グラフ ----------
-function lineChart(points, unit) {
-  const W = 300, H = 120, L = 44, R = 12, T = 12, B = 22;
-  const ys = points.map((p) => p.y);
-  let lo = Math.min(...ys), hi = Math.max(...ys);
-  const padY = Math.max((hi - lo) * 0.15, 1); lo = Math.max(0, lo - padY); hi = hi + padY;
-  const x = (i) => points.length === 1 ? L + (W - L - R) / 2 : L + i * (W - L - R) / (points.length - 1);
-  const y = (v) => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="フォロワー数の推移">`;
-  [lo, (lo + hi) / 2, hi].forEach((t) => { s += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)" stroke-width="1"/><text x="${L - 6}" y="${y(t) + 3}" text-anchor="end">${esc(fmt(t))}</text>`; });
-  if (points.length > 1) s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${points.map((p, i) => `${x(i)},${y(p.y)}`).join(" ")}"/>`;
-  points.forEach((p, i) => {
-    s += `<circle cx="${x(i)}" cy="${y(p.y)}" r="${i === points.length - 1 ? 4.5 : 3.5}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
-    s += `<circle class="hit" data-tip="${esc(p.x)}：${esc(fmt(p.y, unit))}" cx="${x(i)}" cy="${y(p.y)}" r="14" fill="transparent" style="cursor:pointer"><title>${esc(p.x)}：${esc(fmt(p.y, unit))}</title></circle>`;
-  });
-  s += `<text x="${x(0)}" y="${H - 6}" text-anchor="${points.length === 1 ? "middle" : "start"}">${esc(points[0].x.slice(5))}</text>`;
-  if (points.length > 1) s += `<text x="${x(points.length - 1)}" y="${H - 6}" text-anchor="end">${esc(points[points.length - 1].x.slice(5))}</text>`;
-  return s + "</svg>";
-}
-document.addEventListener("click", (e) => {
-  const hit = e.target.closest && e.target.closest(".hit");
-  if (!hit) return;
-  const tip = hit.closest(".chart") && hit.closest(".chart").querySelector(".tip");
-  if (tip) tip.textContent = hit.dataset.tip;
+【PDCA】
+日付：${todayStr()}
+ジャンル：
+タイトル：（このPDCAを一言で）
+P（計画）：
+D（実行）：
+C（評価）：
+A（改善）：`;
+$("ask-text").textContent = ASK;
+$("copy-ask").addEventListener("click", async () => {
+  try { await navigator.clipboard.writeText(ASK); toast("コピーしました。Claudeのチャットに貼って送ってください。"); }
+  catch (e) { $("ask-box").open = true; const r = document.createRange(); r.selectNodeContents($("ask-text")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("下の文章を長押ししてコピーしてください。"); }
 });
+
+// ---------- 読み込み（【PDCA】ブロックを項目に分ける） ----------
+const KEYS = [[/^日付/, "date"], [/^ジャンル/, "genre"], [/^タイトル/, "title"], [/^P(\s|[（(]|$)|^計画/, "p"], [/^D(\s|[（(]|$)|^実行/, "d"], [/^C(\s|[（(]|$)|^評価/, "c"], [/^A(\s|[（(]|$)|^改善/, "a"]];
+function parse(text) {
+  const blocks = String(text || "").replace(/\r/g, "").split(/【\s*PDCA\s*】/).map((b) => b.trim()).filter(Boolean);
+  const out = [];
+  blocks.forEach((b) => {
+    const it = { date: "", genre: "", title: "", p: "", d: "", c: "", a: "" };
+    let cur = null, hit = 0;
+    b.split("\n").forEach((line) => {
+      const l = line.replace(/\*\*/g, "").replace(/^[\s#>*-]+/, "").trim();
+      const m = l.match(/^(.{1,14}?)[：:]\s*(.*)$/);
+      const key = m && (KEYS.find(([re]) => re.test(m[1].trim())) || [])[1];
+      if (key) { cur = key; hit++; it[key] = m[2].trim(); }
+      else if (cur && l) it[cur] += (it[cur] ? "\n" : "") + l;
+    });
+    if (hit >= 2 && (it.p || it.d || it.c || it.a)) out.push(it);
+  });
+  return out.map((it) => {
+    const dm = it.date.match(/(\d{4})[-/年.](\d{1,2})[-/月.](\d{1,2})/);
+    it.date = dm ? `${dm[1]}-${pad(dm[2])}-${pad(dm[3])}` : todayStr();
+    it.genre = GENRES.find((g) => it.genre.includes(g)) || "全体";
+    it.title = it.title.replace(/^[（(].*[）)]$/, "");
+    return it;
+  });
+}
+function fieldsHtml(it, prefix) {
+  return `<div class="grid2"><label class="f">日付<input type="date" id="${prefix}-date" value="${esc(it.date)}"></label>
+    <label class="f">ジャンル<select id="${prefix}-genre">${GENRES.map((g) => `<option ${g === it.genre ? "selected" : ""}>${g}</option>`).join("")}</select></label></div>
+    <label class="f">タイトル<input type="text" id="${prefix}-title" value="${esc(it.title)}"></label>
+    ${PARTS.map(([k, L, name, hint]) => `<label class="f"><span><b style="color:var(--${k})">${L}</b> ${name}（${hint}）</span><textarea id="${prefix}-${k}">${esc(it[k])}</textarea></label>`).join("")}`;
+}
+const readFields = (prefix) => ({ date: $(`${prefix}-date`).value || todayStr(), genre: $(`${prefix}-genre`).value, title: $(`${prefix}-title`).value.trim(),
+  ...Object.fromEntries(PARTS.map(([k]) => [k, $(`${prefix}-${k}`).value.trim()])) });
+
+let parsed = [];
+$("open-paste").addEventListener("click", () => {
+  $("paste-text").value = ""; $("paste-preview").innerHTML = ""; $("paste-actions").hidden = true; $("paste-status").textContent = ""; parsed = [];
+  $("paste-sheet").showModal();
+});
+$("paste-close").addEventListener("click", () => $("paste-sheet").close());
+$("paste-read").addEventListener("click", () => {
+  parsed = parse($("paste-text").value);
+  if (!parsed.length) {
+    const raw = $("paste-text").value.trim();
+    if (!raw) { $("paste-status").textContent = "答えを貼り付けてください。"; return; }
+    parsed = [{ date: todayStr(), genre: "全体", title: "", p: "", d: "", c: raw, a: "" }];
+    $("paste-status").textContent = "形式が読み取れなかったので、全文を「C」に入れました。P・D・Aに分けて直してください。";
+  } else $("paste-status").textContent = `${parsed.length}件のPDCAを読み込みました。内容を確かめて追加してください。`;
+  $("paste-preview").innerHTML = parsed.map((it, i) => `<div class="card" style="background:var(--bg)"><h3>${parsed.length > 1 ? `${i + 1}件目` : "読み込んだ内容"}</h3>${fieldsHtml(it, `pv${i}`)}</div>`).join("");
+  $("paste-actions").hidden = false;
+});
+$("f-paste").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const rows = parsed.map((_, i) => readFields(`pv${i}`));
+  const raw = $("paste-text").value;
+  const ok = await write(async () => {
+    for (let i = 0; i < rows.length; i++) await db.collection(COL).doc(`x${Date.now()}${i}`).set({ ...rows[i], raw, created_at: new Date().toISOString() });
+  }, `${rows.length}件追加しました。`);
+  if (ok) $("paste-sheet").close();
+});
+
+// ---------- 編集 ----------
+let editing = null;
+document.addEventListener("click", (e) => {
+  const b = e.target.closest && e.target.closest(".edit");
+  if (!b) return;
+  editing = S.items.find((x) => x._id === b.dataset.id);
+  if (!editing) return;
+  $("edit-fields").innerHTML = fieldsHtml(editing, "ed") + (editing.raw ? `<details><summary>貼り付けた元の文章</summary><pre class="md">${esc(editing.raw)}</pre></details>` : "");
+  const d = $("edit-delete"); d.dataset.armed = ""; d.textContent = "削除";
+  $("edit-sheet").showModal();
+});
+$("edit-close").addEventListener("click", () => $("edit-sheet").close());
+$("f-edit").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const id = editing._id, row = { ...clean(editing), ...readFields("ed"), updated_at: new Date().toISOString() };
+  if (await write(() => db.collection(COL).doc(id).set(row), "保存しました。")) $("edit-sheet").close();
+});
+$("edit-delete").addEventListener("click", async () => {
+  const b = $("edit-delete");
+  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "もう一度押すと削除"; return; }
+  const id = editing._id;
+  if (await write(() => db.collection(COL).doc(id).delete(), "削除しました。")) $("edit-sheet").close();
+});
+
+// ---------- 表示 ----------
+const partHtml = (it, k, L, name) => it[k] ? `<div class="q ${L}"><b class="l">${L}</b><div class="t"><small>${name}</small>${esc(it[k])}</div></div>` : "";
+function stepHtml(it, last) {
+  return `<div class="step ${last ? "last" : ""}"><div class="card">
+    <div class="head"><span class="num">${esc(md(it.date))}</span><span class="tag">${esc(it.genre || "全体")}</span>${it.title ? `<b style="overflow-wrap:anywhere">${esc(it.title)}</b>` : ""}</div>
+    <div class="pdca">${PARTS.map(([k, L, name]) => partHtml(it, k, L, name)).join("")}</div>
+    <div class="row"><button class="btn small edit" type="button" data-id="${esc(it._id)}">編集</button></div>
+  </div>${!last && it.a ? `<div class="carry">↓ この改善（A）を、次の計画（P）へ</div>` : ""}</div>`;
+}
+function render() {
+  const all = sorted();
+  const counts = Object.fromEntries(GENRES.map((g) => [g, all.filter((x) => x.genre === g).length]));
+  if (filter !== "all" && !counts[filter]) filter = "all";
+  $("filter").innerHTML = all.length ? [["all", `すべて ${all.length}`], ...GENRES.filter((g) => counts[g]).map((g) => [g, `${g} ${counts[g]}`])]
+    .map(([v, l]) => `<label><input type="radio" name="flt" value="${esc(v)}" ${v === filter ? "checked" : ""}><span>${esc(l)}</span></label>`).join("") : "";
+  const shown = filter === "all" ? all : all.filter((x) => x.genre === filter);
+  $("count").textContent = all.length ? `${all.length}回のPDCA` : "";
+  $("v-flow").innerHTML = shown.length ? `<div class="flow">${shown.map((it, i) => stepHtml(it, i === shown.length - 1)).join("")}</div>`
+    : `<div class="empty"><b>まだPDCAがありません</b>上の「頼み方をコピー」から始めましょう。Claudeの答えを貼るたびに、ここに古い順で積み上がっていきます。</div>`;
+  // いま次にやること：ジャンルごとの最新のA
+  const latest = GENRES.map((g) => all.filter((x) => x.genre === g && x.a).pop()).filter(Boolean);
+  $("v-now").innerHTML = latest.length ? `<section class="card now"><h3>いま、次にやること</h3>${latest.map((it) => `<div style="display:grid;gap:2px"><span class="muted"><span class="tag">${esc(it.genre)}</span> ${esc(md(it.date))}のPDCAより</span><div class="big">${esc(it.a)}</div></div>`).join("")}</section>` : "";
+  $("x-md").textContent = buildMd();
+}
+document.addEventListener("change", (e) => { if (e.target.name === "flt") { filter = e.target.value; lsSet("filter", filter); render(); } });
+
+function buildMd() {
+  const all = sorted();
+  const o = ["# TikTok改善のPDCA記録（ガクチカ素材）", "", `出力日: ${todayStr()}`, ""];
+  if (!all.length) return o.concat("（まだPDCAがありません）").join("\n");
+  const byG = GENRES.map((g) => [g, all.filter((x) => x.genre === g).length]).filter(([, n]) => n);
+  o.push(`${all[0].date}〜${all[all.length - 1].date}の間に、${all.length}回のPDCAを回した（${byG.map(([g, n]) => `${g} ${n}回`).join("、")}）。`, "");
+  all.forEach((it, i) => {
+    o.push(`## ${i + 1}. ${it.date}［${it.genre}］${it.title || ""}`, "");
+    PARTS.forEach(([k, L, name]) => { if (it[k]) o.push(`- **${L}（${name}）**: ${it[k].replace(/\n/g, " ")}`); });
+    o.push("");
+  });
+  return o.join("\n");
+}
 
 // ---------- 保存 ----------
 async function write(fn, okMsg) {
   if (!db || !canWrite) { toast("いまは保存できません。claude.ai にログインした状態で開いてください。"); return false; }
   try { await fn(); if (okMsg) toast(okMsg); return true; }
-  catch (e) {
-    const msg = e && e.code === "quota_exceeded" ? "保存できる件数の上限に達しました。古い記録を整理してください。"
-      : e && e.code === "invalid_argument" ? "この内容は保存できませんでした（権限または入力の形式）。"
-      : "保存に失敗しました。通信を確認して、もう一度押してください。";
-    toast(msg); return false;
-  }
+  catch (e) { toast(e && e.code === "quota_exceeded" ? "保存できる件数の上限です。" : "保存に失敗しました。通信を確認して、もう一度押してください。"); return false; }
 }
 const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k, v]) => !k.startsWith("_") && v !== undefined));
-
-// ---------- 画面切り替え ----------
-const TABS = ["log", "study", "hypo", "ai", "export"];
-function go(name) {
-  document.querySelectorAll("section.page").forEach((s) => { s.hidden = s.dataset.tab !== name; });
-  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.go === name)));
-  lsSet("tab", name);
-  window.scrollTo(0, 0);
-}
-document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
-let toastTimer;
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2800); }
-
-// 2回押して削除（この画面では確認ダイアログを出せないため）
-function armTwice(btn, label) {
-  if (btn.dataset.armed === "1") return true;
-  btn.dataset.armed = "1"; btn.textContent = "もう一度押すと削除";
-  setTimeout(() => { if (btn.isConnected) { btn.dataset.armed = ""; btn.textContent = label; } }, 3000);
-  return false;
-}
-
-// ---------- ① 記録 ----------
-let logFilter = "all";
-function ratioLine(p, ev) {
-  const g = genre(p.genre);
-  if (!g) return "";
-  return g.kpis.map((m) => {
-    const r = ev && ev.ratios[m];
-    return `<span>${METRICS[m][0]} <b>${fmt(p[m])}</b>${r ? ` <span class="muted">(${fmtX(r.ratio)})</span>` : ""}</span>`;
-  }).join("");
-}
-function postCard(p) {
-  const ev = evaluate(p), v = verdict(ev && ev.score);
-  const h = S.hypotheses.find((x) => x._id === p.hypothesis_id);
-  return `<div class="item">
-    <div class="meta">${gChip(p.genre)}<span class="num">${esc(p.posted_at || "")}</span><span class="chip ${v.cls}">${v.label}${isNum(ev && ev.score) ? `・いつもの${fmtX(ev.score)}` : ""}</span>${ev && ev.tentative ? `<span class="muted">（暫定）</span>` : ""}</div>
-    <div class="title">${esc(p.caption || "（タイトルなし）")}</div>
-    ${p.aim ? `<div class="change"><span class="muted">ねらい </span>${esc(p.aim)}</div>` : ""}
-    ${h ? `<div class="ink2" style="font-size:13px"><span class="muted">試した仮説 </span>${esc(h.text)}</div>` : ""}
-    ${p.next ? `<div class="ink2" style="font-size:13px"><span class="muted">次へ </span>${esc(p.next)}</div>` : ""}
-    <div class="nums">${ratioLine(p, ev)}</div>
-    <div class="row"><button class="btn small edit-post" type="button" data-id="${esc(p._id)}">編集</button></div>
-  </div>`;
-}
-function renderGoalCard() {
-  const gl = goal(), v = $("v-goal");
-  if (!gl) {
-    const n = S.posts.length;
-    v.innerHTML = `<div class="card"><h3>まず、ガクチカの目標を1つ決めましょう</h3>
-      <p class="ink2" style="font-size:14px">例：「3ヶ月で、アカウントのフォロワー数を1,200人から1,600人にする」「雑学の視聴数（1本あたりの中央値）を1.5倍にする」。</p>
-      ${n < 5 ? `<p class="muted">投稿の数字を目標にする場合は、先に過去の投稿を各ジャンル10本ほど記録しておくと、取り組み前の値が自動で入ります（いま ${n}本）。</p>` : ""}
-      <div class="row"><button class="btn save-btn" type="button" id="open-goal">目標を決める</button></div></div>`;
-  } else {
-    const unit = goalUnit(gl), isFol = gl.metric === FOL;
-    const cur = goalCurrent(gl);
-    const base = isNum(gl.base) ? gl.base : null;
-    const prog = cur && isNum(base) && gl.target !== base ? (cur.value - base) / (gl.target - base) * 100 : null;
-    const total = daysBetween(gl.start, gl.end), passed = Math.min(Math.max(daysBetween(gl.start, todayStr()), 0), total);
-    const left = daysBetween(todayStr(), gl.end);
-    const F = (x) => goalFmt(gl, x), isVx = gl.metric === VX;
-    const pm = isVx ? preMedians(gl.start) : null;
-    v.innerHTML = `<div class="card"><h3>目標：${isVx ? "全ジャンルの視聴数を、取り組み前の" : esc(goalName(gl)) + "を "}${isVx ? "" : F(base) + " → "}<span class="num">${F(gl.target)}</span>${isVx ? "にする" : ""}</h3>
-      <div class="tiles">
-        <div class="tile"><span>${isFol ? "開始時" : "取り組み前"}</span><b>${F(base)}</b><em>${isFol ? esc(gl.start) : `${esc(gl.start)}より前`}</em></div>
-        <div class="tile"><span>いま</span><b>${cur ? F(cur.value) : "—"}</b><em>${cur ? (isFol ? `${esc(cur.date)}の記録` : isVx ? `期間中${cur.n}本の中央値` : `直近${cur.n}本の中央値`) : (isFol ? "下で記録してください" : "期間中の投稿なし")}</em></div>
-        <div class="tile"><span>目標</span><b>${F(gl.target)}</b><em>${isFol && isNum(base) ? `+${fmt(gl.target - base, "人")}` : !isVx && isNum(base) && base > 0 ? `${fmtX(gl.target / base)}` : ""}</em></div>
-        <div class="tile"><span>終了まで</span><b>${left < 0 ? "終了" : left + "日"}</b><em>${esc(gl.end)}</em></div>
-      </div>
-      <div class="bar" role="progressbar" aria-label="目標への進み具合" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${isNum(prog) ? Math.round(prog) : 0}"><i style="width:${isNum(prog) ? Math.min(Math.max(prog, 0), 100) : 0}%"></i></div>
-      <p class="muted">目標への進み具合 ${isNum(prog) ? fmt(Math.max(prog, 0), "%") : "—"}・期間の ${total > 0 ? Math.round(passed / total * 100) : 0}% が経過${isVx ? `<br>各投稿を、同じジャンルの取り組み前の中央値（${GENRES.filter((g) => pm[g.id]).map((g) => `${g.label} ${fmt(pm[g.id].value, "回")}`).join("・") || "未計算"}）で割った倍率の中央値です。` : ""}${gl.why ? `<br>なぜこの目標：${esc(gl.why)}` : ""}</p>
-      <div class="row"><button class="btn small save-btn" type="button" id="open-goal">目標を変更</button></div></div>`;
-  }
-  v.innerHTML += followerCard();
-  $("open-goal").addEventListener("click", openGoal);
-}
-
-// アカウントのフォロワー数（ときどき記録する）
-function followerCard() {
-  const fs = folRecords();
-  const last = fs[fs.length - 1], prev = fs[fs.length - 2];
-  let h = `<div class="card"><h3>アカウントのフォロワー数</h3>`;
-  if (last) h += `<p class="ink2" style="font-size:14px">最新 <b class="num">${fmt(last.count, "人")}</b>（${esc(last.date)}）${prev ? `<span class="muted">・前回（${esc(prev.date)}）から ${last.count - prev.count >= 0 ? "+" : ""}${fmt(last.count - prev.count, "人")}</span>` : ""}</p>`;
-  if (fs.length >= 2) h += `<div class="chart">${lineChart(fs.map((f) => ({ x: f.date, y: f.count })), "人")}<div class="tip"></div></div>`;
-  h += `<p class="muted">週に1回くらい、プロフィールに出ているフォロワー数を記録してください。${fs.length ? "" : "目標の開始日の数字も入れておくと、開始時の値になります。"}</p>
-    <div class="grid2"><label class="f">日付<input type="date" id="fol-date" value="${todayStr()}"></label><label class="f">フォロワー数<input type="number" id="fol-count" inputmode="numeric" min="0" step="1"></label></div>
-    <div class="row"><button class="btn primary save-btn" type="button" id="fol-save">記録する</button>
-      <span class="muted" id="fol-status"></span></div>`;
-  if (fs.length) h += `<details><summary>記録の一覧（${fs.length}件）</summary><div class="table-scroll"><table><thead><tr><th>日付</th><th>フォロワー数</th><th>前回から</th><th></th></tr></thead><tbody>${fs.slice().reverse().map((f, i, arr) => {
-    const p = arr[i + 1];
-    return `<tr><td class="num">${esc(f.date)}</td><td>${fmt(f.count)}</td><td>${p ? `${f.count - p.count >= 0 ? "+" : ""}${fmt(f.count - p.count)}` : "—"}</td><td><button class="btn small danger del-fol" type="button" data-id="${esc(f._id)}">削除</button></td></tr>`;
-  }).join("")}</tbody></table></div></details>`;
-  return h + `</div>`;
-}
-document.addEventListener("click", async (e) => {
-  if (e.target.id === "fol-save") {
-    const date = $("fol-date").value, count = readNum($("fol-count"));
-    if (!date || count === null) { toast("日付とフォロワー数を入れてください。"); return; }
-    await write(() => db.collection("followers").doc(date).set({ date, count, saved_at: new Date().toISOString() }), `${date} のフォロワー数を記録しました。`);
-    return;
-  }
-  const d = e.target.closest && e.target.closest(".del-fol");
-  if (d && armTwice(d, "削除")) await write(() => db.collection("followers").doc(d.dataset.id).delete(), "削除しました。");
-});
-document.addEventListener("change", (e) => { if (e.target.name === "log-filter") { logFilter = e.target.value; renderLog(); } });
-function renderLog() {
-  renderGoalCard();
-  const all = S.posts.slice().sort(byDate).reverse();
-  const shown = logFilter === "all" ? all : all.filter((p) => p.genre === logFilter);
-  let h = `<div style="display:grid;gap:10px"><h3>記録（${all.length}本）</h3>`;
-  if (!all.length) {
-    h += `<div class="empty"><b>まだ記録がありません</b>まずは過去の投稿を、各ジャンル10本くらい記録してみてください。<br>TikTokの分析画面のスクショを選ぶだけです。これが「取り組み前」の基準になります。</div>`;
-  } else {
-    h += `<div class="scope"><div class="seg genre" role="radiogroup" aria-label="表示するジャンル">${genreRadios("log-filter", logFilter, [{ id: "all", label: "すべて" }])}</div></div>`;
-    h += `<p class="muted">${GENRES.map((g) => `${g.label} ${all.filter((p) => p.genre === g.id).length}`).join("・")}本。評価は同じジャンルの直近${BASE_N}本の中央値と比べた倍率です（雑学は視聴数・いいね数、イベント告知とグッズ紹介はさらに新規フォロワーも）。</p>`;
-    h += shown.length ? `<div class="list">${shown.map(postCard).join("")}</div>` : `<p class="muted">このジャンルの記録はまだありません。</p>`;
-  }
-  $("v-log").innerHTML = h + `</div>`;
-}
-
-// 記録シート
-let editingPost = null;
-$("rec-genres").innerHTML = genreRadios("rec-genre", null);
-function syncRecDefaults() {
-  const g = radioVal("rec-genre"), ds = $("rec-date").value;
-  if (!editingPost) $("rec-hypo").innerHTML = hypoOptions(defaultHypoFor(g, ds));
-  const pv = isGenre(g) ? prevNext(g, ds) : null, box = $("rec-prev");
-  box.hidden = !pv;
-  if (pv) box.textContent = `前回の${gLabel(g)}（${md(pv.posted_at)}）で決めたこと：${pv.next}`;
-  $("rec-aim").placeholder = pv && !editingPost ? `例: ${pv.next}` : "例: 冒頭で答えを先に言った";
-}
-$("rec-date").addEventListener("change", syncRecDefaults);
-$("rec-genres").addEventListener("change", syncRecDefaults);
-function hypoOptions(selected) {
-  const testing = S.hypotheses.filter((x) => x.status === "testing" || x._id === selected);
-  return `<option value="">なし</option>` + testing.map((x) => `<option value="${esc(x._id)}" ${x._id === selected ? "selected" : ""}>${esc(x.text.slice(0, 40))}</option>`).join("");
-}
-const REC_FIELDS = [["rec-views", "views"], ["rec-likes", "likes"], ["rec-follows", "follows"]];
-function openRecord(p) {
-  editingPost = p || null;
-  $("rec-heading").textContent = p ? "記録を編集" : "投稿を記録";
-  setRadio("rec-genre", p ? p.genre : (isGenre(lsGet("lastGenre")) ? lsGet("lastGenre") : null));
-  $("rec-date").value = p ? p.posted_at : todayStr();
-  $("rec-caption").value = p ? (p.caption || "") : "";
-  REC_FIELDS.forEach(([id, k]) => { $(id).value = p && isNum(p[k]) ? p[k] : ""; });
-  $("rec-aim").value = p ? (p.aim || "") : "";
-  $("rec-hypo").innerHTML = hypoOptions(p ? p.hypothesis_id : "");
-  $("rec-next").value = p ? (p.next || "") : "";
-  syncRecDefaults();
-  $("rec-save-next").hidden = !!p;
-  const del = $("rec-delete"); del.hidden = !p; del.dataset.armed = ""; del.textContent = "この記録を削除";
-  $("rec-sheet").showModal();
-}
-$("open-record").addEventListener("click", () => openRecord(null));
-$("rec-close").addEventListener("click", () => $("rec-sheet").close());
-$("rec-sheet").addEventListener("click", (e) => { if (e.target === $("rec-sheet")) $("rec-sheet").close(); });
-document.addEventListener("click", (e) => {
-  const b = e.target.closest && e.target.closest(".edit-post");
-  if (!b) return;
-  const p = S.posts.find((x) => x._id === b.dataset.id);
-  if (p) openRecord(p);
-});
-$("f-rec").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const g = radioVal("rec-genre");
-  if (!isGenre(g)) { toast("ジャンルを選んでください。"); return; }
-  const date = $("rec-date").value;
-  if (!date) { toast("投稿日を入れてください。"); return; }
-  const row = { genre: g, posted_at: date, caption: $("rec-caption").value.trim(), aim: $("rec-aim").value.trim(),
-    next: $("rec-next").value.trim(), hypothesis_id: $("rec-hypo").value || null };
-  REC_FIELDS.forEach(([id, k]) => { row[k] = readNum($(id)); });
-  if (row.views === null) { toast("視聴数を入れてください。"); return; }
-  const base = editingPost ? clean(editingPost) : { created_at: new Date().toISOString() };
-  const id = editingPost ? editingPost._id : "p" + Date.now();
-  lsSet("lastGenre", g);
-  if (await write(() => db.collection("posts").doc(id).set({ ...base, ...row, updated_at: new Date().toISOString() }), "記録しました。")) {
-    const again = e.submitter && e.submitter.value === "next";
-    $("rec-sheet").close();
-    if (again) { openRecord(null); setRadio("rec-genre", g); $("rec-date").value = date; syncRecDefaults(); toast("記録しました。次の投稿のスクショを選んでください。"); }
-  }
-});
-$("rec-delete").addEventListener("click", async () => {
-  const b = $("rec-delete");
-  if (!armTwice(b, "この記録を削除")) return;
-  const id = editingPost && editingPost._id;
-  if (id && await write(() => db.collection("posts").doc(id).delete(), "削除しました。")) $("rec-sheet").close();
-});
-
-// 目標シート
-let goalGenre = "trivia", goalMetric = FOL;
-$("goal-genres").innerHTML = genreRadios("goal-genre", goalGenre);
-function syncGoalMetrics() {
-  const g = genre(goalGenre);
-  if (goalMetric !== FOL && goalMetric !== VX && !g.kpis.includes(goalMetric)) goalMetric = g.kpis[0];
-  const opts = [[FOL, "アカウントのフォロワー数"], [VX, "全ジャンルの視聴数（何倍か）"], ...g.kpis.map((m) => [m, `${g.label}の${METRICS[m][0]}`])];
-  $("goal-metrics").innerHTML = opts.map(([m, l]) => `<label><input type="radio" name="goal-metric" value="${m}" ${m === goalMetric ? "checked" : ""}><span>${l}</span></label>`).join("");
-  $("goal-genre-wrap").hidden = goalMetric === FOL || goalMetric === VX;
-  $("goal-base").readOnly = goalMetric === VX;
-  const b = goalBase(goalGenre, goalMetric, $("goal-start").value || todayStr());
-  $("goal-base").value = b ? +b.value.toFixed(1) : "";
-  if (goalMetric === VX) {
-    $("goal-base").value = 1;
-    $("goal-target").value = 1.25;
-    const pm = b ? b.pm : {};
-    const missing = GENRES.filter((g) => !pm[g.id]).map((g) => g.label);
-    $("goal-hint").textContent = `期間中の各投稿を「同じジャンルの取り組み前（開始日より前の直近${BASE_N}本）の視聴数の中央値」で割り、その倍率の中央値で見ます。1.00倍がいつも通りです。`
-      + (b ? ` 取り組み前の中央値：${GENRES.filter((g) => pm[g.id]).map((g) => `${g.label} ${fmt(pm[g.id].value, "回")}`).join("・")}。` : "")
-      + (missing.length ? ` ${missing.join("・")}は開始日より前の記録が${MIN_BASE}本未満なので、記録を足すまで計算に入りません。` : "");
-  } else if (goalMetric === FOL) {
-    $("goal-target").value = b ? Math.round(b.value * 1.3) : "";
-    $("goal-hint").textContent = b ? `開始時の値は、開始日以前で最新のフォロワー数の記録（${b.date}）です。目標はひとまず1.3倍を入れています。`
-      : "フォロワー数の記録がまだないので、開始時の値（いまのフォロワー数）を手で入れてください。保存すると、開始日のフォロワー数としても記録します。";
-  } else {
-    $("goal-target").value = b ? Math.round(b.value * 1.5) : "";
-    $("goal-hint").textContent = b ? `取り組み前の値は、開始日より前の直近${b.n}本の中央値です。目標はひとまず1.5倍を入れています。`
-      : `開始日より前の${gLabel(goalGenre)}の記録がないため、取り組み前の値を計算できません。先に過去の投稿を記録するか、手で入れてください。`;
-  }
-}
-function openGoal() {
-  const gl = goal();
-  goalGenre = gl && isGenre(gl.genre) ? gl.genre : "trivia"; goalMetric = gl ? gl.metric : FOL;
-  setRadio("goal-genre", goalGenre);
-  $("goal-start").value = gl ? gl.start : todayStr();
-  $("goal-end").value = gl ? gl.end : addDays(todayStr(), 90);
-  syncGoalMetrics();
-  if (gl) { $("goal-base").value = isNum(gl.base) ? gl.base : ""; $("goal-target").value = gl.target; }
-  $("goal-why").value = gl ? (gl.why || "") : "";
-  $("goal-sheet").showModal();
-}
-$("goal-genres").addEventListener("change", (e) => { goalGenre = e.target.value; syncGoalMetrics(); });
-$("goal-metrics").addEventListener("change", (e) => {
-  goalMetric = e.target.value;
-  if (goalMetric === VX) $("goal-end").value = addDays($("goal-start").value || todayStr(), 30);
-  syncGoalMetrics();
-});
-$("goal-start").addEventListener("change", syncGoalMetrics);
-$("goal-close").addEventListener("click", () => $("goal-sheet").close());
-$("f-goal").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const row = { genre: goalMetric === FOL ? null : goalGenre, metric: goalMetric, start: $("goal-start").value, end: $("goal-end").value,
-    base: readNum($("goal-base")), target: readNum($("goal-target")), why: $("goal-why").value.trim(), saved_at: new Date().toISOString() };
-  if (!row.start || !row.end || row.end <= row.start) { toast("終了日は開始日より後にしてください。"); return; }
-  if (!isNum(row.target) || row.target <= 0) { toast("目標値を入れてください。"); return; }
-  if (row.metric === FOL && !isNum(row.base)) { toast("開始時のフォロワー数を入れてください。"); return; }
-  if (row.metric === VX) {
-    row.base = 1;
-    if (!goalBase(null, VX, row.start)) { toast(`開始日より前の記録が足りません。各ジャンル${MIN_BASE}本以上、過去の投稿を記録してください。`); return; }
-  }
-  const ok = await write(async () => {
-    await db.collection("settings").doc("goal").set(row);
-    if (row.metric === FOL && !goalBase(null, FOL, row.start)) await db.collection("followers").doc(row.start).set({ date: row.start, count: row.base, saved_at: new Date().toISOString() });
-  }, "目標を保存しました。");
-  if (ok) $("goal-sheet").close();
-});
-
-// ---------- ② 研究 ----------
-let studyGenre = isGenre(lsGet("studyGenre")) ? lsGet("studyGenre") : "trivia";
-$("s-genre").innerHTML = genreRadios("study-genre", studyGenre);
-$("s-genre").addEventListener("change", (e) => { studyGenre = e.target.value; lsSet("studyGenre", studyGenre); renderStudy(); });
-function studyItem(p) {
-  const ev = evaluate(p), v = verdict(ev && ev.score);
-  return `<div class="item">
-    <div class="meta"><span class="num">${esc(p.posted_at)}</span><span class="chip ${v.cls}">${v.label}・いつもの${fmtX(ev && ev.score)}</span></div>
-    <div class="title">${esc(p.caption || "（タイトルなし）")}</div>
-    ${p.aim ? `<div class="ink2" style="font-size:13px"><span class="muted">ねらい </span>${esc(p.aim)}</div>` : ""}
-    <div class="nums">${ratioLine(p, ev)}</div>
-    <label class="f">なぜだと思う？（1行メモ）<input type="text" class="why-input" data-id="${esc(p._id)}" value="${esc(p.why || "")}" placeholder="例: 最初の1秒で答えが見えていた"></label>
-  </div>`;
-}
-function renderStudy() {
-  const ps = genrePosts(studyGenre).map((p) => ({ p, ev: evaluate(p) })).filter((x) => x.ev && isNum(x.ev.score));
-  const v = $("v-study");
-  const total = genrePosts(studyGenre).length;
-  if (ps.length < 4) {
-    v.innerHTML = `<div class="empty"><b>${gLabel(studyGenre)}の記録がまだ少ないです（${total}本）</b>同じジャンルで5本以上たまると、伸びた投稿・伸びなかった投稿を比べられます。</div>`;
-    return;
-  }
-  const sorted = ps.slice().sort((a, b) => b.ev.score - a.ev.score);
-  const k = Math.min(3, Math.floor(sorted.length / 2));
-  const top = sorted.slice(0, k), bottom = sorted.slice(-k).reverse();
-  const g = genre(studyGenre);
-  const recent = genrePosts(studyGenre).slice(-BASE_N);
-  let h = `<div class="card"><h3>${g.label}の「いつも」（直近${recent.length}本の中央値）</h3><div class="tiles">`;
-  g.kpis.forEach((m) => { h += `<div class="tile"><span>${METRICS[m][0]}</span><b>${fmt(median(recent.map((p) => p[m])), METRICS[m][1])}</b></div>`; });
-  h += `</div>
-    <p class="muted">${g.label}の評価に使う指標：${g.kpis.map((m) => METRICS[m][0]).join("・")}</p></div>`;
-  h += `<div style="display:grid;gap:10px"><h3><span class="chip good">伸びた投稿</span> 上位${k}本</h3><div class="list">${top.map((x) => studyItem(x.p)).join("")}</div></div>`;
-  h += `<div style="display:grid;gap:10px"><h3><span class="chip bad">伸びなかった投稿</span> 下位${k}本</h3><div class="list">${bottom.map((x) => studyItem(x.p)).join("")}</div></div>`;
-  h += `<p class="muted">メモは入力欄から離れると保存されます。上位と下位で何が違うかを考えたら、③で仮説にしましょう。</p>`;
-  v.innerHTML = h;
-}
-document.addEventListener("change", async (e) => {
-  if (!e.target.classList || !e.target.classList.contains("why-input")) return;
-  const id = e.target.dataset.id, val = e.target.value.trim();
-  const p = S.posts.find((x) => x._id === id);
-  if (!p || (p.why || "") === val) return;
-  await write(() => db.collection("posts").doc(id).update({ why: val }), "メモを保存しました。");
-});
-
-// ---------- ③ 仮説 ----------
-$("h-genres").innerHTML = genreRadios("h-genre", "all", [{ id: "all", label: "全ジャンル" }]);
-function hypoEvidence(h) {
-  const ps = S.posts.filter((p) => p.hypothesis_id === h._id).sort(byDate);
-  const evs = ps.map((p) => ({ p, ev: evaluate(p) })).filter((x) => x.ev && isNum(x.ev.score));
-  const hits = evs.filter((x) => x.ev.score >= 1.15).length;
-  return { ps, evs, hits };
-}
-function hypoCard(h) {
-  const { ps, evs, hits } = hypoEvidence(h);
-  const st = h.status || "testing";
-  return `<div class="item">
-    <div class="meta">${h.genre === "all" ? `<span class="gchip">全ジャンル</span>` : gChip(h.genre)}<span class="chip ${st === "hit" ? "good" : st === "miss" ? "bad" : ""}">${STATUS[st]}</span><span>${h.origin === "ai" ? "AIの提案から" : "自分で立てた"}・${esc(String(h.created_at || "").slice(0, 10))}</span></div>
-    <div class="title">${esc(h.text)}</div>
-    ${h.why ? `<div class="ink2" style="font-size:13px"><span class="muted">なぜ試す </span>${esc(h.why)}</div>` : ""}
-    ${h.how ? `<div class="ink2" style="font-size:13px"><span class="muted">確かめ方 </span>${esc(h.how)}</div>` : ""}
-    <div class="nums"><span>試した投稿 <b>${ps.length}本</b></span>${evs.length ? `<span>当たり以上 <b>${hits}/${evs.length}本</b></span><span>いつもの <b>${fmtX(median(evs.map((x) => x.ev.score)))}</b>（中央値）</span>` : ""}</div>
-    ${ps.length < 3 && st === "testing" ? `<p class="muted">3本以上試してから判断するのがおすすめです。上のジャンルのカードで「これを試す」にすると、記録した投稿が自動でひもづきます。</p>` : ""}
-    ${h.verdict_note ? `<div class="ink2" style="font-size:13px"><span class="muted">判断の理由 </span>${esc(h.verdict_note)}</div>` : ""}
-    <details><summary>判断する・編集</summary>
-      <div style="display:grid;gap:10px">
-        <div class="seg" role="radiogroup" aria-label="状態">${Object.entries(STATUS).map(([k, l]) => `<label><input type="radio" name="st-${esc(h._id)}" value="${k}" ${k === st ? "checked" : ""}><span>${l}</span></label>`).join("")}</div>
-        <label class="f">判断の理由（1行）<input type="text" id="vn-${esc(h._id)}" value="${esc(h.verdict_note || "")}"></label>
-        <div class="row" style="justify-content:space-between"><button class="btn small primary save-hypo" type="button" data-id="${esc(h._id)}">保存</button><button class="btn small danger del-hypo" type="button" data-id="${esc(h._id)}">削除</button></div>
-      </div></details>
-  </div>`;
-}
-function trackPostRows(ps) {
-  return ps.map((p) => { const ev = evaluate(p), v = verdict(ev && ev.score);
-    return `<div class="meta" style="font-size:13px"><span class="num">${md(p.posted_at)}</span><span class="chip ${v.cls}">${v.label}${isNum(ev && ev.score) ? `・${fmtX(ev.score)}` : ""}</span><span class="ink2" style="overflow-wrap:anywhere">${esc((p.caption || "").slice(0, 24))}</span></div>`; }).join("");
-}
-let tracksDirty = false;
-function trackCard(g) {
-  const sm = trackSummary(g.id), t = sm.t, hy = t && S.hypotheses.find((x) => x._id === t.hid);
-  const cands = S.hypotheses.filter((x) => (x.status || "testing") === "testing" && (x.genre === g.id || x.genre === "all"));
-  let h = `<div class="card" data-g="${g.id}"><h3>いま：<span class="gdot" data-g="${g.id}">${g.label}</span>で試していること</h3>`;
-  if (!hy) {
-    h += `<p class="ink2" style="font-size:14px">いま試している仮説はありません。次の${g.label}で試すことを1つ決めましょう。</p>`;
-    h += cands.length ? `<div class="row"><select id="tr-sel-${g.id}" style="flex:1 1 220px"><option value="">選ぶ…</option>${cands.map((x) => `<option value="${esc(x._id)}">${esc(x.text.slice(0, 50))}</option>`).join("")}</select><button class="btn save-btn tr-set" type="button" data-g="${g.id}">これを試す</button></div>`
-      : `<p class="muted">${g.label}用（または全ジャンル用）の検証中の仮説がありません。下で追加するか、②研究や④AI分析から考えましょう。</p>`;
-    return h + `</div>`;
-  }
-  const need = t.judge_at || JUDGE_AT;
-  h += `<p><span class="muted">試している仮説 </span><b>${esc(hy.text)}</b></p>${hy.how ? `<p class="muted">確かめ方：${esc(hy.how)}</p>` : ""}
-    <div class="row" style="gap:8px"><span class="num" style="font-size:20px">${sm.ps.length}/${need}本</span><span class="muted">${md(t.started)}から・いつもの${fmtX(sm.med)}（中央値）・当たり以上 ${sm.hits}/${sm.scores.length}本</span></div>
-    <div class="bar" role="progressbar" aria-label="判断までの本数" aria-valuemin="0" aria-valuemax="${need}" aria-valuenow="${sm.ps.length}"><i style="width:${Math.min(sm.ps.length / need, 1) * 100}%"></i></div>
-    <div style="display:grid;gap:6px">${trackPostRows(sm.ps)}</div>`;
-  if (sm.ready) {
-    const hint = sm.scores.length < sm.ps.length ? "数字が未入力の投稿があります" : sm.med >= 1.15 ? "数字の上では当たりっぽい" : sm.med <= 0.9 ? "数字の上では外れっぽい" : "いつもとあまり変わらない";
-    h += `<div class="note info">${need}本たまりました。判断しましょう（見立て：${hint}）</div>
-      <div class="seg" role="radiogroup" aria-label="判断">${Object.entries(DECISIONS).map(([k, l]) => `<label><input type="radio" name="tr-dec-${g.id}" value="${k}"><span>${l}</span></label>`).join("")}</div>
-      <label class="f">学び（1行）<input type="text" id="tr-learn-${g.id}" placeholder="例: 答えを先に出すと、いいね数が伸びた"></label>
-      <div class="row"><button class="btn primary save-btn tr-judge" type="button" data-g="${g.id}">判断を保存</button></div>`;
-  } else {
-    h += `<p class="muted">${g.label}を記録するとき、この仮説が最初から選ばれます。あと${need - sm.ps.length}本で判断します。</p>
-      <details><summary>やめる・早めに判断する</summary><div class="row"><button class="btn small tr-early" type="button" data-g="${g.id}">いま判断する</button><button class="btn small danger tr-stop" type="button" data-g="${g.id}">この仮説を外す</button></div></details>`;
-  }
-  return h + `</div>`;
-}
-let flowGenre = isGenre(lsGet("flowGenre")) ? lsGet("flowGenre") : "trivia";
-$("flow-genre").addEventListener("change", (e) => { flowGenre = e.target.value; lsSet("flowGenre", flowGenre); tracksDirty = false; renderTracks(); });
-/** ジャンルの仮説の回（判断済み＋いま試しているもの）と、それぞれの投稿 */
-function genreCycles(g) {
-  const closed = S.cycles.filter((c) => c.genre === g).sort((a, b) => String(a.closed_at).localeCompare(String(b.closed_at)));
-  const lastClose = {}, items = [];
-  closed.forEach((c) => {
-    const end = String(c.closed_at).slice(0, 10), from = lastClose[c.hypothesis_id] || "";
-    const ps = genrePosts(g).filter((p) => p.hypothesis_id === c.hypothesis_id && String(p.posted_at) > from && String(p.posted_at) <= end);
-    lastClose[c.hypothesis_id] = end;
-    items.push({ kind: "cycle", open: false, c, hid: c.hypothesis_id, ps, date: ps.length ? ps[0].posted_at : (c.started || end), end });
-  });
-  const t = trackOf(g);
-  if (t) {
-    const from = lastClose[t.hid] || "";
-    const ps = genrePosts(g).filter((p) => p.hypothesis_id === t.hid && String(p.posted_at) > from);
-    items.push({ kind: "cycle", open: true, t, hid: t.hid, ps, date: ps.length ? ps[0].posted_at : t.started });
-  }
-  return items;
-}
-function miniPost(p) {
-  const ev = evaluate(p), v = verdict(ev && ev.score);
-  return `<div class="mini"><div class="meta"><span class="num">${md(p.posted_at)}</span><span class="ink2">${esc((p.caption || "（タイトルなし）").slice(0, 22))}</span><span class="chip ${v.cls}">${v.label}${isNum(ev && ev.score) ? `・${fmtX(ev.score)}` : ""}</span></div>
-    ${p.aim ? `<div><span class="k">P ねらい</span>${esc(p.aim)}</div>` : ""}${p.next ? `<div><span class="k">A 次へ</span>${esc(p.next)}</div>` : ""}</div>`;
-}
-function scoreLine(ps) {
-  const sc = ps.map((p) => evaluate(p)).filter((ev) => ev && isNum(ev.score)).map((ev) => ev.score);
-  return sc.length ? `いつもの <b class="num">${fmtX(median(sc))}</b>（中央値）・当たり以上 ${sc.filter((x) => x >= 1.15).length}/${sc.length}本` : `<span class="muted">まだ数字がありません</span>`;
-}
-function cycleStep(it) {
-  const hy = S.hypotheses.find((x) => x._id === it.hid);
-  const st = it.open ? ["検証中", ""] : { hit: ["当たり", "good"], miss: ["外れ", "bad"], more: ["もう少し試す", "warn"] }[it.c.decision] || ["—", ""];
-  const need = it.open ? (it.t.judge_at || JUDGE_AT) : null;
-  const a = it.open ? (it.ps.length >= need ? `<b>判断できます</b>（上のカードで）` : `<span class="muted">あと${need - it.ps.length}本で判断</span>`)
-    : `<b>${esc(DECISIONS[it.c.decision] ? DECISIONS[it.c.decision].split("（")[0] : "—")}</b>　${esc(it.c.learning || "")}`;
-  return `<div class="fstep ${it.open ? "open" : ""}"><div class="card" style="gap:10px">
-    <div class="meta"><span class="chip ${st[1]}">${st[0]}</span><span class="num muted">${md(it.date)}〜${it.open ? "いま" : md(it.end)}</span></div>
-    <div class="pdca">
-      <span class="pl">P</span><div><b>${esc(hy ? hy.text : "（削除された仮説）")}</b>${hy && hy.why ? `<div class="muted">なぜ：${esc(hy.why)}</div>` : ""}</div>
-      <span class="pl">D</span><div style="display:grid;gap:6px"><span class="muted">${it.ps.length}本で試した</span>${it.ps.map(miniPost).join("")}</div>
-      <span class="pl">C</span><div>${!it.open && isNum(it.c.median_score) ? `いつもの <b class="num">${fmtX(it.c.median_score)}</b>（中央値）・当たり以上 ${it.c.hits ?? "—"}/${it.c.posts_n ?? it.ps.length}本<div class="muted">判断したときの数字</div>` : scoreLine(it.ps)}</div>
-      <span class="pl a">A</span><div>${a}</div>
-    </div></div>
-    ${!it.open && it.c.learning ? `<div class="carry">↓ この学びをもとに、次に試すことを決める</div>` : ""}</div>`;
-}
-function freeStep(ps, label) {
-  const shown = ps.slice(-3), rest = ps.slice(0, -3);
-  return `<div class="fstep pre"><div class="card" style="gap:10px;background:var(--bg)">
-    <div class="meta"><span class="chip">${label}</span><span class="num muted">${md(ps[0].posted_at)}〜${md(ps[ps.length - 1].posted_at)}・${ps.length}本</span></div>
-    <div>${scoreLine(ps)}</div>
-    ${rest.length ? `<details><summary>ほか${rest.length}本</summary><div style="display:grid;gap:6px">${rest.map(miniPost).join("")}</div></details>` : ""}
-    <div style="display:grid;gap:6px">${shown.map(miniPost).join("")}</div></div></div>`;
-}
-function renderFlow(g) {
-  const cycles = genreCycles(g), used = new Set(cycles.flatMap((c) => c.ps.map((p) => p._id)));
-  const free = genrePosts(g).filter((p) => !used.has(p._id));
-  const gl = goal();
-  const rank = { start: 0, post: 1, cycle: 2 };
-  const entries = [...cycles.map((c) => ({ ...c, key: c.date })), ...free.map((p) => ({ kind: "post", p, key: p.posted_at })),
-    ...(gl && genrePosts(g).length ? [{ kind: "start", key: gl.start }] : [])]
-    .sort((a, b) => String(a.key).localeCompare(String(b.key)) || rank[a.kind] - rank[b.kind]);
-  let h = "", run = [];
-  const flush = () => {
-    if (!run.length) return;
-    const pre = gl && String(run[run.length - 1].posted_at) < gl.start;
-    h += freeStep(run, pre ? "取り組み前" : "仮説なしの投稿"); run = [];
-  };
-  entries.forEach((e) => {
-    if (e.kind === "post") { run.push(e.p); return; }
-    flush();
-    h += e.kind === "start" ? `<div class="fstep open"><div class="meta" style="padding-top:10px"><span class="chip good">目標スタート</span><span class="num muted">${md(gl.start)}</span><span class="ink2">${esc(goalName(gl))}</span></div></div>` : cycleStep(e);
-  });
-  flush();
-  if (!entries.length) return `<div class="empty"><b>${gLabel(g)}の記録がまだありません</b>①で投稿を記録し、上のカードで試すことを決めると、ここにPDCAの流れが並びます。</div>`;
-  const nc = S.cycles.filter((c) => c.genre === g).length;
-  return `<div style="display:grid;gap:10px"><h3>${gLabel(g)}のPDCAの流れ <span class="muted">判断${nc}回・投稿${genrePosts(g).length}本（古い順）</span></h3><div class="flow">${h}</div></div>`;
-}
-function renderTracks() {
-  const sums = GENRES.map((g) => trackSummary(g.id));
-  const n = sums.filter((x) => x.ready).length + sums.filter((x) => !x.t).length;
-  const badge = $("badge"); badge.hidden = !n; badge.textContent = n;
-  if (tracksDirty && document.activeElement && document.activeElement.closest && document.activeElement.closest("#v-tracks")) return;
-  $("flow-genre").innerHTML = GENRES.map((g, i) => {
-    const need = sums[i].ready || !sums[i].t;
-    return `<label data-g="${g.id}"><input type="radio" name="flow-genre" value="${g.id}" ${g.id === flowGenre ? "checked" : ""}><span>${g.label}${need ? `<b style="color:var(--bad);margin-left:2px" aria-label="要対応">!</b>` : ""}</span></label>`;
-  }).join("");
-  $("v-flow").innerHTML = renderFlow(flowGenre);
-  let h = `<div style="display:grid;gap:12px">${trackCard(GENRES.find((g) => g.id === flowGenre))}</div>`;
-  $("v-tracks").innerHTML = h;
-  tracksDirty = false;
-}
-document.addEventListener("input", (e) => { if (e.target.closest && e.target.closest("#v-tracks")) tracksDirty = true; });
-document.addEventListener("change", (e) => { if (String(e.target.name || "").startsWith("tr-dec-")) tracksDirty = true; });
-async function saveTracks(next) {
-  await db.collection("settings").doc("tracks").set({ ...tracks(), ...next, updated_at: new Date().toISOString() });
-}
-document.addEventListener("click", async (e) => {
-  const b = e.target.closest && e.target.closest(".tr-set, .tr-judge, .tr-early, .tr-stop");
-  if (!b) return;
-  const g = b.dataset.g;
-  tracksDirty = false;
-  if (b.classList.contains("tr-set")) {
-    const hid = $(`tr-sel-${g}`).value;
-    if (!hid) { toast("仮説を選んでください。"); return; }
-    await write(() => saveTracks({ [g]: { hid, started: todayStr(), judge_at: JUDGE_AT } }), `${gLabel(g)}で試す仮説を決めました。`);
-  } else if (b.classList.contains("tr-early")) {
-    const t = trackOf(g);
-    await write(() => saveTracks({ [g]: { ...t, judge_at: Math.max(trackPosts(g, t).length, 1) } }));
-  } else if (b.classList.contains("tr-stop")) {
-    if (!armTwice(b, "この仮説を外す")) return;
-    await write(() => saveTracks({ [g]: null }), "外しました。仮説は一覧に残っています。");
-  } else {
-    const sm = trackSummary(g), t = sm.t;
-    const decision = radioVal(`tr-dec-${g}`), learning = ($(`tr-learn-${g}`).value || "").trim();
-    if (!decision) { toast("判断を選んでください。"); return; }
-    if (!learning) { toast("学びを1行書いてください。ガクチカでいちばん使う部分です。"); return; }
-    await write(async () => {
-      await db.collection("cycles").doc("c" + Date.now()).set({ genre: g, hypothesis_id: t.hid, started: t.started, posts_n: sm.ps.length,
-        median_score: isNum(sm.med) ? +sm.med.toFixed(2) : null, hits: sm.hits, decision, learning, closed_at: new Date().toISOString() });
-      if (decision === "more") await saveTracks({ [g]: { ...t, judge_at: sm.ps.length + 2 } });
-      else {
-        const hy = S.hypotheses.find((x) => x._id === t.hid);
-        const otherUses = GENRES.some((x) => x.id !== g && trackOf(x.id) && trackOf(x.id).hid === t.hid);
-        if (hy && !otherUses) await db.collection("hypotheses").doc(hy._id).update({ status: decision, verdict_note: learning, judged_at: new Date().toISOString() });
-        await saveTracks({ [g]: null });
-      }
-    }, decision === "more" ? "保存しました。あと2本試します。" : "判断を保存しました。次に試すことを決めましょう。");
-  }
-});
-function renderHypo() {
-  renderTracks();
-  const hs = S.hypotheses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  const testing = hs.filter((h) => (h.status || "testing") === "testing"), done = hs.filter((h) => (h.status || "testing") !== "testing");
-  let h = "";
-  if (!hs.length) h = `<div class="empty"><b>まだ仮説がありません</b>②研究で伸びた投稿を見て考えるか、④AI分析の提案から選んで追加しましょう。</div>`;
-  else {
-    h += `<div style="display:grid;gap:10px"><h3>仮説の一覧：検証中（${testing.length}）</h3>${testing.length ? `<div class="list">${testing.map(hypoCard).join("")}</div>` : `<p class="muted">なし</p>`}</div>`;
-    h += `<div style="display:grid;gap:10px"><h3>判断済み（${done.length}）</h3>${done.length ? `<div class="list">${done.map(hypoCard).join("")}</div>` : `<p class="muted">なし</p>`}</div>`;
-  }
-  $("v-hypo").innerHTML = h;
-}
-$("f-hypo").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const text = $("h-text").value.trim();
-  if (!text) { toast("仮説を書いてください。"); return; }
-  const row = { text, genre: radioVal("h-genre") || "all", why: $("h-why").value.trim(), status: "testing", origin: "self", created_at: new Date().toISOString() };
-  if (await write(() => db.collection("hypotheses").doc("h" + Date.now()).set(row), "仮説を追加しました。")) { $("h-text").value = ""; $("h-why").value = ""; }
-});
-document.addEventListener("click", async (e) => {
-  const s = e.target.closest && e.target.closest(".save-hypo");
-  if (s) {
-    const id = s.dataset.id, st = radioVal(`st-${id}`) || "testing", note = ($(`vn-${id}`) || {}).value || "";
-    await write(() => db.collection("hypotheses").doc(id).update({ status: st, verdict_note: note.trim(), judged_at: st === "testing" ? null : new Date().toISOString() }), "保存しました。");
-    return;
-  }
-  const d = e.target.closest && e.target.closest(".del-hypo");
-  if (d && armTwice(d, "削除")) await write(() => db.collection("hypotheses").doc(d.dataset.id).delete(), "削除しました。");
-});
-
-// ---------- ④ AI分析（文章をコピーしてClaudeのチャットに貼る） ----------
-function aiInput() {
-  const gl = goal();
-  const posts = S.posts.slice().sort(byDate).slice(-80).map((p) => {
-    const ev = evaluate(p);
-    return {
-      date: p.posted_at, genre: gLabel(p.genre), title: (p.caption || "").slice(0, 60), aim: p.aim || "", next_plan: p.next || "", why_note: p.why || "",
-      views: p.views, likes: p.likes, follows: p.follows,
-      like_rate_pct: isNum(likeRate(p)) ? +likeRate(p).toFixed(2) : null, follows_per_10k: isNum(followRate(p)) ? +followRate(p).toFixed(1) : null,
-      score_vs_usual: ev && isNum(ev.score) ? +ev.score.toFixed(2) : null,
-      hypothesis: (S.hypotheses.find((h) => h._id === p.hypothesis_id) || {}).text || null,
-    };
-  });
-  const hypos = S.hypotheses.map((h) => {
-    const { evs, hits } = hypoEvidence(h);
-    return { text: h.text, genre: h.genre === "all" ? "全ジャンル" : gLabel(h.genre), status: STATUS[h.status || "testing"], why: h.why || "", tested_posts: evs.length, hits };
-  });
-  return `TikTokの投稿の記録を分析してください。私は就活生で、この取り組みをガクチカ（学生時代に力を入れたこと）として話す予定です。
-
-## ルール
-- 投稿は3ジャンル。再生数の水準がジャンルで大きく違うので、ジャンルをまたいで再生数の大小を比べないでください。比べるときは score_vs_usual（同じジャンルの直近${BASE_N}本の中央値に対する倍率の平均。1.0がいつも通り）を使ってください。
-- ジャンルごとの目的：雑学＝視聴数・いいね数、イベント告知とグッズ紹介＝視聴数・いいね数・新規フォロワー。
-- 記録している数字は視聴数・いいね数・新規フォロワーだけです。
-- 本数が少ないので、偶然の可能性を意識して、何本のデータからの話かを書き、言い過ぎないでください。
-- 検証中の仮説の当たり外れは、最終的に私が判断します。あなたは「見立て」として書いてください。
-
-## 目標
-${gl ? JSON.stringify({ goal: goalName(gl), start: gl.start, end: gl.end, start_value: gl.base, target: gl.target, why: gl.why }) : "まだ未設定"}
-${gl && gl.metric === FOL ? "目標はアカウント全体のフォロワー数なので、どの投稿・どんな工夫が新規フォロワーを増やしたかを特に見てください。" : ""}
-
-## ジャンルごとの検証の判断（私の判断と学び）
-${JSON.stringify(S.cycles.slice().sort((a, b) => String(a.closed_at).localeCompare(String(b.closed_at))).map((c) => ({ date: String(c.closed_at).slice(0, 10), genre: gLabel(c.genre), hypothesis: (S.hypotheses.find((x) => x._id === c.hypothesis_id) || {}).text || null, posts: c.posts_n, median_score: c.median_score, decision: c.decision, learning: c.learning })))}
-
-## いまジャンルごとに試している仮説
-${JSON.stringify(Object.fromEntries(GENRES.map((g) => { const t = trackOf(g.id); return [g.label, t ? (S.hypotheses.find((x) => x._id === t.hid) || {}).text : null]; })))}
-
-## アカウントのフォロワー数の推移
-${JSON.stringify(folRecords().map((f) => ({ date: f.date, count: f.count })))}
-
-## 投稿（古い順、最大80本）
-${JSON.stringify(posts)}
-
-## 仮説
-${JSON.stringify(hypos)}
-
-## 答え方（この見出しで、日本語で、全体で800字くらいまで）
-### まとめ（3文以内）
-### ジャンル別：伸びた投稿の共通点／伸びなかった投稿の共通点（根拠の本数つき）
-### 試している仮説の見立て（当たりっぽい・外れっぽい・まだわからない と理由）
-### 次に試すことの提案（3つまで。「〜すれば〜が伸びる」の形と、次の投稿での確かめ方）
-### 注意（データの限界をひとこと）`;
-}
-function updateAiReady() {
-  const n = S.posts.filter((p) => isNum(p.views)).length;
-  const last = S.analyses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
-  const since = last ? S.posts.filter((p) => String(p.created_at || "") > String(last.created_at)).length : n;
-  $("ai-ready").textContent = n < 8 ? `記録が${n}本です。各ジャンル5本くらいたまってからの方が、意味のある答えになります。`
-    : last ? `前回の分析（${String(last.created_at).slice(0, 10)}）のあと、${since}本記録しています。` : `記録が${n}本あります。`;
-  if ($("ai-prompt-box").open) $("ai-prompt").textContent = aiInput();
-}
-$("ai-prompt-box").addEventListener("toggle", () => { if ($("ai-prompt-box").open) $("ai-prompt").textContent = aiInput(); });
-$("ai-copy").addEventListener("click", async () => {
-  const text = aiInput();
-  $("ai-prompt").textContent = text;
-  try { await navigator.clipboard.writeText(text); $("ai-status").textContent = "コピーしました。Claudeの新しいチャットに貼り付けてください。"; }
-  catch (e) {
-    $("ai-prompt-box").open = true;
-    const r = document.createRange(); r.selectNodeContents($("ai-prompt")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
-    $("ai-status").textContent = "自動でコピーできませんでした。下の文章を選択したので、長押しでコピーしてください。";
-  }
-});
-$("ai-save").addEventListener("click", async () => {
-  const text = $("ai-answer").value.trim();
-  if (!text) { toast("Claudeの答えを貼り付けてください。"); return; }
-  if (await write(() => db.collection("analyses").doc("a" + Date.now()).set({ created_at: new Date().toISOString(), posts_count: S.posts.length, text }), "分析を保存しました。")) $("ai-answer").value = "";
-});
-const list = (xs) => Array.isArray(xs) && xs.length ? `<ul style="margin:0;padding-left:1.1em;display:grid;gap:4px">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p class="muted">なし</p>`;
-function analysisHtml(a, open) {
-  const r = a.result || {};
-  const adopted = new Set(S.hypotheses.filter((h) => h.analysis_id === a._id).map((h) => h.text));
-  let h = `<details class="card" ${open ? "open" : ""}><summary><b>${esc(String(a.created_at).slice(0, 10))} の分析</b>（${a.posts_count ?? "?"}本の時点）</summary><div style="display:grid;gap:14px">`;
-  if (r.summary) h += `<p>${esc(r.summary)}</p>`;
-  (Array.isArray(r.by_genre) ? r.by_genre : []).forEach((g) => {
-    const id = (GENRES.find((x) => x.label === g.genre) || {}).id;
-    h += `<div style="display:grid;gap:6px"><h3>${id ? gChip(id) : esc(g.genre)} <span class="muted">${esc(g.posts ?? "")}本</span></h3>
-      <div class="effects"><div><h3><span class="chip good">伸びた共通点</span></h3>${list(g.good_patterns)}</div><div><h3><span class="chip bad">伸びなかった共通点</span></h3>${list(g.bad_patterns)}</div></div></div>`;
-  });
-  const checks = Array.isArray(r.hypothesis_checks) ? r.hypothesis_checks : [];
-  if (checks.length) {
-    h += `<div style="display:grid;gap:6px"><h3>仮説の見立て</h3><div class="list">${checks.map((c) => {
-      const hy = S.hypotheses.find((x) => x._id === c.id);
-      return `<div class="item"><div class="title">${esc(hy ? hy.text : c.id)}</div><div class="meta"><span class="chip">${esc(c.assessment)}</span></div><div class="ink2" style="font-size:13px">${esc(c.reason)}</div></div>`;
-    }).join("")}</div><p class="muted">判断は③で、あなたが「当たり／外れ」を選んでください。</p></div>`;
-  }
-  const nh = Array.isArray(r.new_hypotheses) ? r.new_hypotheses : [];
-  if (nh.length) {
-    h += `<div style="display:grid;gap:6px"><h3>次に試すことの提案</h3><div class="list">${nh.map((x, i) => `<div class="item">
-      <div class="meta">${isGenre(x.genre) ? gChip(x.genre) : `<span class="gchip">全ジャンル</span>`}</div>
-      <div class="title">${esc(x.text)}</div>
-      <div class="ink2" style="font-size:13px"><span class="muted">確かめ方 </span>${esc(x.how_to_test)}</div>
-      <div class="ink2" style="font-size:13px"><span class="muted">根拠 </span>${esc(x.basis)}</div>
-      <div class="row">${adopted.has(x.text) ? `<span class="chip good">仮説に追加済み</span>` : `<button class="btn small primary adopt save-btn" type="button" data-a="${esc(a._id)}" data-i="${i}">この仮説を試す</button>`}</div>
-    </div>`).join("")}</div></div>`;
-  }
-  if (r.caution) h += `<p class="muted">${esc(r.caution)}</p>`;
-  h += `<div class="row"><button class="btn small danger del-analysis" type="button" data-id="${esc(a._id)}">この分析を削除</button></div></div></details>`;
-  return h;
-}
-function textAnalysisHtml(a, open) {
-  return `<details class="card" ${open ? "open" : ""}><summary><b>${esc(String(a.created_at).slice(0, 10))} の分析</b>（${a.posts_count ?? "?"}本の時点）</summary>
-    <div style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7">${esc(a.text)}</div>
-    <div class="row"><button class="btn small danger del-analysis" type="button" data-id="${esc(a._id)}">この分析を削除</button></div></details>`;
-}
-function renderAi() {
-  updateAiReady();
-  const as = S.analyses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  $("v-ai").innerHTML = as.length ? `<div style="display:grid;gap:12px"><h3>分析の履歴（${as.length}回）</h3>${as.map((a, i) => a.text ? textAnalysisHtml(a, i === 0) : analysisHtml(a, i === 0)).join("")}</div>`
-    : `<div class="empty"><b>まだ分析していません</b>記録がたまったら、上の手順でClaudeに聞いて、答えを保存しましょう。ここに履歴として残ります。</div>`;
-}
-let adopting = null;
-document.addEventListener("click", async (e) => {
-  const b = e.target.closest && e.target.closest(".adopt");
-  if (b) {
-    const a = S.analyses.find((x) => x._id === b.dataset.a);
-    const x = a && a.result && a.result.new_hypotheses && a.result.new_hypotheses[Number(b.dataset.i)];
-    if (!x) return;
-    adopting = { a: a._id, x };
-    $("adopt-text").textContent = x.text; $("adopt-how").textContent = "確かめ方：" + (x.how_to_test || "");
-    $("adopt-why").value = "";
-    $("adopt-sheet").showModal();
-    return;
-  }
-  const d = e.target.closest && e.target.closest(".del-analysis");
-  if (d && armTwice(d, "この分析を削除")) await write(() => db.collection("analyses").doc(d.dataset.id).delete(), "削除しました。");
-});
-$("adopt-close").addEventListener("click", () => $("adopt-sheet").close());
-$("f-adopt").addEventListener("submit", async (e) => {
-  e.preventDefault();
-  if (!adopting) return;
-  const why = $("adopt-why").value.trim();
-  if (!why) { toast("なぜ試すのかを1行書いてください。ここがあなたの判断の記録になります。"); return; }
-  const { a, x } = adopting;
-  const row = { text: x.text, genre: isGenre(x.genre) ? x.genre : "all", how: x.how_to_test || "", basis: x.basis || "", why, status: "testing", origin: "ai", analysis_id: a, created_at: new Date().toISOString() };
-  if (await write(() => db.collection("hypotheses").doc("h" + Date.now()).set(row), "仮説に追加しました。③で確認できます。")) { adopting = null; $("adopt-sheet").close(); }
-});
-
-// ---------- ⑤ ガクチカ素材 ----------
-const cell = (s) => (String(s ?? "").replace(/\|/g, "／").replace(/\n/g, " ").trim() || "—");
-function buildMarkdown() {
-  const gl = goal();
-  const o = ["# TikTok改善の取り組み（ガクチカ素材）", "", `出力日: ${todayStr()}`, ""];
-  const start = gl ? gl.start : null;
-  const before = (g) => genrePosts(g).filter((p) => start && String(p.posted_at) < start);
-  const during = (g) => genrePosts(g).filter((p) => !start || String(p.posted_at) >= start);
-
-  o.push("## 1. 目標", "");
-  if (!gl) o.push("（目標が未設定です）", "");
-  else {
-    if (gl.metric === VX) {
-      const pm = preMedians(gl.start);
-      o.push(`- 全ジャンルの視聴数を、取り組み前の **${goalFmt(gl, gl.target)}** にする（期間: ${gl.start}〜${gl.end}）`,
-        `- 測り方: 期間中の各投稿の視聴数を、同じジャンルの取り組み前の中央値（${GENRES.filter((g) => pm[g.id]).map((g) => `${g.label} ${fmt(pm[g.id].value, "回")}`).join("・")}）で割り、その倍率の中央値を見る。ジャンルで再生数の水準が違い、1本のバズで平均が大きく動くため。`);
-    } else o.push(`- ${goalName(gl)}を、${goalFmt(gl, gl.base)} から **${goalFmt(gl, gl.target)}** にする（期間: ${gl.start}〜${gl.end}）`);
-    if (gl.why) o.push(`- この目標にした理由: ${gl.why}`);
-    o.push("");
-  }
-
-  o.push("## 2. 取り組み前の状況と課題", "");
-  o.push(`投稿は${GENRES.map((g) => g.label).join("・")}の3ジャンル。1本ごとの伸びの差が大きく、ジャンルによって再生数の水準も大きく違うため、平均では「何が効いたか」が判断できなかった。`,
-    `そこで、各投稿を「同じジャンルの直近${BASE_N}本の中央値の何倍か」で評価する仕組みを作り、1本のバズや偶然に左右されにくい形で比べることにした。`, "");
-  if (start) {
-    o.push(`| ジャンル | 取り組み前の本数 | 視聴数（中央値） | いいね数（中央値） | 新規フォロワー（中央値） |`, "|---|---|---|---|---|");
-    GENRES.forEach((g) => { const b = before(g.id).slice(-BASE_N); if (b.length) o.push(`| ${g.label} | ${b.length} | ${fmt(median(b.map((p) => p.views)), "回")} | ${fmt(median(b.map((p) => p.likes)), "件")} | ${fmt(median(b.map((p) => p.follows)), "人")} |`); });
-    o.push("");
-  }
-
-  o.push("## 3. 試したこと（仮説と検証）", "");
-  const hs = S.hypotheses.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at)));
-  if (!hs.length) o.push("（仮説がまだありません）", "");
-  else {
-    o.push(`仮説を${hs.length}個立てて検証した（当たり ${hs.filter((h) => h.status === "hit").length}・外れ ${hs.filter((h) => h.status === "miss").length}・検証中 ${hs.filter((h) => (h.status || "testing") === "testing").length}）。`, "",
-      "| 仮説 | ジャンル | なぜ試したか | 試した本数 | 結果 | 判断の理由 |", "|---|---|---|---|---|---|");
-    hs.forEach((h) => {
-      const { evs, hits } = hypoEvidence(h);
-      o.push(`| ${cell(h.text)} | ${h.genre === "all" ? "全ジャンル" : gLabel(h.genre)} | ${cell(h.why)} | ${evs.length}本（当たり${hits}本） | ${STATUS[h.status || "testing"]} | ${cell(h.verdict_note)} |`);
-    });
-    o.push("");
-  }
-
-  const cs = S.cycles.slice().sort((a, b) => String(a.closed_at).localeCompare(String(b.closed_at)));
-  if (cs.length) {
-    o.push(`### ジャンルごとの仮説検証（${cs.length}回の判断）`, "", `ジャンルごとに試すことを1つ決め、${JUDGE_AT}本試すごとに「同じジャンルのいつもの何倍か」で判断した。`, "",
-      "| 判断日 | ジャンル | 試したこと | 本数 | いつもの何倍（中央値） | 判断 | 学び |", "|---|---|---|---|---|---|---|");
-    cs.forEach((c) => { const hy = S.hypotheses.find((x) => x._id === c.hypothesis_id); o.push(`| ${String(c.closed_at).slice(0, 10)} | ${gLabel(c.genre)} | ${cell(hy ? hy.text : "—")} | ${c.posts_n ?? "—"} | ${fmtX(c.median_score)} | ${DECISIONS[c.decision] ? DECISIONS[c.decision].split("（")[0] : "—"} | ${cell(c.learning)} |`); });
-    o.push("");
-  }
-  const withNext = S.posts.filter((p) => (p.next || "").trim());
-  if (withNext.length) {
-    o.push("### 動画ごとの振り返り", "", `記録した${S.posts.length}本のうち${withNext.length}本で、「次の動画でどうするか」を決めてから次を作った。例:`, "");
-    withNext.slice().sort(byDate).slice(-3).forEach((p) => o.push(`- ${p.posted_at}［${gLabel(p.genre)}］いつもの${fmtX((evaluate(p) || {}).score)} → 次へ: ${p.next}`));
-    o.push("");
-  }
-
-  o.push("## 4. 結果の数字", "");
-  if (gl) {
-    const cur = goalCurrent(gl), u = goalUnit(gl);
-    if (gl.metric === FOL) {
-      o.push(`- アカウントのフォロワー数: 開始時 ${fmt(gl.base, u)}（${gl.start}）→ 現在 ${cur ? `${fmt(cur.value, u)}（${cur.date}）` : "—"}${cur && isNum(gl.base) ? `、+${fmt(cur.value - gl.base, u)}（${fmtX(gl.base > 0 ? cur.value / gl.base : null)}）` : ""}／目標 ${fmt(gl.target, u)}`);
-      const gained = S.posts.filter((p) => String(p.posted_at) >= gl.start && isNum(p.follows));
-      if (gained.length) o.push(`- 期間中の投稿${gained.length}本で増えた新規フォロワーの合計: ${fmt(gained.reduce((a, p) => a + p.follows, 0), "人")}`);
-      o.push("");
-    } else if (gl.metric === VX) {
-      o.push(`- 全ジャンルの視聴数（取り組み前の何倍か・中央値）: 1.00倍 → 現在 ${cur ? goalFmt(gl, cur.value) : "—"}（期間中${cur ? cur.n : 0}本）／目標 ${goalFmt(gl, gl.target)}`);
-      const rs = vxRatios(gl.start);
-      if (rs.length) o.push(`- 期間中の投稿のうち、取り組み前の中央値を上回った投稿: ${rs.filter((r) => r.ratio > 1).length}/${rs.length}本`);
-      o.push("");
-    } else o.push(`- 目標の指標（${goalName(gl)}）: 取り組み前 ${goalFmt(gl, gl.base)} → 現在 ${cur ? goalFmt(gl, cur.value) : "—"}（直近${cur ? cur.n : 0}本）${cur && isNum(gl.base) && gl.base > 0 ? `、${fmtX(cur.value / gl.base)}` : ""}／目標 ${goalFmt(gl, gl.target)}`, "");
-    o.push("| ジャンル | 指標 | 取り組み前（中央値） | 期間中の直近（中央値） | 変化 |", "|---|---|---|---|---|");
-    GENRES.forEach((g) => {
-      const b = before(g.id).slice(-BASE_N), d = during(g.id).slice(-BASE_N);
-      if (!b.length || !d.length) return;
-      g.kpis.forEach((m) => {
-        const x = median(b.map((p) => p[m])), y = median(d.map((p) => p[m]));
-        o.push(`| ${g.label} | ${METRICS[m][0]} | ${fmt(x, METRICS[m][1])} | ${fmt(y, METRICS[m][1])} | ${isNum(x) && x > 0 && isNum(y) ? fmtPct((y - x) / x * 100) : "—"} |`);
-      });
-    });
-    o.push("");
-  } else o.push("（目標を設定すると、取り組み前と期間中の比較が入ります）", "");
-  const evAll = S.posts.map((p) => ({ p, ev: evaluate(p) })).filter((x) => x.ev && isNum(x.ev.score)).sort((a, b) => b.ev.score - a.ev.score);
-  if (evAll.length) {
-    const best = evAll[0];
-    o.push(`記録した投稿 ${S.posts.length}本のうち、いちばん伸びたのは「${best.p.caption || "（タイトルなし）"}」［${gLabel(best.p.genre)}］で、いつもの${fmtX(best.ev.score)}。${best.p.aim ? `ねらい: ${best.p.aim}` : ""}`, "");
-  }
-
-  o.push("## 5. 学び", "");
-  const judged = hs.filter((h) => h.status === "hit" || h.status === "miss");
-  if (judged.length) judged.forEach((h) => o.push(`- **${STATUS[h.status]}**: ${h.text}${h.verdict_note ? ` — ${h.verdict_note}` : ""}`));
-  cs.filter((c) => c.learning && !(judged.some((h) => h._id === c.hypothesis_id && h.verdict_note === c.learning))).forEach((c) => o.push(`- ${gLabel(c.genre)}（${String(c.closed_at).slice(0, 10)}）: ${c.learning}`));
-  const lastA = S.analyses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
-  const lastSummary = lastA ? (lastA.result && lastA.result.summary) || (lastA.text || "").replace(/^#+.*$/gm, "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
-  if (lastSummary) o.push(`- 最新のAI分析（${String(lastA.created_at).slice(0, 10)}）より: ${lastSummary}${lastA.text && lastA.text.length > 140 ? "…" : ""}`);
-  o.push("- 平均ではなく中央値と「いつもの何倍か」で見ることで、偶然のバズと、再現できる工夫を分けて考えられるようになった。", "");
-
-  o.push("## 面接で話すときの骨子（下書き）", "");
-  let pitch = "TikTokで雑学・イベント告知・グッズ紹介の3ジャンルを投稿しているが、1本ごとの伸びの差が大きく、平均では何が効いているのか判断できなかった。";
-  pitch += `そこで各投稿を「同じジャンルの直近${BASE_N}本の中央値の何倍か」で評価する記録の仕組みを作り、`;
-  if (gl) pitch += gl.metric === VX ? `「${daysBetween(gl.start, gl.end) <= 35 ? "1ヶ月で、" : ""}全ジャンルの視聴数を各ジャンルの普段（中央値）の${goalFmt(gl, gl.target)}にする」という目標を立てた。` : `「${goalName(gl)}を${goalFmt(gl, gl.base)}から${goalFmt(gl, gl.target)}にする」という目標を立てた。`;
-  if (cs.length) pitch += `動画ごとに「次にどうするか」を決めて改善しつつ、ジャンルごとに仮説を立てて${JUDGE_AT}本ずつ検証し、${cs.length}回の判断を重ねた。`;
-  else if (hs.length) pitch += `伸びた投稿と伸びなかった投稿を比べて仮説を${hs.length}個立て、1つにつき複数本で検証した。`;
-  if (gl) { const cur = goalCurrent(gl); if (cur && isNum(gl.base) && gl.base > 0) pitch += gl.metric === VX ? `その結果、視聴数は普段の${goalFmt(gl, cur.value)}（期間中${cur.n}本の中央値）になった。` : gl.metric === FOL ? `その結果、フォロワー数は${fmt(gl.base, "人")}から${fmt(cur.value, "人")}（+${fmt(cur.value - gl.base, "人")}）になった。` : `その結果、中央値は${fmt(gl.base, goalUnit(gl))}から${fmt(cur.value, goalUnit(gl))}（${fmtX(cur.value / gl.base)}）になった。`; }
-  o.push(pitch, "");
-  return o.join("\n");
-}
-function renderExport() { $("x-md").textContent = buildMarkdown(); }
-
 async function offer(filename, data) {
   if (!downloads) { toast("この画面ではファイル保存が使えません。コピーを使ってください。"); return; }
-  try { await downloads.save({ filename, data }); toast("保存しました。"); }
-  catch (e) { if (e && e.code !== "declined") toast("ファイルを保存できませんでした。"); }
+  try { await downloads.save({ filename, data }); toast("保存しました。"); } catch (e) { if (e && e.code !== "declined") toast("ファイルを保存できませんでした。"); }
 }
 $("x-copy").addEventListener("click", async () => {
-  const text = $("x-md").textContent;
-  try { await navigator.clipboard.writeText(text); toast("コピーしました。"); }
-  catch (e) { const r = document.createRange(); r.selectNodeContents($("x-md")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("選択しました。共有メニューからコピーしてください。"); }
+  try { await navigator.clipboard.writeText(buildMd()); toast("コピーしました。"); }
+  catch (e) { toast("「まとめを見る」を開いて、長押しでコピーしてください。"); }
 });
 const stamp = () => todayStr().replace(/-/g, "");
-$("x-save-md").addEventListener("click", () => offer(`gakuchika_${stamp()}.md`, buildMarkdown()));
-$("x-backup").addEventListener("click", () => {
-  const out = { app: "tiktok-experiment-note", version: 3, exported_at: new Date().toISOString() };
-  COLLECTIONS.forEach((c) => { out[c] = S[c].map((x) => ({ _id: x._id, ...clean(x) })); });
-  offer(`tiktok_backup_${stamp()}.json`, JSON.stringify(out, null, 2));
-});
-$("x-csv").addEventListener("click", () => {
-  const cols = [["posted_at", "投稿日"], ["genre", "ジャンル"], ["caption", "タイトル"], ["aim", "ねらい"], ["views", "視聴数"], ["likes", "いいね数"], ["follows", "新規フォロワー"],
-    ["score", "いつもの何倍"], ["why", "なぜ伸びた(メモ)"], ["next", "次の動画でどうするか"]];
-  const q = (v) => { const s = v === null || v === undefined ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
-  const lines = [cols.map((c) => c[1]).join(",")];
-  S.posts.slice().sort(byDate).forEach((p) => {
-    const ev = evaluate(p);
-    lines.push(cols.map(([k]) => q(k === "genre" ? gLabel(p.genre) : k === "score" ? (ev && isNum(ev.score) ? ev.score.toFixed(2) : "") : p[k])).join(","));
-  });
-  offer(`tiktok_posts_${stamp()}.csv`, "﻿" + lines.join("\r\n"));
-});
-let restoreData = null;
-$("x-restore-file").addEventListener("change", async (e) => {
-  const f = e.target.files[0], box = $("x-restore-info");
-  restoreData = null; box.innerHTML = "";
-  if (!f) return;
-  try {
-    const j = JSON.parse(await f.text());
-    if (j.app !== "tiktok-experiment-note" || j.version !== 3) throw new Error("format");
-    restoreData = j;
-    const n = COLLECTIONS.map((c) => `${{ posts: "投稿", hypotheses: "仮説", analyses: "分析", settings: "設定", followers: "フォロワー数", cycles: "検証の判断" }[c]} ${(j[c] || []).length}件`).join("・");
-    box.innerHTML = `<div class="note info">${esc(n)}（${esc(String(j.exported_at || "").slice(0, 10))} のバックアップ）を書き込みます。同じ記録は上書きされ、今ある他の記録は消えません。</div><div class="row"><button class="btn primary" type="button" id="x-restore-go">復元する</button></div>`;
-    $("x-restore-go").addEventListener("click", async () => {
-      const btn = $("x-restore-go"); btn.disabled = true; btn.textContent = "復元中…";
-      const ok = await write(async () => {
-        for (const c of COLLECTIONS) for (const x of (restoreData[c] || [])) {
-          if (!x || typeof x._id !== "string") continue;
-          await db.collection(c).doc(x._id).set(clean(x));
-        }
-      }, "バックアップから復元しました。");
-      box.innerHTML = ok ? "" : `<div class="note bad">途中で止まりました。もう一度ファイルを選んで復元してください。</div>`;
-      $("x-restore-file").value = "";
-    });
-  } catch (err) { box.innerHTML = `<div class="note bad">このアプリ（今の版）のバックアップファイル（JSON）を選んでください。</div>`; }
-});
+$("x-save").addEventListener("click", () => offer(`pdca_${stamp()}.md`, buildMd()));
+$("x-backup").addEventListener("click", () => offer(`pdca_backup_${stamp()}.json`, JSON.stringify({ app: "tiktok-pdca-note", version: 1, exported_at: new Date().toISOString(), items: S.items.map((x) => ({ _id: x._id, ...clean(x) })) }, null, 2)));
 
 // ---------- 起動 ----------
-function renderAll() { renderLog(); renderStudy(); renderHypo(); renderAi(); renderExport(); setSaveEnabled(canWrite); }
-function setSaveEnabled(on) { document.querySelectorAll(".save-btn").forEach((b) => { b.disabled = !on; }); }
-function setDlEnabled(on) { document.querySelectorAll(".dl-btn").forEach((b) => { b.hidden = !on; }); }
-{ const t = lsGet("tab"); if (TABS.includes(t)) go(t); }
-const goHash = () => { const t = location.hash.slice(1); if (TABS.includes(t)) go(t); };
-goHash();
-window.addEventListener("hashchange", goHash);
-setDlEnabled(false);
-renderAll();
-
+const setSave = (on) => document.querySelectorAll(".save-btn").forEach((b) => { b.disabled = !on; });
+const setDl = (on) => document.querySelectorAll(".dl-btn").forEach((b) => { b.hidden = !on; });
+filter = lsGet("filter") || "all";
+setSave(false); setDl(false); render();
 (async () => {
   const use = window.claude && window.claude.use ? (n) => window.claude.use(n).catch(() => null) : async () => null;
   const [dbNs, dl, user] = await Promise.all([use("db"), use("downloads"), use("user")]);
-  downloads = dl; setDlEnabled(!!dl);
+  downloads = dl; setDl(!!dl);
   const sync = $("sync"), note = $("global-note");
-  if (!dbNs) {
-    sync.textContent = "保存できません"; sync.className = "pill ng";
-    note.hidden = false; note.className = "note bad";
-    note.textContent = "記録を保存できない状態です。claude.ai にログインして、このページをもう一度開いてください。";
-    renderAll();
-    return;
-  }
+  if (!dbNs) { sync.textContent = "保存できません"; sync.className = "pill ng"; note.hidden = false; note.className = "note bad"; note.textContent = "保存できない状態です。claude.ai にログインして、このページをもう一度開いてください。"; return; }
   db = dbNs;
   canWrite = user ? (user.isOwner() || (await user.can("data.write")) !== false) : true;
-  if (!canWrite) { note.hidden = false; note.className = "note info"; note.textContent = "閲覧のみです。記録を追加・編集できるのは、このノートの持ち主だけです。"; }
-  sync.textContent = "読み込み中…";
-  const got = new Set();
-  COLLECTIONS.forEach((c) => {
-    db.collection(c).onSnapshot((snap) => {
-      S[c] = snap.docs.map((d) => ({ _id: d.id, ...d.data() }));
-      got.add(c);
-      if (got.size === COLLECTIONS.length) { sync.textContent = "claude.ai に保存"; sync.className = "pill ok"; }
-      renderAll();
-    }, () => { sync.textContent = "同期が止まりました"; sync.className = "pill ng"; });
-  });
+  setSave(canWrite);
+  db.collection(COL).onSnapshot((snap) => {
+    S.items = snap.docs.map((d) => ({ _id: d.id, ...d.data() }));
+    sync.textContent = "claude.ai に保存"; sync.className = "pill ok";
+    render();
+  }, () => { sync.textContent = "同期が止まりました"; sync.className = "pill ng"; });
 })();
 </script>
