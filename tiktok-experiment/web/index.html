@@ -224,7 +224,7 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
   <section class="page" id="p-log" data-tab="log">
     <div>
       <h2>① 記録</h2>
-      <p class="lead">投稿の2日後くらいに、TikTokの分析画面のスクショを送るだけ。数字はAIが読み取り、「いつもと比べてどうだったか」をアプリが計算します。</p>
+      <p class="lead">投稿の2日後くらいに、視聴数・いいね数・新規フォロワーの3つを入れるだけ。「いつもと比べてどうだったか」をアプリが計算します。</p>
     </div>
     <div id="v-goal"></div>
     <div class="row"><button class="btn primary save-btn" type="button" id="open-record">＋ 投稿を記録する</button></div>
@@ -262,15 +262,20 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
   <section class="page" id="p-ai" data-tab="ai" hidden>
     <div>
       <h2>④ AI分析</h2>
-      <p class="lead">記録と仮説をClaudeが読み、伸びた投稿の共通点・仮説の当たり外れ・次に試すことを出します。月に1〜2回が目安です。</p>
+      <p class="lead">記録をまとめた文章をコピーして、Claudeのチャットに貼ると、伸びた投稿の共通点・仮説の見立て・次に試すことを答えてくれます。月に1〜2回が目安です。</p>
     </div>
-    <div class="card" id="ai-card">
+    <div class="card">
+      <h3>1. 分析用の文章をコピー</h3>
       <p class="ink2" style="font-size:14px" id="ai-ready"></p>
-      <div class="row">
-        <button class="btn primary" type="button" id="ai-run">分析する</button>
-        <button class="btn" type="button" id="ai-stop" hidden>止める</button>
-      </div>
-      <p class="muted" id="ai-status"></p>
+      <div class="row"><button class="btn primary" type="button" id="ai-copy">分析用の文章をコピー</button><span class="muted" id="ai-status"></span></div>
+      <p class="muted">コピーしたら、Claudeのアプリかclaude.aiで<b>新しいチャット</b>を開いて貼り付け、送信してください。</p>
+      <details id="ai-prompt-box"><summary>コピーする文章を見る</summary><pre class="md" id="ai-prompt"></pre></details>
+    </div>
+    <div class="card">
+      <h3>2. Claudeの答えを保存</h3>
+      <p class="muted">答えをコピーしてここに貼ると、分析の履歴として残り、ガクチカ素材にも使えます。提案の中で試したいものは、③で仮説として追加してください。</p>
+      <label class="f">Claudeの答え<textarea id="ai-answer" style="min-height:140px"></textarea></label>
+      <div class="row"><button class="btn primary save-btn" type="button" id="ai-save">保存する</button></div>
     </div>
     <div id="v-ai"></div>
   </section>
@@ -316,28 +321,19 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
 <dialog id="rec-sheet">
   <form class="sheet" id="f-rec" method="dialog" autocomplete="off">
     <div class="bar-top"><h3 id="rec-heading">投稿を記録</h3><button class="btn small" type="button" id="rec-close">閉じる</button></div>
-    <div class="card" id="rec-shot" style="background:var(--bg)">
-      <label class="f">分析画面のスクショ（1〜3枚）<input type="file" id="rec-files" accept="image/jpeg,image/png,image/webp,image/gif" multiple></label>
-      <div class="row"><button class="btn primary" type="button" id="rec-read" disabled>スクショから読み取る</button><span class="muted" id="rec-read-status"></span></div>
-      <p class="muted" id="rec-shot-note">動画の最初の画面のスクショも入れると、冒頭のテロップも読み取ります。</p>
-    </div>
     <div class="f"><span class="muted">ジャンル</span><div class="seg genre" id="rec-genres" role="radiogroup" aria-label="ジャンル"></div></div>
     <div class="grid2 at-row">
       <label class="f">投稿日<input type="date" id="rec-date" required></label>
       <label class="f">試した仮説<select id="rec-hypo"></select></label>
     </div>
     <label class="f">タイトル・キャプション<input type="text" id="rec-caption"></label>
-    <div class="grid4">
+    <div class="grid4" style="grid-template-columns:repeat(3,1fr)">
       <label class="f">視聴数<input type="number" id="rec-views" inputmode="numeric" min="0" step="1"></label>
       <label class="f">いいね数<input type="number" id="rec-likes" inputmode="numeric" min="0" step="1"></label>
       <label class="f">新規フォロワー<input type="number" id="rec-follows" inputmode="numeric" min="0" step="1"></label>
-      <label class="f">平均視聴時間（秒）<input type="number" id="rec-watch" inputmode="decimal" min="0" step="any"></label>
-      <label class="f">完走率（%）<input type="number" id="rec-complete" inputmode="decimal" min="0" max="100" step="any"></label>
     </div>
     <p class="note info" id="rec-prev" hidden></p>
     <label class="f">今回のねらい・工夫（1行・空欄でもOK）<input type="text" id="rec-aim" placeholder="例: 冒頭で答えを先に言った"></label>
-    <label class="f">冒頭のテロップ・ひとこと<input type="text" id="rec-hook" placeholder="スクショから読み取れたら自動で入ります"></label>
-    <label class="f">気づき（任意）<textarea id="rec-note"></textarea></label>
     <label class="f">次の動画でどうするか（1行）<input type="text" id="rec-next" placeholder="例: 冒頭をさらに短く、0.5秒で答えを出す"></label>
     <div class="row" style="justify-content:space-between">
       <div class="row"><button class="btn primary save-btn" type="submit" value="close">保存</button><button class="btn save-btn" type="submit" value="next" id="rec-save-next">保存して次を記録</button></div>
@@ -399,7 +395,7 @@ const VX = "views_x";            // 目標の指標：全ジャンルの視聴�
 const STATUS = { testing: "検証中", hit: "当たり", miss: "外れ", unclear: "わからない" };
 
 const S = { posts: [], hypotheses: [], analyses: [], settings: [], followers: [], cycles: [] };
-let db = null, downloads = null, sample = null, imageOk = false, canWrite = false;
+let db = null, downloads = null, canWrite = false;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -621,7 +617,7 @@ function postCard(p) {
     ${p.aim ? `<div class="change"><span class="muted">ねらい </span>${esc(p.aim)}</div>` : ""}
     ${h ? `<div class="ink2" style="font-size:13px"><span class="muted">試した仮説 </span>${esc(h.text)}</div>` : ""}
     ${p.next ? `<div class="ink2" style="font-size:13px"><span class="muted">次へ </span>${esc(p.next)}</div>` : ""}
-    <div class="nums">${ratioLine(p, ev)}${isNum(p.avg_watch_sec) ? `<span>平均視聴 <b>${fmt(p.avg_watch_sec, "秒", 1)}</b></span>` : ""}${isNum(p.completion_pct) ? `<span>完走率 <b>${fmt(p.completion_pct, "%", 1)}</b></span>` : ""}</div>
+    <div class="nums">${ratioLine(p, ev)}</div>
     <div class="row"><button class="btn small edit-post" type="button" data-id="${esc(p._id)}">編集</button></div>
   </div>`;
 }
@@ -667,7 +663,6 @@ function followerCard() {
   h += `<p class="muted">週に1回くらい、プロフィールに出ているフォロワー数を記録してください。${fs.length ? "" : "目標の開始日の数字も入れておくと、開始時の値になります。"}</p>
     <div class="grid2"><label class="f">日付<input type="date" id="fol-date" value="${todayStr()}"></label><label class="f">フォロワー数<input type="number" id="fol-count" inputmode="numeric" min="0" step="1"></label></div>
     <div class="row"><button class="btn primary save-btn" type="button" id="fol-save">記録する</button>
-      ${imageOk && sample ? `<label class="btn small" style="position:relative">プロフィールのスクショから読む<input type="file" id="fol-file" accept="image/jpeg,image/png,image/webp,image/gif" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>` : ""}
       <span class="muted" id="fol-status"></span></div>`;
   if (fs.length) h += `<details><summary>記録の一覧（${fs.length}件）</summary><div class="table-scroll"><table><thead><tr><th>日付</th><th>フォロワー数</th><th>前回から</th><th></th></tr></thead><tbody>${fs.slice().reverse().map((f, i, arr) => {
     const p = arr[i + 1];
@@ -684,16 +679,6 @@ document.addEventListener("click", async (e) => {
   }
   const d = e.target.closest && e.target.closest(".del-fol");
   if (d && armTwice(d, "削除")) await write(() => db.collection("followers").doc(d.dataset.id).delete(), "削除しました。");
-});
-document.addEventListener("change", async (e) => {
-  if (e.target.id !== "fol-file" || !e.target.files.length || !sample) return;
-  const st = $("fol-status"); st.textContent = "読み取り中…";
-  try {
-    const r = await sample.json(`この画像はTikTokのプロフィール画面のスクリーンショットです。「フォロワー」の人数を読み取り、{"followers": number|null} のJSONだけで返してください。「1.2万」は12000、「3.4K」は3400 に直し、読めなければ null。`, { images: [e.target.files[0]], modelTier: "default" });
-    if (r && typeof r.followers === "number" && Number.isFinite(r.followers)) { $("fol-count").value = Math.round(r.followers); st.textContent = "読み取りました。合っていれば「記録する」を押してください。"; }
-    else st.textContent = "読み取れませんでした。数字を手で入れてください。";
-  } catch (err) { st.textContent = "読み取れませんでした。数字を手で入れてください。"; }
-  e.target.value = "";
 });
 document.addEventListener("change", (e) => { if (e.target.name === "log-filter") { logFilter = e.target.value; renderLog(); } });
 function renderLog() {
@@ -712,7 +697,7 @@ function renderLog() {
 }
 
 // 記録シート
-let editingPost = null, recFiles = [];
+let editingPost = null;
 $("rec-genres").innerHTML = genreRadios("rec-genre", null);
 function syncRecDefaults() {
   const g = radioVal("rec-genre"), ds = $("rec-date").value;
@@ -728,32 +713,21 @@ function hypoOptions(selected) {
   const testing = S.hypotheses.filter((x) => x.status === "testing" || x._id === selected);
   return `<option value="">なし</option>` + testing.map((x) => `<option value="${esc(x._id)}" ${x._id === selected ? "selected" : ""}>${esc(x.text.slice(0, 40))}</option>`).join("");
 }
-const REC_FIELDS = [["rec-views", "views"], ["rec-likes", "likes"], ["rec-follows", "follows"], ["rec-watch", "avg_watch_sec"], ["rec-complete", "completion_pct"]];
+const REC_FIELDS = [["rec-views", "views"], ["rec-likes", "likes"], ["rec-follows", "follows"]];
 function openRecord(p) {
-  editingPost = p || null; recExtra = {};
+  editingPost = p || null;
   $("rec-heading").textContent = p ? "記録を編集" : "投稿を記録";
   setRadio("rec-genre", p ? p.genre : (isGenre(lsGet("lastGenre")) ? lsGet("lastGenre") : null));
   $("rec-date").value = p ? p.posted_at : todayStr();
   $("rec-caption").value = p ? (p.caption || "") : "";
   REC_FIELDS.forEach(([id, k]) => { $(id).value = p && isNum(p[k]) ? p[k] : ""; });
   $("rec-aim").value = p ? (p.aim || "") : "";
-  $("rec-hook").value = p ? (p.hook || "") : "";
-  $("rec-note").value = p ? (p.note || "") : "";
   $("rec-hypo").innerHTML = hypoOptions(p ? p.hypothesis_id : "");
   $("rec-next").value = p ? (p.next || "") : "";
   syncRecDefaults();
-  $("rec-files").value = ""; recFiles = []; $("rec-read").disabled = true; $("rec-read-status").textContent = "";
-  $("rec-shot").hidden = !!p && !imageOk;
-  syncShotUi();
   $("rec-save-next").hidden = !!p;
   const del = $("rec-delete"); del.hidden = !p; del.dataset.armed = ""; del.textContent = "この記録を削除";
   $("rec-sheet").showModal();
-}
-function syncShotUi() {
-  const ok = imageOk && !!sample;
-  $("rec-files").disabled = !ok;
-  $("rec-shot-note").textContent = ok ? "動画の最初の画面のスクショも入れると、冒頭のテロップも読み取ります。"
-    : "この環境ではスクショの読み取りが使えません。数字を手で入れてください（claude.ai のアプリかブラウザで開くと使えます）。";
 }
 $("open-record").addEventListener("click", () => openRecord(null));
 $("rec-close").addEventListener("click", () => $("rec-sheet").close());
@@ -764,45 +738,6 @@ document.addEventListener("click", (e) => {
   const p = S.posts.find((x) => x._id === b.dataset.id);
   if (p) openRecord(p);
 });
-$("rec-files").addEventListener("change", (e) => {
-  recFiles = [...e.target.files].slice(0, 3);
-  $("rec-read").disabled = !recFiles.length;
-  $("rec-read-status").textContent = recFiles.length ? `${recFiles.length}枚を選びました` : "";
-});
-$("rec-read").addEventListener("click", async () => {
-  if (!sample || !recFiles.length) return;
-  const btn = $("rec-read"), st = $("rec-read-status");
-  btn.disabled = true; st.textContent = "読み取り中…（10〜30秒）";
-  const prompt = `次の画像は、TikTokの自分の動画の分析画面（インサイト）のスクリーンショットです。動画の最初の画面のスクショが混ざっていることもあります。
-読み取れる値を、次のJSONオブジェクト1つだけで返してください。読めない項目は null にし、推測で埋めないでください。
-{"posted_date": "YYYY-MM-DD"|null, "caption": string|null, "views": number|null, "likes": number|null, "comments": number|null, "shares": number|null, "saves": number|null, "follows": number|null, "avg_watch_sec": number|null, "completion_pct": number|null, "hook": string|null, "genre_guess": "trivia"|"event"|"goods"|null}
-- views は「視聴数」「再生数」、follows は「新規フォロワー」、avg_watch_sec は「平均視聴時間」（秒に換算。1分5秒→65）、completion_pct は「最後まで視聴」「完全に視聴された動画」の割合（%の数値だけ）。
-- 「1.2万」は12000、「3.4K」は3400、「1.1M」は1100000 に直す。カンマは外す。
-- 年が書かれていない日付は、今日（${todayStr()}）から見て過去の、いちばん近い日付にする。
-- hook は動画の冒頭に出ているテロップや言葉（最初の画面のスクショがあれば）。
-- genre_guess はキャプションや画面から推測：trivia=雑学（豆知識・解説）、event=イベント告知、goods=グッズ紹介。わからなければ null。`;
-  try {
-    const r = await sample.json(prompt, { images: recFiles, modelTier: "default" });
-    const n = (v) => (typeof v === "number" && Number.isFinite(v) ? v : null);
-    const put = (id, v) => { if (v !== null && v !== undefined && v !== "") $(id).value = v; };
-    if (r && typeof r === "object") {
-      if (typeof r.posted_date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(r.posted_date)) $("rec-date").value = r.posted_date;
-      put("rec-caption", typeof r.caption === "string" ? r.caption.trim() : null);
-      put("rec-views", n(r.views)); put("rec-likes", n(r.likes)); put("rec-follows", n(r.follows));
-      put("rec-watch", n(r.avg_watch_sec)); put("rec-complete", n(r.completion_pct));
-      put("rec-hook", typeof r.hook === "string" ? r.hook.trim() : null);
-      if (!radioVal("rec-genre") && isGenre(r.genre_guess)) setRadio("rec-genre", r.genre_guess);
-      recExtra = { comments: n(r.comments), shares: n(r.shares), saves: n(r.saves) };
-      st.textContent = "読み取りました。数字が合っているか確かめてから保存してください。";
-    }
-  } catch (e) {
-    st.textContent = e && e.code === "not_granted" ? "AIの使用が許可されていません。数字を手で入れてください。"
-      : e && e.code === "rate_limited" ? "混み合っています。少し待ってからもう一度押してください。"
-      : e && e.code === "image_rejected" ? "この画像は読めませんでした。別のスクショを選んでください。"
-      : "読み取れませんでした。もう一度押すか、数字を手で入れてください。";
-  } finally { btn.disabled = !recFiles.length; }
-});
-let recExtra = {};
 $("f-rec").addEventListener("submit", async (e) => {
   e.preventDefault();
   const g = radioVal("rec-genre");
@@ -810,15 +745,13 @@ $("f-rec").addEventListener("submit", async (e) => {
   const date = $("rec-date").value;
   if (!date) { toast("投稿日を入れてください。"); return; }
   const row = { genre: g, posted_at: date, caption: $("rec-caption").value.trim(), aim: $("rec-aim").value.trim(),
-    hook: $("rec-hook").value.trim(), note: $("rec-note").value.trim(), next: $("rec-next").value.trim(), hypothesis_id: $("rec-hypo").value || null };
+    next: $("rec-next").value.trim(), hypothesis_id: $("rec-hypo").value || null };
   REC_FIELDS.forEach(([id, k]) => { row[k] = readNum($(id)); });
   if (row.views === null) { toast("視聴数を入れてください。"); return; }
   const base = editingPost ? clean(editingPost) : { created_at: new Date().toISOString() };
-  Object.entries(recExtra).forEach(([k, v]) => { if (v !== null) base[k] = v; });
   const id = editingPost ? editingPost._id : "p" + Date.now();
   lsSet("lastGenre", g);
   if (await write(() => db.collection("posts").doc(id).set({ ...base, ...row, updated_at: new Date().toISOString() }), "記録しました。")) {
-    recExtra = {};
     const again = e.submitter && e.submitter.value === "next";
     $("rec-sheet").close();
     if (again) { openRecord(null); setRadio("rec-genre", g); $("rec-date").value = date; syncRecDefaults(); toast("記録しました。次の投稿のスクショを選んでください。"); }
@@ -907,9 +840,8 @@ function studyItem(p) {
   return `<div class="item">
     <div class="meta"><span class="num">${esc(p.posted_at)}</span><span class="chip ${v.cls}">${v.label}・いつもの${fmtX(ev && ev.score)}</span></div>
     <div class="title">${esc(p.caption || "（タイトルなし）")}</div>
-    ${p.hook ? `<div class="ink2" style="font-size:13px"><span class="muted">冒頭 </span>${esc(p.hook)}</div>` : ""}
     ${p.aim ? `<div class="ink2" style="font-size:13px"><span class="muted">ねらい </span>${esc(p.aim)}</div>` : ""}
-    <div class="nums">${ratioLine(p, ev)}${isNum(p.avg_watch_sec) ? `<span>平均視聴 <b>${fmt(p.avg_watch_sec, "秒", 1)}</b></span>` : ""}${isNum(p.completion_pct) ? `<span>完走率 <b>${fmt(p.completion_pct, "%", 1)}</b></span>` : ""}</div>
+    <div class="nums">${ratioLine(p, ev)}</div>
     <label class="f">なぜだと思う？（1行メモ）<input type="text" class="why-input" data-id="${esc(p._id)}" value="${esc(p.why || "")}" placeholder="例: 最初の1秒で答えが見えていた"></label>
   </div>`;
 }
@@ -928,7 +860,7 @@ function renderStudy() {
   const recent = genrePosts(studyGenre).slice(-BASE_N);
   let h = `<div class="card"><h3>${g.label}の「いつも」（直近${recent.length}本の中央値）</h3><div class="tiles">`;
   g.kpis.forEach((m) => { h += `<div class="tile"><span>${METRICS[m][0]}</span><b>${fmt(median(recent.map((p) => p[m])), METRICS[m][1])}</b></div>`; });
-  h += `<div class="tile"><span>完走率</span><b>${fmt(median(recent.map((p) => p.completion_pct)), "%", 1)}</b></div></div>
+  h += `</div>
     <p class="muted">${g.label}の評価に使う指標：${g.kpis.map((m) => METRICS[m][0]).join("・")}</p></div>`;
   h += `<div style="display:grid;gap:10px"><h3><span class="chip good">伸びた投稿</span> 上位${k}本</h3><div class="list">${top.map((x) => studyItem(x.p)).join("")}</div></div>`;
   h += `<div style="display:grid;gap:10px"><h3><span class="chip bad">伸びなかった投稿</span> 下位${k}本</h3><div class="list">${bottom.map((x) => studyItem(x.p)).join("")}</div></div>`;
@@ -994,7 +926,7 @@ function trackCard(g) {
     const hint = sm.scores.length < sm.ps.length ? "数字が未入力の投稿があります" : sm.med >= 1.15 ? "数字の上では当たりっぽい" : sm.med <= 0.9 ? "数字の上では外れっぽい" : "いつもとあまり変わらない";
     h += `<div class="note info">${need}本たまりました。判断しましょう（見立て：${hint}）</div>
       <div class="seg" role="radiogroup" aria-label="判断">${Object.entries(DECISIONS).map(([k, l]) => `<label><input type="radio" name="tr-dec-${g.id}" value="${k}"><span>${l}</span></label>`).join("")}</div>
-      <label class="f">学び（1行）<input type="text" id="tr-learn-${g.id}" placeholder="例: 答えを先に出すと完走率が上がった"></label>
+      <label class="f">学び（1行）<input type="text" id="tr-learn-${g.id}" placeholder="例: 答えを先に出すと、いいね数が伸びた"></label>
       <div class="row"><button class="btn primary save-btn tr-judge" type="button" data-g="${g.id}">判断を保存</button></div>`;
   } else {
     h += `<p class="muted">${g.label}を記録するとき、この仮説が最初から選ばれます。あと${need - sm.ps.length}本で判断します。</p>
@@ -1086,16 +1018,14 @@ document.addEventListener("click", async (e) => {
   if (d && armTwice(d, "削除")) await write(() => db.collection("hypotheses").doc(d.dataset.id).delete(), "削除しました。");
 });
 
-// ---------- ④ AI分析 ----------
-let aiCtl = null;
+// ---------- ④ AI分析（文章をコピーしてClaudeのチャットに貼る） ----------
 function aiInput() {
   const gl = goal();
   const posts = S.posts.slice().sort(byDate).slice(-80).map((p) => {
     const ev = evaluate(p);
     return {
-      id: p._id, date: p.posted_at, genre: gLabel(p.genre), caption: (p.caption || "").slice(0, 80), hook: (p.hook || "").slice(0, 60),
-      aim: p.aim || "", next_plan: p.next || "", why_note: p.why || "", views: p.views, likes: p.likes, follows: p.follows,
-      avg_watch_sec: p.avg_watch_sec ?? null, completion_pct: p.completion_pct ?? null,
+      date: p.posted_at, genre: gLabel(p.genre), title: (p.caption || "").slice(0, 60), aim: p.aim || "", next_plan: p.next || "", why_note: p.why || "",
+      views: p.views, likes: p.likes, follows: p.follows,
       like_rate_pct: isNum(likeRate(p)) ? +likeRate(p).toFixed(2) : null, follows_per_10k: isNum(followRate(p)) ? +followRate(p).toFixed(1) : null,
       score_vs_usual: ev && isNum(ev.score) ? +ev.score.toFixed(2) : null,
       hypothesis: (S.hypotheses.find((h) => h._id === p.hypothesis_id) || {}).text || null,
@@ -1103,23 +1033,22 @@ function aiInput() {
   });
   const hypos = S.hypotheses.map((h) => {
     const { evs, hits } = hypoEvidence(h);
-    return { id: h._id, text: h.text, genre: h.genre === "all" ? "全ジャンル" : gLabel(h.genre), status: STATUS[h.status || "testing"], why: h.why || "", tested_posts: evs.length, hits };
+    return { text: h.text, genre: h.genre === "all" ? "全ジャンル" : gLabel(h.genre), status: STATUS[h.status || "testing"], why: h.why || "", tested_posts: evs.length, hits };
   });
-  return `あなたはTikTokの運用を手伝う分析の相棒です。持ち主は就活生で、この取り組みをガクチカ（学生時代に力を入れたこと）として話す予定です。
-以下のデータを読み、日本語で分析してください。
+  return `TikTokの投稿の記録を分析してください。私は就活生で、この取り組みをガクチカ（学生時代に力を入れたこと）として話す予定です。
 
 ## ルール
-- 投稿は3ジャンル。再生数の水準がジャンルで大きく違うので、ジャンルをまたいで再生数の大小を比べないこと。比べるときは score_vs_usual（同じジャンルの直近${BASE_N}本の中央値に対する倍率の平均。1.0がいつも通り）を使う。
+- 投稿は3ジャンル。再生数の水準がジャンルで大きく違うので、ジャンルをまたいで再生数の大小を比べないでください。比べるときは score_vs_usual（同じジャンルの直近${BASE_N}本の中央値に対する倍率の平均。1.0がいつも通り）を使ってください。
 - ジャンルごとの目的：雑学＝視聴数・いいね数、イベント告知とグッズ紹介＝視聴数・いいね数・新規フォロワー。
-- 本数が少ないので、偶然の可能性を常に意識する。何本のデータからの話かを必ず書き、言い過ぎない。根拠が弱いものは「傾向」「まだわからない」と書く。
-- 検証中の仮説（status=検証中）について、試した投稿の結果から判定の材料を出す。最終判断は持ち主がするので、あくまで「見立て」として書く。
-- 新しい仮説は3つまで。次の投稿で具体的にどうすれば確かめられるか（how_to_test）を必ず書く。すでにある仮説と重複させない。
+- 記録している数字は視聴数・いいね数・新規フォロワーだけです。
+- 本数が少ないので、偶然の可能性を意識して、何本のデータからの話かを書き、言い過ぎないでください。
+- 検証中の仮説の当たり外れは、最終的に私が判断します。あなたは「見立て」として書いてください。
 
 ## 目標
 ${gl ? JSON.stringify({ goal: goalName(gl), start: gl.start, end: gl.end, start_value: gl.base, target: gl.target, why: gl.why }) : "まだ未設定"}
-${gl && gl.metric === FOL ? "目標はアカウント全体のフォロワー数なので、どの投稿・どんな工夫が新規フォロワーを増やしたか（follows と follows_per_10k）を特に見てください。" : ""}
+${gl && gl.metric === FOL ? "目標はアカウント全体のフォロワー数なので、どの投稿・どんな工夫が新規フォロワーを増やしたかを特に見てください。" : ""}
 
-## ジャンルごとの検証の判断（持ち主の判断と学び）
+## ジャンルごとの検証の判断（私の判断と学び）
 ${JSON.stringify(S.cycles.slice().sort((a, b) => String(a.closed_at).localeCompare(String(b.closed_at))).map((c) => ({ date: String(c.closed_at).slice(0, 10), genre: gLabel(c.genre), hypothesis: (S.hypotheses.find((x) => x._id === c.hypothesis_id) || {}).text || null, posts: c.posts_n, median_score: c.median_score, decision: c.decision, learning: c.learning })))}
 
 ## いまジャンルごとに試している仮説
@@ -1134,43 +1063,37 @@ ${JSON.stringify(posts)}
 ## 仮説
 ${JSON.stringify(hypos)}
 
-## 出力（JSONオブジェクト1つだけ）
-{"summary": "全体の要約（3文以内）",
- "by_genre": [{"genre": "雑学|イベント告知|グッズ紹介", "posts": 本数, "good_patterns": ["伸びた投稿の共通点（根拠の本数つき）"], "bad_patterns": ["伸びなかった投稿の共通点"]}],
- "hypothesis_checks": [{"id": "仮説のid", "assessment": "当たりっぽい|外れっぽい|まだわからない", "reason": "理由（本数と数字つき）"}],
- "new_hypotheses": [{"text": "〜すれば〜が伸びる", "genre": "trivia|event|goods|all", "how_to_test": "次の投稿で具体的にやること", "basis": "そう考える根拠"}],
- "caution": "データの限界について一言"}`;
+## 答え方（この見出しで、日本語で、全体で800字くらいまで）
+### まとめ（3文以内）
+### ジャンル別：伸びた投稿の共通点／伸びなかった投稿の共通点（根拠の本数つき）
+### 試している仮説の見立て（当たりっぽい・外れっぽい・まだわからない と理由）
+### 次に試すことの提案（3つまで。「〜すれば〜が伸びる」の形と、次の投稿での確かめ方）
+### 注意（データの限界をひとこと）`;
 }
 function updateAiReady() {
   const n = S.posts.filter((p) => isNum(p.views)).length;
   const last = S.analyses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
   const since = last ? S.posts.filter((p) => String(p.created_at || "") > String(last.created_at)).length : n;
-  $("ai-ready").textContent = n < 8 ? `記録が${n}本です。分析は、少なくとも各ジャンル5本くらいたまってからの方が意味のある結果になります。`
+  $("ai-ready").textContent = n < 8 ? `記録が${n}本です。各ジャンル5本くらいたまってからの方が、意味のある答えになります。`
     : last ? `前回の分析（${String(last.created_at).slice(0, 10)}）のあと、${since}本記録しています。` : `記録が${n}本あります。`;
-  $("ai-run").disabled = !sample || n < 3 || !canWrite;
-  if (!sample) $("ai-status").textContent = "この環境ではAI分析が使えません（claude.ai のアプリかブラウザで開くと使えます）。";
+  if ($("ai-prompt-box").open) $("ai-prompt").textContent = aiInput();
 }
-$("ai-run").addEventListener("click", async () => {
-  if (!sample) return;
-  aiCtl = new AbortController();
-  $("ai-run").disabled = true; $("ai-stop").hidden = false;
-  $("ai-status").textContent = "分析中…（30秒〜2分ほど。最初の1回は許可を求められます）";
-  try {
-    const r = await sample.json(aiInput(), { signal: aiCtl.signal, modelTier: "complex", cache: false });
-    if (!r || typeof r !== "object") throw { code: "invalid_json" };
-    const row = { created_at: new Date().toISOString(), posts_count: S.posts.length, result: r };
-    await write(() => db.collection("analyses").doc("a" + Date.now()).set(row), "分析結果を保存しました。");
-    $("ai-status").textContent = "";
-  } catch (e) {
-    const c = e && e.code;
-    $("ai-status").textContent = c === "cancelled" ? "止めました。"
-      : c === "not_granted" ? "AIの使用が許可されていません。"
-      : c === "rate_limited" ? "混み合っているか、使用量の上限です。時間をおいてもう一度押してください。"
-      : c === "invalid_json" ? "結果の形式が崩れました。もう一度押してください。"
-      : "分析できませんでした。もう一度押してください。";
-  } finally { $("ai-stop").hidden = true; aiCtl = null; updateAiReady(); }
+$("ai-prompt-box").addEventListener("toggle", () => { if ($("ai-prompt-box").open) $("ai-prompt").textContent = aiInput(); });
+$("ai-copy").addEventListener("click", async () => {
+  const text = aiInput();
+  $("ai-prompt").textContent = text;
+  try { await navigator.clipboard.writeText(text); $("ai-status").textContent = "コピーしました。Claudeの新しいチャットに貼り付けてください。"; }
+  catch (e) {
+    $("ai-prompt-box").open = true;
+    const r = document.createRange(); r.selectNodeContents($("ai-prompt")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r);
+    $("ai-status").textContent = "自動でコピーできませんでした。下の文章を選択したので、長押しでコピーしてください。";
+  }
 });
-$("ai-stop").addEventListener("click", () => aiCtl && aiCtl.abort());
+$("ai-save").addEventListener("click", async () => {
+  const text = $("ai-answer").value.trim();
+  if (!text) { toast("Claudeの答えを貼り付けてください。"); return; }
+  if (await write(() => db.collection("analyses").doc("a" + Date.now()).set({ created_at: new Date().toISOString(), posts_count: S.posts.length, text }), "分析を保存しました。")) $("ai-answer").value = "";
+});
 const list = (xs) => Array.isArray(xs) && xs.length ? `<ul style="margin:0;padding-left:1.1em;display:grid;gap:4px">${xs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul>` : `<p class="muted">なし</p>`;
 function analysisHtml(a, open) {
   const r = a.result || {};
@@ -1203,11 +1126,16 @@ function analysisHtml(a, open) {
   h += `<div class="row"><button class="btn small danger del-analysis" type="button" data-id="${esc(a._id)}">この分析を削除</button></div></div></details>`;
   return h;
 }
+function textAnalysisHtml(a, open) {
+  return `<details class="card" ${open ? "open" : ""}><summary><b>${esc(String(a.created_at).slice(0, 10))} の分析</b>（${a.posts_count ?? "?"}本の時点）</summary>
+    <div style="white-space:pre-wrap;overflow-wrap:anywhere;font-size:14px;line-height:1.7">${esc(a.text)}</div>
+    <div class="row"><button class="btn small danger del-analysis" type="button" data-id="${esc(a._id)}">この分析を削除</button></div></details>`;
+}
 function renderAi() {
   updateAiReady();
   const as = S.analyses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
-  $("v-ai").innerHTML = as.length ? `<div style="display:grid;gap:12px"><h3>分析の履歴（${as.length}回）</h3>${as.map((a, i) => analysisHtml(a, i === 0)).join("")}</div>`
-    : `<div class="empty"><b>まだ分析していません</b>記録がたまったら「分析する」を押してください。結果はここに履歴として残ります。</div>`;
+  $("v-ai").innerHTML = as.length ? `<div style="display:grid;gap:12px"><h3>分析の履歴（${as.length}回）</h3>${as.map((a, i) => a.text ? textAnalysisHtml(a, i === 0) : analysisHtml(a, i === 0)).join("")}</div>`
+    : `<div class="empty"><b>まだ分析していません</b>記録がたまったら、上の手順でClaudeに聞いて、答えを保存しましょう。ここに履歴として残ります。</div>`;
 }
 let adopting = null;
 document.addEventListener("click", async (e) => {
@@ -1329,7 +1257,8 @@ function buildMarkdown() {
   if (judged.length) judged.forEach((h) => o.push(`- **${STATUS[h.status]}**: ${h.text}${h.verdict_note ? ` — ${h.verdict_note}` : ""}`));
   cs.filter((c) => c.learning && !(judged.some((h) => h._id === c.hypothesis_id && h.verdict_note === c.learning))).forEach((c) => o.push(`- ${gLabel(c.genre)}（${String(c.closed_at).slice(0, 10)}）: ${c.learning}`));
   const lastA = S.analyses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
-  if (lastA && lastA.result && lastA.result.summary) o.push(`- 最新のAI分析（${String(lastA.created_at).slice(0, 10)}）の要約: ${lastA.result.summary}`);
+  const lastSummary = lastA ? (lastA.result && lastA.result.summary) || (lastA.text || "").replace(/^#+.*$/gm, "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
+  if (lastSummary) o.push(`- 最新のAI分析（${String(lastA.created_at).slice(0, 10)}）より: ${lastSummary}${lastA.text && lastA.text.length > 140 ? "…" : ""}`);
   o.push("- 平均ではなく中央値と「いつもの何倍か」で見ることで、偶然のバズと、再現できる工夫を分けて考えられるようになった。", "");
 
   o.push("## 面接で話すときの骨子（下書き）", "");
@@ -1362,8 +1291,8 @@ $("x-backup").addEventListener("click", () => {
   offer(`tiktok_backup_${stamp()}.json`, JSON.stringify(out, null, 2));
 });
 $("x-csv").addEventListener("click", () => {
-  const cols = [["posted_at", "投稿日"], ["genre", "ジャンル"], ["caption", "タイトル"], ["aim", "ねらい"], ["hook", "冒頭"], ["views", "視聴数"], ["likes", "いいね数"], ["follows", "新規フォロワー"],
-    ["avg_watch_sec", "平均視聴時間(秒)"], ["completion_pct", "完走率(%)"], ["score", "いつもの何倍"], ["why", "なぜ伸びた(メモ)"], ["note", "気づき"]];
+  const cols = [["posted_at", "投稿日"], ["genre", "ジャンル"], ["caption", "タイトル"], ["aim", "ねらい"], ["views", "視聴数"], ["likes", "いいね数"], ["follows", "新規フォロワー"],
+    ["score", "いつもの何倍"], ["why", "なぜ伸びた(メモ)"], ["next", "次の動画でどうするか"]];
   const q = (v) => { const s = v === null || v === undefined ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
   const lines = [cols.map((c) => c[1]).join(",")];
   S.posts.slice().sort(byDate).forEach((p) => {
@@ -1410,11 +1339,8 @@ renderAll();
 
 (async () => {
   const use = window.claude && window.claude.use ? (n) => window.claude.use(n).catch(() => null) : async () => null;
-  const [dbNs, dl, user, smp] = await Promise.all([use("db"), use("downloads"), use("user"), use("sample")]);
+  const [dbNs, dl, user] = await Promise.all([use("db"), use("downloads"), use("user")]);
   downloads = dl; setDlEnabled(!!dl);
-  sample = smp;
-  if (sample) { try { const lim = await sample.limits(); imageOk = !!(lim && lim.images); } catch (e) { imageOk = false; } }
-  syncShotUi();
   const sync = $("sync"), note = $("global-note");
   if (!dbNs) {
     sync.textContent = "保存できません"; sync.className = "pill ng";
