@@ -244,10 +244,10 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
   <!-- ③ 仮説 -->
   <section class="page" id="p-hypo" data-tab="hypo" hidden>
     <div>
-      <h2>③ 毎週の仮説検証</h2>
-      <p class="lead">週に1回、先週の結果で「当たり／外れ」を判断して、今週試すことを1つ決めます。今週の投稿はぜんぶその工夫で。決めるのはあなたです。</p>
+      <h2>③ ジャンル別の仮説検証</h2>
+      <p class="lead">ジャンルごとに試すことを1つ決めて、3本試したら「当たり／外れ」を判断します。1本ごとの気づきは、記録のときの「次の動画でどうするか」に残します。決めるのはあなたです。</p>
     </div>
-    <div id="v-week"></div>
+    <div id="v-tracks"></div>
     <form class="card" id="f-hypo" autocomplete="off">
       <h3>仮説を追加する</h3>
       <label class="f">仮説（〜すれば、〜が伸びる）<input type="text" id="h-text" placeholder="例: 冒頭1秒で答えを言えば、視聴数が伸びる" required></label>
@@ -307,7 +307,7 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
 <nav class="tabs" role="tablist" aria-label="画面">
   <button role="tab" data-go="log" aria-selected="true"><span class="n">①</span>記録</button>
   <button role="tab" data-go="study" aria-selected="false"><span class="n">②</span>研究</button>
-  <button role="tab" data-go="hypo" aria-selected="false"><span class="n">③</span>週次<span class="badge" id="badge" hidden></span></button>
+  <button role="tab" data-go="hypo" aria-selected="false"><span class="n">③</span>検証<span class="badge" id="badge" hidden></span></button>
   <button role="tab" data-go="ai" aria-selected="false"><span class="n">④</span>AI分析</button>
   <button role="tab" data-go="export" aria-selected="false"><span class="n">⑤</span>ガクチカ</button>
 </nav>
@@ -334,9 +334,11 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
       <label class="f">平均視聴時間（秒）<input type="number" id="rec-watch" inputmode="decimal" min="0" step="any"></label>
       <label class="f">完走率（%）<input type="number" id="rec-complete" inputmode="decimal" min="0" max="100" step="any"></label>
     </div>
+    <p class="note info" id="rec-prev" hidden></p>
     <label class="f">今回のねらい・工夫（1行・空欄でもOK）<input type="text" id="rec-aim" placeholder="例: 冒頭で答えを先に言った"></label>
     <label class="f">冒頭のテロップ・ひとこと<input type="text" id="rec-hook" placeholder="スクショから読み取れたら自動で入ります"></label>
     <label class="f">気づき（任意）<textarea id="rec-note"></textarea></label>
+    <label class="f">次の動画でどうするか（1行）<input type="text" id="rec-next" placeholder="例: 冒頭をさらに短く、0.5秒で答えを出す"></label>
     <div class="row" style="justify-content:space-between">
       <button class="btn primary save-btn" type="submit">保存</button>
       <button class="btn danger" type="button" id="rec-delete" hidden>この記録を削除</button>
@@ -391,12 +393,12 @@ const GENRE_IDS = GENRES.map((g) => g.id);
 const METRICS = { views: ["視聴数", "回"], likes: ["いいね数", "件"], follows: ["新規フォロワー", "人"] };
 const BASE_N = 10;      // 「いつも」= 同じジャンルの直近10本の中央値
 const MIN_BASE = 3;     // 基準を出すのに最低限ほしい本数
-const COLLECTIONS = ["posts", "hypotheses", "analyses", "settings", "followers", "weeks"];
+const COLLECTIONS = ["posts", "hypotheses", "analyses", "settings", "followers", "cycles"];
 const FOL = "followers_total";   // 目標の指標：アカウントのフォロワー数
 const VX = "views_x";            // 目標の指標：全ジャンルの視聴数（各ジャンルの取り組み前の中央値の何倍か）
 const STATUS = { testing: "検証中", hit: "当たり", miss: "外れ", unclear: "わからない" };
 
-const S = { posts: [], hypotheses: [], analyses: [], settings: [], followers: [], weeks: [] };
+const S = { posts: [], hypotheses: [], analyses: [], settings: [], followers: [], cycles: [] };
 let db = null, downloads = null, sample = null, imageOk = false, canWrite = false;
 
 const $ = (id) => document.getElementById(id);
@@ -470,24 +472,29 @@ function verdict(score) {
 const likeRate = (p) => isNum(p.likes) && p.views > 0 ? p.likes / p.views * 100 : null;
 const followRate = (p) => isNum(p.follows) && p.views > 0 ? p.follows / p.views * 10000 : null;
 
-// ---------- 週（月曜はじまり） ----------
-function weekStart(ds) {
-  const [y, m, d] = ds.split("-").map(Number), dt = new Date(y, m - 1, d);
-  return todayStr(new Date(y, m - 1, d - (dt.getDay() + 6) % 7));
-}
+// ---------- ジャンルごとの検証 ----------
+const JUDGE_AT = 3;
 const md = (ds) => `${Number(ds.slice(5, 7))}/${Number(ds.slice(8, 10))}`;
-const weekLabel = (ws) => `${md(ws)}〜${md(addDays(ws, 6))}`;
-const weekDoc = (ws) => S.weeks.find((w) => w._id === ws) || null;
-const weekPosts = (ws) => S.posts.filter((p) => String(p.posted_at) >= ws && String(p.posted_at) <= addDays(ws, 6)).sort(byDate);
-/** その週の結果：仮説をひもづけた投稿（なければその週の全投稿）の「いつもの何倍か」 */
-function weekSummary(ws) {
-  const w = weekDoc(ws), ps = weekPosts(ws);
-  const linked = w && w.hypothesis_id ? ps.filter((p) => p.hypothesis_id === w.hypothesis_id) : [];
-  const target = linked.length ? linked : ps;
-  const scores = target.map((p) => evaluate(p)).filter((ev) => ev && isNum(ev.score)).map((ev) => ev.score);
-  return { w, ps, target, scores, med: median(scores), hits: scores.filter((x) => x >= 1.15).length };
+/** ジャンルごとの「いま試している仮説」：settings/tracks に {genre: {hid, started, judge_at}} */
+const tracks = () => { const t = S.settings.find((x) => x._id === "tracks"); return t ? clean(t) : {}; };
+const trackOf = (g) => { const t = tracks()[g]; return t && t.hid && S.hypotheses.some((h) => h._id === t.hid) ? t : null; };
+const trackPosts = (g, t) => t ? S.posts.filter((p) => p.genre === g && p.hypothesis_id === t.hid).sort(byDate) : [];
+function trackSummary(g) {
+  const t = trackOf(g), ps = trackPosts(g, t);
+  const scores = ps.map((p) => evaluate(p)).filter((ev) => ev && isNum(ev.score)).map((ev) => ev.score);
+  return { t, ps, scores, med: median(scores), hits: scores.filter((x) => x >= 1.15).length, ready: t && ps.length >= (t.judge_at || JUDGE_AT) };
 }
-const DECISIONS = { hit: "当たり（この工夫を続ける）", miss: "外れ（やめる）", more: "まだわからない（もう1週試す）" };
+const DECISIONS = { hit: "当たり（この工夫を続ける）", miss: "外れ（やめる）", more: "まだわからない（あと2本試す）" };
+/** 新しい記録の「試した仮説」の初期値：そのジャンルでいま試している仮説（開始日以降の投稿だけ） */
+function defaultHypoFor(g, ds) {
+  const t = isGenre(g) ? trackOf(g) : null;
+  return t && ds && ds >= t.started ? t.hid : "";
+}
+/** 同じジャンルの直前の投稿で決めた「次の動画でどうするか」 */
+function prevNext(g, ds) {
+  const prev = genrePosts(g).filter((p) => (!editingPost || p._id !== editingPost._id) && (!ds || String(p.posted_at) <= ds) && (p.next || "").trim());
+  return prev.length ? prev[prev.length - 1] : null;
+}
 
 // ---------- 目標 ----------
 const goal = () => (S.settings.find((s) => s._id === "goal") || null);
@@ -613,6 +620,7 @@ function postCard(p) {
     <div class="title">${esc(p.caption || "（タイトルなし）")}</div>
     ${p.aim ? `<div class="change"><span class="muted">ねらい </span>${esc(p.aim)}</div>` : ""}
     ${h ? `<div class="ink2" style="font-size:13px"><span class="muted">試した仮説 </span>${esc(h.text)}</div>` : ""}
+    ${p.next ? `<div class="ink2" style="font-size:13px"><span class="muted">次へ </span>${esc(p.next)}</div>` : ""}
     <div class="nums">${ratioLine(p, ev)}${isNum(p.avg_watch_sec) ? `<span>平均視聴 <b>${fmt(p.avg_watch_sec, "秒", 1)}</b></span>` : ""}${isNum(p.completion_pct) ? `<span>完走率 <b>${fmt(p.completion_pct, "%", 1)}</b></span>` : ""}</div>
     <div class="row"><button class="btn small edit-post" type="button" data-id="${esc(p._id)}">編集</button></div>
   </div>`;
@@ -706,8 +714,16 @@ function renderLog() {
 // 記録シート
 let editingPost = null, recFiles = [];
 $("rec-genres").innerHTML = genreRadios("rec-genre", null);
-const defaultHypoFor = (ds) => { const w = ds ? weekDoc(weekStart(ds)) : null; return w && w.hypothesis_id ? w.hypothesis_id : ""; };
-$("rec-date").addEventListener("change", () => { if (!editingPost && $("rec-date").value) $("rec-hypo").innerHTML = hypoOptions(defaultHypoFor($("rec-date").value)); });
+function syncRecDefaults() {
+  const g = radioVal("rec-genre"), ds = $("rec-date").value;
+  if (!editingPost) $("rec-hypo").innerHTML = hypoOptions(defaultHypoFor(g, ds));
+  const pv = isGenre(g) ? prevNext(g, ds) : null, box = $("rec-prev");
+  box.hidden = !pv;
+  if (pv) box.textContent = `前回の${gLabel(g)}（${md(pv.posted_at)}）で決めたこと：${pv.next}`;
+  $("rec-aim").placeholder = pv && !editingPost ? `例: ${pv.next}` : "例: 冒頭で答えを先に言った";
+}
+$("rec-date").addEventListener("change", syncRecDefaults);
+$("rec-genres").addEventListener("change", syncRecDefaults);
 function hypoOptions(selected) {
   const testing = S.hypotheses.filter((x) => x.status === "testing" || x._id === selected);
   return `<option value="">なし</option>` + testing.map((x) => `<option value="${esc(x._id)}" ${x._id === selected ? "selected" : ""}>${esc(x.text.slice(0, 40))}</option>`).join("");
@@ -723,7 +739,9 @@ function openRecord(p) {
   $("rec-aim").value = p ? (p.aim || "") : "";
   $("rec-hook").value = p ? (p.hook || "") : "";
   $("rec-note").value = p ? (p.note || "") : "";
-  $("rec-hypo").innerHTML = hypoOptions(p ? p.hypothesis_id : defaultHypoFor($("rec-date").value));
+  $("rec-hypo").innerHTML = hypoOptions(p ? p.hypothesis_id : "");
+  $("rec-next").value = p ? (p.next || "") : "";
+  syncRecDefaults();
   $("rec-files").value = ""; recFiles = []; $("rec-read").disabled = true; $("rec-read-status").textContent = "";
   $("rec-shot").hidden = !!p && !imageOk;
   syncShotUi();
@@ -791,7 +809,7 @@ $("f-rec").addEventListener("submit", async (e) => {
   const date = $("rec-date").value;
   if (!date) { toast("投稿日を入れてください。"); return; }
   const row = { genre: g, posted_at: date, caption: $("rec-caption").value.trim(), aim: $("rec-aim").value.trim(),
-    hook: $("rec-hook").value.trim(), note: $("rec-note").value.trim(), hypothesis_id: $("rec-hypo").value || null };
+    hook: $("rec-hook").value.trim(), note: $("rec-note").value.trim(), next: $("rec-next").value.trim(), hypothesis_id: $("rec-hypo").value || null };
   REC_FIELDS.forEach(([id, k]) => { row[k] = readNum($(id)); });
   if (row.views === null) { toast("視聴数を入れてください。"); return; }
   const base = editingPost ? clean(editingPost) : { created_at: new Date().toISOString() };
@@ -937,8 +955,8 @@ function hypoCard(h) {
     <div class="title">${esc(h.text)}</div>
     ${h.why ? `<div class="ink2" style="font-size:13px"><span class="muted">なぜ試す </span>${esc(h.why)}</div>` : ""}
     ${h.how ? `<div class="ink2" style="font-size:13px"><span class="muted">確かめ方 </span>${esc(h.how)}</div>` : ""}
-    <div class="nums"><span>試した投稿 <b>${ps.length}本</b></span>${evs.length ? `<span>当たり以上 <b>${hits}/${evs.length}本</b></span><span>平均 <b>いつもの${fmtX(evs.reduce((a, x) => a + x.ev.score, 0) / evs.length)}</b></span>` : ""}</div>
-    ${ps.length < 3 && st === "testing" ? `<p class="muted">3本以上試してから判断するのがおすすめです。上の「今週」で今週の仮説にすると、記録した投稿が自動でひもづきます。</p>` : ""}
+    <div class="nums"><span>試した投稿 <b>${ps.length}本</b></span>${evs.length ? `<span>当たり以上 <b>${hits}/${evs.length}本</b></span><span>いつもの <b>${fmtX(median(evs.map((x) => x.ev.score)))}</b>（中央値）</span>` : ""}</div>
+    ${ps.length < 3 && st === "testing" ? `<p class="muted">3本以上試してから判断するのがおすすめです。上のジャンルのカードで「これを試す」にすると、記録した投稿が自動でひもづきます。</p>` : ""}
     ${h.verdict_note ? `<div class="ink2" style="font-size:13px"><span class="muted">判断の理由 </span>${esc(h.verdict_note)}</div>` : ""}
     <details><summary>判断する・編集</summary>
       <div style="display:grid;gap:10px">
@@ -948,91 +966,94 @@ function hypoCard(h) {
       </div></details>
   </div>`;
 }
-function weekPostRows(ps) {
+function trackPostRows(ps) {
   return ps.map((p) => { const ev = evaluate(p), v = verdict(ev && ev.score);
-    return `<div class="meta" style="font-size:13px">${gChip(p.genre)}<span class="num">${md(p.posted_at)}</span><span class="chip ${v.cls}">${v.label}${isNum(ev && ev.score) ? `・${fmtX(ev.score)}` : ""}</span><span class="ink2" style="overflow-wrap:anywhere">${esc((p.caption || "").slice(0, 24))}</span></div>`; }).join("");
+    return `<div class="meta" style="font-size:13px"><span class="num">${md(p.posted_at)}</span><span class="chip ${v.cls}">${v.label}${isNum(ev && ev.score) ? `・${fmtX(ev.score)}` : ""}</span><span class="ink2" style="overflow-wrap:anywhere">${esc((p.caption || "").slice(0, 24))}</span></div>`; }).join("");
 }
-let weekDirty = false;
-function renderWeek() {
-  const thisWS = weekStart(todayStr()), lastWS = addDays(thisWS, -7);
-  const cur = weekDoc(thisWS), last = weekSummary(lastWS);
-  const lastNeedsReview = (last.ps.length || (last.w && last.w.hypothesis_id)) && !(last.w && last.w.closed_at);
-  const noHypo = !(cur && cur.hypothesis_id);
-  const badge = $("badge"); const n = (lastNeedsReview ? 1 : 0) + (noHypo ? 1 : 0); badge.hidden = !n; badge.textContent = n;
-  if (weekDirty && document.activeElement && document.activeElement.closest && document.activeElement.closest("#v-week")) return;
-  let h = "";
-  // 先週のふりかえり
-  if (lastNeedsReview) {
-    const hy = last.w && S.hypotheses.find((x) => x._id === last.w.hypothesis_id);
-    const hint = !last.scores.length ? "まだ数字の入った投稿がありません" : last.scores.length < 3 ? "本数が少ないので、もう1週試すのもあり"
-      : last.med >= 1.15 ? "数字の上では当たりっぽい" : last.med <= 0.9 ? "数字の上では外れっぽい" : "いつもとあまり変わらない";
-    h += `<div class="card"><h3>先週（${weekLabel(lastWS)}）のふりかえり</h3>
-      ${hy ? `<p><span class="muted">先週の仮説 </span><b>${esc(hy.text)}</b></p>` : `<p class="muted">先週は仮説を決めていませんでした。学びだけ残しておきましょう。</p>`}
-      <div class="tiles">
-        <div class="tile"><span>投稿</span><b>${last.ps.length}本</b><em>${hy ? `うち仮説で試した ${last.target === last.ps ? "—" : last.target.length + "本"}` : ""}</em></div>
-        <div class="tile"><span>いつもの何倍（中央値）</span><b>${fmtX(last.med)}</b><em>${last.scores.length}本で計算</em></div>
-        <div class="tile"><span>当たり以上</span><b>${last.hits}/${last.scores.length}本</b><em>いつもの1.15倍以上</em></div>
-      </div>
-      <div style="display:grid;gap:6px">${weekPostRows(last.target)}</div>
-      <p class="muted">見立て：${hint}</p>
-      ${hy ? `<div class="f"><span class="muted">判断</span><div class="seg" role="radiogroup" aria-label="判断">${Object.entries(DECISIONS).map(([k, l]) => `<label><input type="radio" name="wk-decision" value="${k}"><span>${l}</span></label>`).join("")}</div></div>` : ""}
-      <label class="f">学び（1行）<input type="text" id="wk-learn" placeholder="例: 答えを先に出すと完走率が上がった。ただしイベント告知では効かなかった"></label>
-      <div class="row"><button class="btn primary save-btn" type="button" id="wk-close" data-ws="${lastWS}">ふりかえりを保存</button></div></div>`;
+let tracksDirty = false;
+function trackCard(g) {
+  const sm = trackSummary(g.id), t = sm.t, hy = t && S.hypotheses.find((x) => x._id === t.hid);
+  const cands = S.hypotheses.filter((x) => (x.status || "testing") === "testing" && (x.genre === g.id || x.genre === "all"));
+  let h = `<div class="card" data-g="${g.id}"><h3><span class="gdot" data-g="${g.id}">${g.label}</span></h3>`;
+  if (!hy) {
+    h += `<p class="ink2" style="font-size:14px">いま試している仮説はありません。次の${g.label}で試すことを1つ決めましょう。</p>`;
+    h += cands.length ? `<div class="row"><select id="tr-sel-${g.id}" style="flex:1 1 220px"><option value="">選ぶ…</option>${cands.map((x) => `<option value="${esc(x._id)}">${esc(x.text.slice(0, 50))}</option>`).join("")}</select><button class="btn save-btn tr-set" type="button" data-g="${g.id}">これを試す</button></div>`
+      : `<p class="muted">${g.label}用（または全ジャンル用）の検証中の仮説がありません。下で追加するか、②研究や④AI分析から考えましょう。</p>`;
+    return h + `</div>`;
   }
-  // 今週
-  const testing = S.hypotheses.filter((x) => (x.status || "testing") === "testing");
-  const cy = cur && S.hypotheses.find((x) => x._id === cur.hypothesis_id);
-  const ps = weekPosts(thisWS);
-  h += `<div class="card"><h3>今週（${weekLabel(thisWS)}）</h3>
-    ${cy ? `<p><span class="muted">今週の仮説 </span><b>${esc(cy.text)}</b></p>${cy.how ? `<p class="muted">確かめ方：${esc(cy.how)}</p>` : ""}<p class="muted">今週の投稿を記録すると、この仮説に自動でひもづきます。</p>`
-      : `<p class="ink2" style="font-size:14px">今週試すことを1つ決めましょう。全ジャンルで使える工夫にすると、1週間で3〜4本試せます。</p>`}
-    ${testing.length ? `<div class="row"><select id="wk-hypo" style="flex:1 1 220px">${`<option value="">選ぶ…</option>` + testing.map((x) => `<option value="${esc(x._id)}" ${cy && x._id === cy._id ? "selected" : ""}>${esc(x.text.slice(0, 50))}</option>`).join("")}</select><button class="btn save-btn" type="button" id="wk-set" data-ws="${thisWS}">${cy ? "変更する" : "今週の仮説にする"}</button></div>`
-      : `<p class="muted">検証中の仮説がありません。下で追加するか、④AI分析の提案から選んでください。</p>`}
-    <div style="display:grid;gap:6px"><span class="muted">今週の投稿 ${ps.length}本</span>${weekPostRows(ps)}</div></div>`;
-  // これまで
-  const closed = S.weeks.filter((w) => w.closed_at).sort((a, b) => String(b._id).localeCompare(String(a._id)));
-  if (closed.length) {
-    h += `<details class="card"><summary><b>これまでの週（${closed.length}回）</b></summary><div class="table-scroll"><table><thead><tr><th>週</th><th style="text-align:left">仮説</th><th>本数</th><th>何倍</th><th style="text-align:left">判断</th><th style="text-align:left">学び</th></tr></thead><tbody>${closed.map((w) => {
-      const hy = S.hypotheses.find((x) => x._id === w.hypothesis_id);
-      return `<tr><td>${weekLabel(w._id)}</td><td style="text-align:left;font-family:var(--f-body);white-space:normal;min-width:160px">${esc(hy ? hy.text : "—")}</td><td>${w.posts_n ?? "—"}</td><td>${fmtX(w.median_score)}</td><td style="text-align:left;font-family:var(--f-body)">${w.decision ? DECISIONS[w.decision].split("（")[0] : "—"}</td><td style="text-align:left;font-family:var(--f-body);white-space:normal;min-width:180px">${esc(w.learning || "")}</td></tr>`;
+  const need = t.judge_at || JUDGE_AT;
+  h += `<p><span class="muted">試している仮説 </span><b>${esc(hy.text)}</b></p>${hy.how ? `<p class="muted">確かめ方：${esc(hy.how)}</p>` : ""}
+    <div class="row" style="gap:8px"><span class="num" style="font-size:20px">${sm.ps.length}/${need}本</span><span class="muted">${md(t.started)}から・いつもの${fmtX(sm.med)}（中央値）・当たり以上 ${sm.hits}/${sm.scores.length}本</span></div>
+    <div class="bar" role="progressbar" aria-label="判断までの本数" aria-valuemin="0" aria-valuemax="${need}" aria-valuenow="${sm.ps.length}"><i style="width:${Math.min(sm.ps.length / need, 1) * 100}%"></i></div>
+    <div style="display:grid;gap:6px">${trackPostRows(sm.ps)}</div>`;
+  if (sm.ready) {
+    const hint = sm.scores.length < sm.ps.length ? "数字が未入力の投稿があります" : sm.med >= 1.15 ? "数字の上では当たりっぽい" : sm.med <= 0.9 ? "数字の上では外れっぽい" : "いつもとあまり変わらない";
+    h += `<div class="note info">${need}本たまりました。判断しましょう（見立て：${hint}）</div>
+      <div class="seg" role="radiogroup" aria-label="判断">${Object.entries(DECISIONS).map(([k, l]) => `<label><input type="radio" name="tr-dec-${g.id}" value="${k}"><span>${l}</span></label>`).join("")}</div>
+      <label class="f">学び（1行）<input type="text" id="tr-learn-${g.id}" placeholder="例: 答えを先に出すと完走率が上がった"></label>
+      <div class="row"><button class="btn primary save-btn tr-judge" type="button" data-g="${g.id}">判断を保存</button></div>`;
+  } else {
+    h += `<p class="muted">${g.label}を記録するとき、この仮説が最初から選ばれます。あと${need - sm.ps.length}本で判断します。</p>
+      <details><summary>やめる・早めに判断する</summary><div class="row"><button class="btn small tr-early" type="button" data-g="${g.id}">いま判断する</button><button class="btn small danger tr-stop" type="button" data-g="${g.id}">この仮説を外す</button></div></details>`;
+  }
+  return h + `</div>`;
+}
+function renderTracks() {
+  const sums = GENRES.map((g) => trackSummary(g.id));
+  const n = sums.filter((x) => x.ready).length + sums.filter((x) => !x.t).length;
+  const badge = $("badge"); badge.hidden = !n; badge.textContent = n;
+  if (tracksDirty && document.activeElement && document.activeElement.closest && document.activeElement.closest("#v-tracks")) return;
+  let h = `<div style="display:grid;gap:12px">${GENRES.map(trackCard).join("")}</div>`;
+  const cs = S.cycles.slice().sort((a, b) => String(b.closed_at).localeCompare(String(a.closed_at)));
+  if (cs.length) {
+    h += `<details class="card"><summary><b>これまでの判断（${cs.length}回）</b></summary><div class="table-scroll"><table><thead><tr><th>判断日</th><th>ジャンル</th><th style="text-align:left">仮説</th><th>本数</th><th>何倍</th><th style="text-align:left">判断</th><th style="text-align:left">学び</th></tr></thead><tbody>${cs.map((c) => {
+      const hy = S.hypotheses.find((x) => x._id === c.hypothesis_id);
+      return `<tr><td>${md(String(c.closed_at).slice(0, 10))}</td><td style="font-family:var(--f-body)">${gLabel(c.genre)}</td><td style="text-align:left;font-family:var(--f-body);white-space:normal;min-width:160px">${esc(hy ? hy.text : "—")}</td><td>${c.posts_n ?? "—"}</td><td>${fmtX(c.median_score)}</td><td style="text-align:left;font-family:var(--f-body)">${DECISIONS[c.decision] ? DECISIONS[c.decision].split("（")[0] : "—"}</td><td style="text-align:left;font-family:var(--f-body);white-space:normal;min-width:180px">${esc(c.learning || "")}</td></tr>`;
     }).join("")}</tbody></table></div></details>`;
   }
-  $("v-week").innerHTML = h;
-  weekDirty = false;
+  $("v-tracks").innerHTML = h;
+  tracksDirty = false;
 }
-document.addEventListener("input", (e) => { if (e.target.closest && e.target.closest("#v-week")) weekDirty = true; });
-document.addEventListener("change", (e) => { if (e.target.name === "wk-decision") weekDirty = true; });
+document.addEventListener("input", (e) => { if (e.target.closest && e.target.closest("#v-tracks")) tracksDirty = true; });
+document.addEventListener("change", (e) => { if (String(e.target.name || "").startsWith("tr-dec-")) tracksDirty = true; });
+async function saveTracks(next) {
+  await db.collection("settings").doc("tracks").set({ ...tracks(), ...next, updated_at: new Date().toISOString() });
+}
 document.addEventListener("click", async (e) => {
-  if (e.target.id === "wk-set") {
-    const ws = e.target.dataset.ws, hid = $("wk-hypo").value;
+  const b = e.target.closest && e.target.closest(".tr-set, .tr-judge, .tr-early, .tr-stop");
+  if (!b) return;
+  const g = b.dataset.g;
+  tracksDirty = false;
+  if (b.classList.contains("tr-set")) {
+    const hid = $(`tr-sel-${g}`).value;
     if (!hid) { toast("仮説を選んでください。"); return; }
-    const w = weekDoc(ws);
-    weekDirty = false;
-    await write(() => db.collection("weeks").doc(ws).set({ ...(w ? clean(w) : {}), week: ws, hypothesis_id: hid, set_at: new Date().toISOString() }), "今週の仮説を決めました。");
-    return;
-  }
-  if (e.target.id === "wk-close") {
-    const ws = e.target.dataset.ws, sum = weekSummary(ws), w = sum.w;
-    const decision = radioVal("wk-decision"), learning = ($("wk-learn").value || "").trim();
-    if (w && w.hypothesis_id && !decision) { toast("判断を選んでください。"); return; }
+    await write(() => saveTracks({ [g]: { hid, started: todayStr(), judge_at: JUDGE_AT } }), `${gLabel(g)}で試す仮説を決めました。`);
+  } else if (b.classList.contains("tr-early")) {
+    const t = trackOf(g);
+    await write(() => saveTracks({ [g]: { ...t, judge_at: Math.max(trackPosts(g, t).length, 1) } }));
+  } else if (b.classList.contains("tr-stop")) {
+    if (!armTwice(b, "この仮説を外す")) return;
+    await write(() => saveTracks({ [g]: null }), "外しました。仮説は一覧に残っています。");
+  } else {
+    const sm = trackSummary(g), t = sm.t;
+    const decision = radioVal(`tr-dec-${g}`), learning = ($(`tr-learn-${g}`).value || "").trim();
+    if (!decision) { toast("判断を選んでください。"); return; }
     if (!learning) { toast("学びを1行書いてください。ガクチカでいちばん使う部分です。"); return; }
-    weekDirty = false;
-    const thisWS = addDays(ws, 7);
     await write(async () => {
-      await db.collection("weeks").doc(ws).set({ ...(w ? clean(w) : {}), week: ws, decision: decision || null, learning, closed_at: new Date().toISOString(),
-        posts_n: sum.ps.length, median_score: isNum(sum.med) ? +sum.med.toFixed(2) : null });
-      if (w && w.hypothesis_id && (decision === "hit" || decision === "miss")) {
-        const hy = S.hypotheses.find((x) => x._id === w.hypothesis_id);
-        if (hy) await db.collection("hypotheses").doc(hy._id).update({ status: decision, verdict_note: learning, judged_at: new Date().toISOString() });
+      await db.collection("cycles").doc("c" + Date.now()).set({ genre: g, hypothesis_id: t.hid, started: t.started, posts_n: sm.ps.length,
+        median_score: isNum(sm.med) ? +sm.med.toFixed(2) : null, hits: sm.hits, decision, learning, closed_at: new Date().toISOString() });
+      if (decision === "more") await saveTracks({ [g]: { ...t, judge_at: sm.ps.length + 2 } });
+      else {
+        const hy = S.hypotheses.find((x) => x._id === t.hid);
+        const otherUses = GENRES.some((x) => x.id !== g && trackOf(x.id) && trackOf(x.id).hid === t.hid);
+        if (hy && !otherUses) await db.collection("hypotheses").doc(hy._id).update({ status: decision, verdict_note: learning, judged_at: new Date().toISOString() });
+        await saveTracks({ [g]: null });
       }
-      const next = weekDoc(thisWS);
-      if (w && w.hypothesis_id && decision === "more" && !(next && next.hypothesis_id))
-        await db.collection("weeks").doc(thisWS).set({ ...(next ? clean(next) : {}), week: thisWS, hypothesis_id: w.hypothesis_id, set_at: new Date().toISOString() });
-    }, decision === "more" ? "保存しました。今週も同じ仮説で試します。" : "ふりかえりを保存しました。");
+    }, decision === "more" ? "保存しました。あと2本試します。" : "判断を保存しました。次に試すことを決めましょう。");
   }
 });
 function renderHypo() {
-  renderWeek();
+  renderTracks();
   const hs = S.hypotheses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   const testing = hs.filter((h) => (h.status || "testing") === "testing"), done = hs.filter((h) => (h.status || "testing") !== "testing");
   let h = "";
@@ -1069,7 +1090,7 @@ function aiInput() {
     const ev = evaluate(p);
     return {
       id: p._id, date: p.posted_at, genre: gLabel(p.genre), caption: (p.caption || "").slice(0, 80), hook: (p.hook || "").slice(0, 60),
-      aim: p.aim || "", why_note: p.why || "", views: p.views, likes: p.likes, follows: p.follows,
+      aim: p.aim || "", next_plan: p.next || "", why_note: p.why || "", views: p.views, likes: p.likes, follows: p.follows,
       avg_watch_sec: p.avg_watch_sec ?? null, completion_pct: p.completion_pct ?? null,
       like_rate_pct: isNum(likeRate(p)) ? +likeRate(p).toFixed(2) : null, follows_per_10k: isNum(followRate(p)) ? +followRate(p).toFixed(1) : null,
       score_vs_usual: ev && isNum(ev.score) ? +ev.score.toFixed(2) : null,
@@ -1094,8 +1115,11 @@ function aiInput() {
 ${gl ? JSON.stringify({ goal: goalName(gl), start: gl.start, end: gl.end, start_value: gl.base, target: gl.target, why: gl.why }) : "まだ未設定"}
 ${gl && gl.metric === FOL ? "目標はアカウント全体のフォロワー数なので、どの投稿・どんな工夫が新規フォロワーを増やしたか（follows と follows_per_10k）を特に見てください。" : ""}
 
-## 週ごとのふりかえり（あなたの判断と学び）
-${JSON.stringify(S.weeks.filter((w) => w.closed_at).sort((a, b) => String(a._id).localeCompare(String(b._id))).map((w) => ({ week: w._id, hypothesis: (S.hypotheses.find((x) => x._id === w.hypothesis_id) || {}).text || null, posts: w.posts_n, median_score: w.median_score, decision: w.decision, learning: w.learning })))}
+## ジャンルごとの検証の判断（持ち主の判断と学び）
+${JSON.stringify(S.cycles.slice().sort((a, b) => String(a.closed_at).localeCompare(String(b.closed_at))).map((c) => ({ date: String(c.closed_at).slice(0, 10), genre: gLabel(c.genre), hypothesis: (S.hypotheses.find((x) => x._id === c.hypothesis_id) || {}).text || null, posts: c.posts_n, median_score: c.median_score, decision: c.decision, learning: c.learning })))}
+
+## いまジャンルごとに試している仮説
+${JSON.stringify(Object.fromEntries(GENRES.map((g) => { const t = trackOf(g.id); return [g.label, t ? (S.hypotheses.find((x) => x._id === t.hid) || {}).text : null]; })))}
 
 ## アカウントのフォロワー数の推移
 ${JSON.stringify(folRecords().map((f) => ({ date: f.date, count: f.count })))}
@@ -1251,11 +1275,17 @@ function buildMarkdown() {
     o.push("");
   }
 
-  const wk = S.weeks.filter((w) => w.closed_at).sort((a, b) => String(a._id).localeCompare(String(b._id)));
-  if (wk.length) {
-    o.push(`### 毎週の仮説検証（${wk.length}週）`, "", "週に1回、先週の結果で判断し、次の週に試すことを1つ決めて回した。", "",
-      "| 週 | 試したこと | 本数 | いつもの何倍（中央値） | 判断 | 学び |", "|---|---|---|---|---|---|");
-    wk.forEach((w) => { const hy = S.hypotheses.find((x) => x._id === w.hypothesis_id); o.push(`| ${weekLabel(w._id)} | ${cell(hy ? hy.text : "—")} | ${w.posts_n ?? "—"} | ${fmtX(w.median_score)} | ${w.decision ? DECISIONS[w.decision].split("（")[0] : "—"} | ${cell(w.learning)} |`); });
+  const cs = S.cycles.slice().sort((a, b) => String(a.closed_at).localeCompare(String(b.closed_at)));
+  if (cs.length) {
+    o.push(`### ジャンルごとの仮説検証（${cs.length}回の判断）`, "", `ジャンルごとに試すことを1つ決め、${JUDGE_AT}本試すごとに「同じジャンルのいつもの何倍か」で判断した。`, "",
+      "| 判断日 | ジャンル | 試したこと | 本数 | いつもの何倍（中央値） | 判断 | 学び |", "|---|---|---|---|---|---|---|");
+    cs.forEach((c) => { const hy = S.hypotheses.find((x) => x._id === c.hypothesis_id); o.push(`| ${String(c.closed_at).slice(0, 10)} | ${gLabel(c.genre)} | ${cell(hy ? hy.text : "—")} | ${c.posts_n ?? "—"} | ${fmtX(c.median_score)} | ${DECISIONS[c.decision] ? DECISIONS[c.decision].split("（")[0] : "—"} | ${cell(c.learning)} |`); });
+    o.push("");
+  }
+  const withNext = S.posts.filter((p) => (p.next || "").trim());
+  if (withNext.length) {
+    o.push("### 動画ごとの振り返り", "", `記録した${S.posts.length}本のうち${withNext.length}本で、「次の動画でどうするか」を決めてから次を作った。例:`, "");
+    withNext.slice().sort(byDate).slice(-3).forEach((p) => o.push(`- ${p.posted_at}［${gLabel(p.genre)}］いつもの${fmtX((evaluate(p) || {}).score)} → 次へ: ${p.next}`));
     o.push("");
   }
 
@@ -1293,7 +1323,7 @@ function buildMarkdown() {
   o.push("## 5. 学び", "");
   const judged = hs.filter((h) => h.status === "hit" || h.status === "miss");
   if (judged.length) judged.forEach((h) => o.push(`- **${STATUS[h.status]}**: ${h.text}${h.verdict_note ? ` — ${h.verdict_note}` : ""}`));
-  wk.filter((w) => w.learning && !(judged.some((h) => h._id === w.hypothesis_id && h.verdict_note === w.learning))).forEach((w) => o.push(`- ${weekLabel(w._id)}の学び: ${w.learning}`));
+  cs.filter((c) => c.learning && !(judged.some((h) => h._id === c.hypothesis_id && h.verdict_note === c.learning))).forEach((c) => o.push(`- ${gLabel(c.genre)}（${String(c.closed_at).slice(0, 10)}）: ${c.learning}`));
   const lastA = S.analyses.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)))[0];
   if (lastA && lastA.result && lastA.result.summary) o.push(`- 最新のAI分析（${String(lastA.created_at).slice(0, 10)}）の要約: ${lastA.result.summary}`);
   o.push("- 平均ではなく中央値と「いつもの何倍か」で見ることで、偶然のバズと、再現できる工夫を分けて考えられるようになった。", "");
@@ -1302,7 +1332,7 @@ function buildMarkdown() {
   let pitch = "TikTokで雑学・イベント告知・グッズ紹介の3ジャンルを投稿しているが、1本ごとの伸びの差が大きく、平均では何が効いているのか判断できなかった。";
   pitch += `そこで各投稿を「同じジャンルの直近${BASE_N}本の中央値の何倍か」で評価する記録の仕組みを作り、`;
   if (gl) pitch += gl.metric === VX ? `「${daysBetween(gl.start, gl.end) <= 35 ? "1ヶ月で、" : ""}全ジャンルの視聴数を各ジャンルの普段（中央値）の${goalFmt(gl, gl.target)}にする」という目標を立てた。` : `「${goalName(gl)}を${goalFmt(gl, gl.base)}から${goalFmt(gl, gl.target)}にする」という目標を立てた。`;
-  if (wk.length) pitch += `毎週1回、先週の結果を「同じジャンルのいつもの何倍か」で判断し、次の週に試す工夫を1つ決めるサイクルを${wk.length}週回した。`;
+  if (cs.length) pitch += `動画ごとに「次にどうするか」を決めて改善しつつ、ジャンルごとに仮説を立てて${JUDGE_AT}本ずつ検証し、${cs.length}回の判断を重ねた。`;
   else if (hs.length) pitch += `伸びた投稿と伸びなかった投稿を比べて仮説を${hs.length}個立て、1つにつき複数本で検証した。`;
   if (gl) { const cur = goalCurrent(gl); if (cur && isNum(gl.base) && gl.base > 0) pitch += gl.metric === VX ? `その結果、視聴数は普段の${goalFmt(gl, cur.value)}（期間中${cur.n}本の中央値）になった。` : gl.metric === FOL ? `その結果、フォロワー数は${fmt(gl.base, "人")}から${fmt(cur.value, "人")}（+${fmt(cur.value - gl.base, "人")}）になった。` : `その結果、中央値は${fmt(gl.base, goalUnit(gl))}から${fmt(cur.value, goalUnit(gl))}（${fmtX(cur.value / gl.base)}）になった。`; }
   o.push(pitch, "");
@@ -1347,7 +1377,7 @@ $("x-restore-file").addEventListener("change", async (e) => {
     const j = JSON.parse(await f.text());
     if (j.app !== "tiktok-experiment-note" || j.version !== 3) throw new Error("format");
     restoreData = j;
-    const n = COLLECTIONS.map((c) => `${{ posts: "投稿", hypotheses: "仮説", analyses: "分析", settings: "設定", followers: "フォロワー数", weeks: "週のふりかえり" }[c]} ${(j[c] || []).length}件`).join("・");
+    const n = COLLECTIONS.map((c) => `${{ posts: "投稿", hypotheses: "仮説", analyses: "分析", settings: "設定", followers: "フォロワー数", cycles: "検証の判断" }[c]} ${(j[c] || []).length}件`).join("・");
     box.innerHTML = `<div class="note info">${esc(n)}（${esc(String(j.exported_at || "").slice(0, 10))} のバックアップ）を書き込みます。同じ記録は上書きされ、今ある他の記録は消えません。</div><div class="row"><button class="btn primary" type="button" id="x-restore-go">復元する</button></div>`;
     $("x-restore-go").addEventListener("click", async () => {
       const btn = $("x-restore-go"); btn.disabled = true; btn.textContent = "復元中…";
