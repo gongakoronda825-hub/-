@@ -340,7 +340,7 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
     <label class="f">気づき（任意）<textarea id="rec-note"></textarea></label>
     <label class="f">次の動画でどうするか（1行）<input type="text" id="rec-next" placeholder="例: 冒頭をさらに短く、0.5秒で答えを出す"></label>
     <div class="row" style="justify-content:space-between">
-      <button class="btn primary save-btn" type="submit">保存</button>
+      <div class="row"><button class="btn primary save-btn" type="submit" value="close">保存</button><button class="btn save-btn" type="submit" value="next" id="rec-save-next">保存して次を記録</button></div>
       <button class="btn danger" type="button" id="rec-delete" hidden>この記録を削除</button>
     </div>
   </form>
@@ -745,6 +745,7 @@ function openRecord(p) {
   $("rec-files").value = ""; recFiles = []; $("rec-read").disabled = true; $("rec-read-status").textContent = "";
   $("rec-shot").hidden = !!p && !imageOk;
   syncShotUi();
+  $("rec-save-next").hidden = !!p;
   const del = $("rec-delete"); del.hidden = !p; del.dataset.armed = ""; del.textContent = "この記録を削除";
   $("rec-sheet").showModal();
 }
@@ -817,7 +818,10 @@ $("f-rec").addEventListener("submit", async (e) => {
   const id = editingPost ? editingPost._id : "p" + Date.now();
   lsSet("lastGenre", g);
   if (await write(() => db.collection("posts").doc(id).set({ ...base, ...row, updated_at: new Date().toISOString() }), "記録しました。")) {
-    recExtra = {}; $("rec-sheet").close();
+    recExtra = {};
+    const again = e.submitter && e.submitter.value === "next";
+    $("rec-sheet").close();
+    if (again) { openRecord(null); setRadio("rec-genre", g); $("rec-date").value = date; syncRecDefaults(); toast("記録しました。次の投稿のスクショを選んでください。"); }
   }
 });
 $("rec-delete").addEventListener("click", async () => {
