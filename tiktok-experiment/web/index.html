@@ -1,0 +1,981 @@
+<title>TikTok実験ノート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Dela+Gothic+One&family=IBM+Plex+Mono:wght@400;500&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: 1カラムの実験ノート。上に状態、下に5つのタブ。数字は等幅で揃える */
+:root {
+  --bg: #F1F4F2;
+  --surface: #FFFFFF;
+  --ink: #17201D;
+  --ink-2: #47534F;
+  --muted: #76827E;
+  --line: #D9E0DC;
+  --accent: #0D7A69;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DCEFE9;
+  --neg: #B9573E;
+  --good: #1D7A3A;
+  --good-bg: #E2F3E6;
+  --bad: #B3362A;
+  --bad-bg: #FBE6E2;
+  --warn: #8A5A00;
+  --warn-bg: #FFF2D6;
+  --grid: #E6EBE8;
+  --f-display: "Dela Gothic One", "Hiragino Sans", "Noto Sans JP", sans-serif;
+  --f-body: "Zen Kaku Gothic New", "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+  --f-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 10px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1412; --surface: #17201D; --ink: #E5ECE9; --ink-2: #B2BEBA; --muted: #84918C;
+    --line: #2A3532; --accent: #3DBDA4; --accent-ink: #06201B; --accent-soft: #15372F;
+    --neg: #E08B70; --good: #63CB80; --good-bg: #16301E; --bad: #F08D80; --bad-bg: #3A1D19;
+    --warn: #EBB957; --warn-bg: #33290F; --grid: #222C29; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1412; --surface: #17201D; --ink: #E5ECE9; --ink-2: #B2BEBA; --muted: #84918C;
+  --line: #2A3532; --accent: #3DBDA4; --accent-ink: #06201B; --accent-soft: #15372F;
+  --neg: #E08B70; --good: #63CB80; --good-bg: #16301E; --bad: #F08D80; --bad-bg: #3A1D19;
+  --warn: #EBB957; --warn-bg: #33290F; --grid: #222C29; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { background: var(--bg); }
+body {
+  color: var(--ink); font-family: var(--f-body); font-size: 15px; line-height: 1.6;
+  padding-inline: 16px; padding-block: 0 calc(84px + env(safe-area-inset-bottom, 0px));
+  -webkit-text-size-adjust: 100%;
+}
+.wrap { max-width: 640px; margin: 0 auto; display: grid; gap: 28px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; line-height: 1.3; }
+h2 { font-family: var(--f-display); font-weight: 400; font-size: 22px; letter-spacing: .01em; }
+h3 { font-size: 15px; font-weight: 700; }
+p { margin: 0; }
+.num, .tile b, input[type=number] { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); font-size: 13px; }
+.ink2 { color: var(--ink-2); }
+
+/* 上部 */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding-block: 12px 10px; border-bottom: 1px solid var(--line); margin-inline: -16px; padding-inline: 16px; }
+.brand { font-family: var(--f-display); font-size: 17px; letter-spacing: .02em; }
+.brand small { display: block; font-family: var(--f-body); font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+.pill { font-size: 12px; padding: 3px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.pill.ok { border-color: transparent; background: var(--accent-soft); color: var(--accent); }
+.pill.ng { border-color: transparent; background: var(--bad-bg); color: var(--bad); }
+
+/* タブ */
+.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; background: var(--surface);
+  border-top: 1px solid var(--line); display: grid; grid-template-columns: repeat(5, 1fr);
+  padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabs button { appearance: none; border: 0; background: none; color: var(--muted); font: inherit;
+  font-size: 11px; padding: 8px 2px 10px; display: grid; justify-items: center; gap: 2px; position: relative; cursor: pointer; }
+.tabs button .n { font-family: var(--f-display); font-size: 17px; line-height: 1.2; }
+.tabs button[aria-selected=true] { color: var(--accent); }
+.tabs button[aria-selected=true]::before { content: ""; position: absolute; top: 0; left: 22%; right: 22%; height: 3px; border-radius: 0 0 3px 3px; background: var(--accent); }
+.badge { position: absolute; top: 4px; right: calc(50% - 22px); min-width: 18px; height: 18px; border-radius: 9px;
+  background: var(--bad); color: #fff; font-size: 11px; line-height: 18px; text-align: center; padding: 0 5px; font-family: var(--f-data); }
+:root[data-theme="dark"] .badge { color: #1a0d0b; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .badge { color: #1a0d0b; } }
+
+section.page { display: grid; gap: 22px; padding-top: 20px; }
+.lead { color: var(--ink-2); font-size: 14px; margin-top: 6px; }
+
+/* フォーム */
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px; display: grid; gap: 14px; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 480px) { .at-row { grid-template-columns: 1fr; } .grid4 { grid-template-columns: 1fr 1fr; } }
+label.f { display: grid; gap: 4px; font-size: 13px; color: var(--ink-2); min-width: 0; }
+input, select, textarea { font: inherit; font-size: 16px; color: var(--ink); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; width: 100%; min-width: 0; }
+textarea { resize: vertical; min-height: 64px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible, button:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  font: inherit; font-size: 15px; font-weight: 500; padding: 10px 16px; border-radius: 8px; cursor: pointer; }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--bad); }
+.btn.small { font-size: 13px; padding: 6px 10px; }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.seg { display: flex; flex-wrap: wrap; gap: 6px; }
+.seg label { position: relative; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg span { display: inline-block; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 14px; cursor: pointer; background: var(--bg); }
+.seg input:checked + span { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.seg input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+details > summary { cursor: pointer; color: var(--ink-2); font-size: 14px; }
+details[open] > summary { margin-bottom: 12px; }
+
+/* お知らせ */
+.note { border-radius: 8px; padding: 10px 12px; font-size: 14px; display: flex; gap: 8px; align-items: flex-start; }
+.note::before { font-weight: 700; flex: none; }
+.note.warn { background: var(--warn-bg); color: var(--warn); }
+.note.warn::before { content: "!"; }
+.note.bad { background: var(--bad-bg); color: var(--bad); }
+.note.bad::before { content: "×"; }
+.note.info { background: var(--accent-soft); color: var(--accent); }
+.note.info::before { content: "i"; font-family: var(--f-data); }
+.empty { border: 1.5px dashed var(--line); border-radius: var(--r); padding: 22px 16px; text-align: center; color: var(--ink-2); font-size: 14px; display: grid; gap: 6px; }
+.empty b { color: var(--ink); }
+
+/* 数字タイル */
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+@media (max-width: 480px) { .tiles { grid-template-columns: 1fr 1fr; } }
+.tile { display: grid; gap: 2px; min-width: 0; }
+.tile span { font-size: 12px; color: var(--muted); letter-spacing: .04em; }
+.tile b { font-size: 22px; font-weight: 500; line-height: 1.2; }
+.tile em { font-style: normal; font-size: 12px; font-family: var(--f-data); color: var(--ink-2); }
+.bar { height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+
+/* グラフ */
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 16px; }
+@media (max-width: 520px) { .charts { grid-template-columns: 1fr; } }
+.chart { display: grid; gap: 4px; min-width: 0; }
+.chart .head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.chart .head b { font-size: 14px; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .tip { font-size: 12px; color: var(--ink-2); min-height: 1.2em; font-family: var(--f-data); }
+svg text { fill: var(--muted); font-family: var(--f-data); font-size: 10px; }
+svg .val { fill: var(--ink); font-weight: 500; }
+svg .lab { fill: var(--ink-2); font-family: var(--f-body); font-size: 11px; }
+
+/* リスト */
+.list { display: grid; gap: 10px; }
+.item { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 12px 14px; display: grid; gap: 6px; min-width: 0; }
+.item .meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12px; color: var(--muted); }
+.item .title { font-weight: 700; overflow-wrap: anywhere; }
+.item .change { overflow-wrap: anywhere; }
+.item .nums { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13px; color: var(--ink-2); }
+.item .nums b { font-family: var(--f-data); font-weight: 500; color: var(--ink); }
+.chip { font-size: 12px; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.chip.warn { background: var(--warn-bg); color: var(--warn); }
+.chip.bad { background: var(--bad-bg); color: var(--bad); }
+.chip.good { background: var(--good-bg); color: var(--good); }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 8px 10px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+th:first-child, td:first-child { text-align: left; }
+th { font-weight: 500; color: var(--muted); font-size: 12px; }
+td { font-family: var(--f-data); font-variant-numeric: tabular-nums; }
+td:first-child { font-family: var(--f-body); }
+tr:last-child td { border-bottom: 0; }
+.effects { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 520px) { .effects { grid-template-columns: 1fr; } }
+.effects ul { margin: 0; padding-left: 1.1em; display: grid; gap: 6px; font-size: 14px; }
+.effects h3 { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; }
+.rev-groups { display: grid; gap: 16px; }
+.rev-groups fieldset { border: 0; padding: 0; margin: 0; display: grid; gap: 6px; }
+.rev-groups legend { font-weight: 700; font-size: 14px; margin-bottom: 4px; padding: 0; }
+
+pre.md { white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--f-data); font-size: 12.5px; line-height: 1.65;
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin: 0; max-height: 60vh; overflow: auto; color: var(--ink); }
+
+/* シート */
+dialog { border: 0; padding: 0; background: transparent; max-width: 640px; width: 100%; margin: auto auto 0; color: var(--ink); }
+dialog::backdrop { background: rgba(8, 14, 12, .45); }
+.sheet { background: var(--surface); border-radius: 16px 16px 0 0; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px));
+  display: grid; gap: 14px; max-height: 88vh; overflow-y: auto; }
+.sheet .bar-top { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  background: var(--ink); color: var(--bg); padding: 9px 16px; border-radius: 999px; font-size: 14px; z-index: 30; max-width: calc(100% - 32px); }
+@media (prefers-reduced-motion: no-preference) { .toast { transition: opacity .2s; } }
+</style>
+
+<header class="top">
+  <div class="brand">TikTok実験ノート<small>仮説 → 検証 → 改善 を数字で残す</small></div>
+  <span id="sync" class="pill">接続中…</span>
+</header>
+
+<div class="wrap">
+  <div id="global-note" hidden></div>
+
+  <!-- ① ベースライン -->
+  <section class="page" id="p-baseline" data-tab="baseline">
+    <div>
+      <h2>① 現状の記録</h2>
+      <p class="lead">取り組みの前と、その後の定点観測の数字。月初などに定期的に登録すると、推移が見えます。</p>
+    </div>
+    <form class="card" id="f-baseline" autocomplete="off">
+      <div class="grid2">
+        <label class="f">日付<input type="date" id="b-date" required></label>
+        <label class="f">フォロワー数<input type="number" id="b-followers" inputmode="numeric" min="0" step="1" required></label>
+      </div>
+      <div class="grid2">
+        <label class="f">直近10本の平均再生数<input type="number" id="b-views" inputmode="decimal" min="0" step="any" required></label>
+        <label class="f">平均視聴維持率（%）<input type="number" id="b-retention" inputmode="decimal" min="0" max="100" step="any" required></label>
+      </div>
+      <div class="grid2">
+        <label class="f">平均保存数<input type="number" id="b-saves" inputmode="decimal" min="0" step="any" required></label>
+        <div></div>
+      </div>
+      <p class="muted">同じ日付で登録すると上書きされます。</p>
+      <div class="row"><button class="btn primary save-btn" type="submit">登録する</button></div>
+    </form>
+    <div id="v-baseline"></div>
+  </section>
+
+  <!-- ② 目標 -->
+  <section class="page" id="p-goal" data-tab="goal" hidden>
+    <div>
+      <h2>② 目標設定</h2>
+      <p class="lead">追いかける指標を1つに絞り、期限つきの目標を立てます。</p>
+    </div>
+    <div id="v-goal"></div>
+    <form class="card" id="f-goal" autocomplete="off">
+      <h3 id="g-form-title">目標を立てる</h3>
+      <div class="f" role="radiogroup" aria-label="指標">
+        <span class="muted">指標（1つだけ選ぶ）</span>
+        <div class="seg" id="g-metrics"></div>
+      </div>
+      <div class="grid2">
+        <label class="f"><span>現在値（<span class="g-unit">回</span>）</span><input type="number" id="g-current" inputmode="decimal" step="any" required></label>
+        <label class="f"><span>目標値（<span class="g-unit">回</span>）</span><input type="number" id="g-target" inputmode="decimal" min="0" step="any" required></label>
+      </div>
+      <label class="f">期限<input type="date" id="g-deadline" required></label>
+      <p class="muted" id="g-hint"></p>
+      <div class="row"><button class="btn primary save-btn" type="submit">この目標を登録</button></div>
+    </form>
+  </section>
+
+  <!-- ③ 投稿ログ -->
+  <section class="page" id="p-posts" data-tab="posts" hidden>
+    <div>
+      <h2>③ 投稿ログ</h2>
+      <p class="lead">1投稿で変えるのは1つだけ。数値は投稿の48時間後に入力します。</p>
+    </div>
+    <div id="v-pending"></div>
+    <form class="card" id="f-post" autocomplete="off">
+      <h3>投稿を記録する</h3>
+      <div class="grid2 at-row">
+        <label class="f">投稿日時<input type="datetime-local" id="p-at" required></label>
+        <label class="f">変更カテゴリ<select id="p-category"></select></label>
+      </div>
+      <label class="f">動画タイトル<input type="text" id="p-title" required></label>
+      <label class="f">今回変えた点（1つだけ）<input type="text" id="p-change" placeholder="例: 冒頭1秒に結論のテロップを入れた"></label>
+      <div id="p-change-warn"></div>
+      <label class="f">仮説<textarea id="p-hypothesis" placeholder="例: 冒頭で結論を見せれば離脱が減り、視聴維持率が上がって再生数も伸びるはず"></textarea></label>
+      <details>
+        <summary>数値もいま入力する（投稿から48時間経っている場合）</summary>
+        <div class="grid4" id="p-metrics"></div>
+      </details>
+      <label class="f">気づき（あとからでもOK）<textarea id="p-insight"></textarea></label>
+      <label class="row" id="p-confirm-wrap" style="flex-wrap:nowrap" hidden><input type="checkbox" id="p-confirm" style="width:auto"> <span class="ink2">警告を確認したうえで、このまま保存する</span></label>
+      <div class="row"><button class="btn primary save-btn" type="submit">投稿を保存</button></div>
+    </form>
+    <div id="v-posts"></div>
+  </section>
+
+  <!-- ④ 月次振り返り -->
+  <section class="page" id="p-review" data-tab="review" hidden>
+    <div>
+      <h2>④ 月次振り返り</h2>
+      <p class="lead">変更カテゴリごとの平均再生数を、その月のベースラインと比べます。</p>
+    </div>
+    <div class="card">
+      <div class="grid2">
+        <label class="f">振り返る月<select id="r-month"></select></label>
+        <label class="f"><span>「効いた」のライン：ベースライン比 <b class="num" id="r-th-label">+10%</b> 以上</span>
+          <input type="range" id="r-threshold" min="0" max="50" step="5" value="10" style="padding:0;border:0;background:none"></label>
+      </div>
+    </div>
+    <div id="v-review"></div>
+    <form class="card" id="f-review" autocomplete="off">
+      <h3 id="r-form-title">振り返りを書く</h3>
+      <p class="muted" id="r-saved"></p>
+      <div class="rev-groups" id="r-groups"></div>
+      <p class="muted">薄い文字は自動集計からの候補です。「なぜ効いた/効かなかったか」まで自分の言葉で書くと、そのまま学びになります。</p>
+      <div class="row"><button class="btn primary save-btn" type="submit">振り返りを保存</button></div>
+    </form>
+  </section>
+
+  <!-- ⑤ 出力 -->
+  <section class="page" id="p-export" data-tab="export" hidden>
+    <div>
+      <h2>⑤ ガクチカ素材</h2>
+      <p class="lead">ベースライン → 目標 → 実施した施策 → 結果の数字 → 学び の順にまとめたMarkdownです。</p>
+    </div>
+    <div class="row">
+      <button class="btn primary" type="button" id="x-copy">コピー</button>
+      <button class="btn dl-btn" type="button" id="x-save-md">Markdownファイルで保存</button>
+    </div>
+    <pre class="md" id="x-md"></pre>
+    <div class="card">
+      <h3>バックアップ</h3>
+      <p class="ink2" style="font-size:14px">記録は claude.ai に保存されていて、iPhoneのデータを消しても残ります。念のため、ときどきファイルにも保存しておくと安心です。</p>
+      <div class="row">
+        <button class="btn dl-btn" type="button" id="x-backup">バックアップを保存（JSON）</button>
+        <button class="btn dl-btn" type="button" id="x-csv">投稿ログをCSVで保存</button>
+      </div>
+      <details>
+        <summary>バックアップから復元する</summary>
+        <div style="display:grid;gap:10px">
+          <input type="file" id="x-restore-file" accept=".json,application/json">
+          <div id="x-restore-info"></div>
+        </div>
+      </details>
+    </div>
+  </section>
+</div>
+
+<nav class="tabs" role="tablist" aria-label="画面">
+  <button role="tab" data-go="baseline" aria-selected="true"><span class="n">①</span>現状</button>
+  <button role="tab" data-go="goal" aria-selected="false"><span class="n">②</span>目標</button>
+  <button role="tab" data-go="posts" aria-selected="false"><span class="n">③</span>投稿ログ<span class="badge" id="badge" hidden></span></button>
+  <button role="tab" data-go="review" aria-selected="false"><span class="n">④</span>振り返り</button>
+  <button role="tab" data-go="export" aria-selected="false"><span class="n">⑤</span>出力</button>
+</nav>
+
+<dialog id="sheet">
+  <form class="sheet" id="f-edit" method="dialog" autocomplete="off">
+    <div class="bar-top"><h3 id="e-heading">投稿を編集</h3><button class="btn small" type="button" id="e-close">閉じる</button></div>
+    <div class="grid2 at-row">
+      <label class="f">投稿日時<input type="datetime-local" id="e-at" required></label>
+      <label class="f">変更カテゴリ<select id="e-category"></select></label>
+    </div>
+    <label class="f">動画タイトル<input type="text" id="e-title" required></label>
+    <label class="f">今回変えた点（1つだけ）<input type="text" id="e-change"></label>
+    <div id="e-change-warn"></div>
+    <label class="f">仮説<textarea id="e-hypothesis"></textarea></label>
+    <div class="grid4" id="e-metrics"></div>
+    <label class="f">気づき<textarea id="e-insight"></textarea></label>
+    <div class="row" style="justify-content:space-between">
+      <button class="btn primary save-btn" type="submit">保存</button>
+      <button class="btn danger" type="button" id="e-delete">この投稿を削除</button>
+    </div>
+  </form>
+</dialog>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+"use strict";
+const CATEGORIES = ["冒頭", "尺", "投稿時間", "ハッシュタグ", "テーマ", "その他"];
+const GOAL_METRICS = { "再生数": ["回", 0], "視聴維持率": ["%", 1], "保存数": ["件", 1], "フォロワー増加数": ["人", 0] };
+const POST_METRICS = [["views", "再生数", "1"], ["retention", "視聴維持率(%)", "any"], ["saves", "保存数", "1"], ["likes", "いいね数", "1"]];
+const WAIT_H = 48;
+const COLLECTIONS = ["baseline", "goals", "posts", "reviews"];
+
+const S = { baseline: [], goals: [], posts: [], reviews: [] };
+let db = null, downloads = null, canWrite = false, tab = "baseline";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const isNum = (v) => typeof v === "number" && Number.isFinite(v);
+const pad = (n) => String(n).padStart(2, "0");
+const todayStr = (d = new Date()) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const nowLocal = (d = new Date()) => `${todayStr(d)}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+function readNum(el) { const v = el.value.trim(); if (v === "") return null; const n = Number(v); return Number.isFinite(n) ? n : null; }
+
+// ---------- 計算（Streamlit版の logic.py と同じルール） ----------
+function fmt(v, unit = "", digits = 0) {
+  if (!isNum(v)) return "—";
+  return v.toLocaleString("ja-JP", { minimumFractionDigits: digits, maximumFractionDigits: digits }) + unit;
+}
+function fmtPct(v, signed = true) {
+  if (!isNum(v)) return "—";
+  return (signed && v >= 0 ? "+" : "") + v.toFixed(1) + "%";
+}
+function diffPct(v, base) { return isNum(v) && isNum(base) && base !== 0 ? (v - base) / base * 100 : null; }
+
+function checkChange(text) {
+  text = (text || "").trim();
+  if (!text) return ["「今回変えた点」が空欄です。何を1つ変えたのかを書いてください。"];
+  if (/[、，,]/.test(text)) return ["「今回変えた点」に読点（、）があり、複数の変更が書かれているようです。変える点を1つに絞ると、何が効いたのかを説明できます。"];
+  return [];
+}
+function parseAt(s) { if (!s) return null; const d = new Date(String(s).replace(" ", "T")); return isNaN(d) ? null : d; }
+const monthOf = (s) => (s && /^\d{4}-\d{2}/.test(s)) ? s.slice(0, 7) : null;
+const missingMetrics = (p) => POST_METRICS.filter(([k]) => !isNum(p[k])).map(([, l]) => l.replace("(%)", ""));
+
+function pendingPosts(now = new Date()) {
+  return S.posts.filter((p) => missingMetrics(p).length).map((p) => {
+    const at = parseAt(p.posted_at);
+    const hours = at ? (now - at) / 36e5 : null;
+    return { ...p, hours, ready: hours !== null && hours >= WAIT_H, missing: missingMetrics(p).join("・") };
+  }).sort((a, b) => String(a.posted_at).localeCompare(String(b.posted_at)));
+}
+
+const sortedBaseline = () => S.baseline.filter((b) => /^\d{4}-\d{2}-\d{2}$/.test(b.date || "")).sort((a, b) => a.date.localeCompare(b.date));
+function baselineForMonth(month) {
+  const bs = sortedBaseline();
+  if (!bs.length) return null;
+  const before = bs.filter((b) => b.date <= `${month}-01`);
+  return before.length ? before[before.length - 1] : bs[0];
+}
+function suggestCurrent(metric, since) {
+  const bs = sortedBaseline();
+  if (!bs.length) return null;
+  const last = bs[bs.length - 1];
+  if (metric === "再生数") return last.avg_views ?? null;
+  if (metric === "視聴維持率") return last.avg_retention ?? null;
+  if (metric === "保存数") return last.avg_saves ?? null;
+  let start = bs[0];
+  if (since) { const before = bs.filter((b) => b.date <= since); if (before.length) start = before[before.length - 1]; }
+  return isNum(last.followers) && isNum(start.followers) ? last.followers - start.followers : null;
+}
+const achievement = (cur, target) => isNum(cur) && isNum(target) && target > 0 ? cur / target * 100 : null;
+const progressRate = (start, cur, target) => [start, cur, target].every(isNum) && target !== start ? (cur - start) / (target - start) * 100 : null;
+function daysLeft(deadline) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline || "")) return null;
+  const [y, m, d] = deadline.split("-").map(Number);
+  const t = new Date(); const a = Date.UTC(y, m - 1, d), b = Date.UTC(t.getFullYear(), t.getMonth(), t.getDate());
+  return Math.round((a - b) / 864e5);
+}
+const latestGoal = () => S.goals.slice().sort((a, b) => String(a.created_at).localeCompare(String(b.created_at))).pop() || null;
+const postsInMonth = (month) => S.posts.filter((p) => monthOf(p.posted_at) === month);
+function availableMonths() {
+  const set = new Set(S.posts.map((p) => monthOf(p.posted_at)).filter(Boolean));
+  set.add(todayStr().slice(0, 7));
+  return [...set].sort().reverse();
+}
+const mean = (xs) => { const v = xs.filter(isNum); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
+function categorySummary(posts, baseViews) {
+  const done = posts.filter((p) => isNum(p.views));
+  const order = (c) => { const i = CATEGORIES.indexOf(c); return i < 0 ? CATEGORIES.length : i; };
+  const cats = [...new Set(done.map((p) => p.category))].sort((a, b) => order(a) - order(b));
+  return cats.map((c) => {
+    const ps = done.filter((p) => p.category === c);
+    const views = mean(ps.map((p) => p.views));
+    return { category: c, n: ps.length, views, diff: isNum(baseViews) ? views - baseViews : null, pct: diffPct(views, baseViews),
+      retention: mean(ps.map((p) => p.retention)), saves: mean(ps.map((p) => p.saves)) };
+  });
+}
+function splitByEffect(posts, baseViews, threshold) {
+  const rows = posts.filter((p) => isNum(p.views)).map((p) => ({ ...p, pct: diffPct(p.views, baseViews) })).filter((p) => isNum(p.pct));
+  return {
+    worked: rows.filter((p) => p.pct >= threshold).sort((a, b) => b.pct - a.pct),
+    notWorked: rows.filter((p) => p.pct < threshold).sort((a, b) => a.pct - b.pct),
+  };
+}
+const reviewLines = (r, prefix) => r ? [1, 2, 3].map((i) => (r[`${prefix}_${i}`] || "").trim()).filter(Boolean) : [];
+
+// ---------- 保存 ----------
+async function write(fn, okMsg) {
+  if (!db || !canWrite) { toast("いまは保存できません。claude.ai にログインした状態で開いてください。"); return false; }
+  try { await fn(); if (okMsg) toast(okMsg); return true; }
+  catch (e) {
+    const msg = e && e.code === "quota_exceeded" ? "保存できる件数の上限に達しました。古い記録を整理してください。"
+      : e && e.code === "invalid_argument" ? "この内容は保存できませんでした（権限または入力の形式）。"
+      : "保存に失敗しました。通信を確認して、もう一度押してください。";
+    toast(msg); return false;
+  }
+}
+const clean = (o) => Object.fromEntries(Object.entries(o).filter(([k, v]) => !k.startsWith("_") && v !== undefined));
+
+// ---------- 画面切り替え ----------
+function go(name) {
+  tab = name;
+  document.querySelectorAll("section.page").forEach((s) => { s.hidden = s.dataset.tab !== name; });
+  document.querySelectorAll(".tabs button").forEach((b) => b.setAttribute("aria-selected", String(b.dataset.go === name)));
+  try { localStorage.setItem("tab", name); } catch (e) {}
+  window.scrollTo(0, 0);
+}
+document.querySelectorAll(".tabs button").forEach((b) => b.addEventListener("click", () => go(b.dataset.go)));
+
+let toastTimer;
+function toast(msg) { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => { t.hidden = true; }, 2600); }
+
+// ---------- グラフ ----------
+function lineChart(points, unit, digits) {
+  const W = 300, H = 120, L = 40, R = 12, T = 12, B = 22;
+  const ys = points.map((p) => p.y);
+  let lo = Math.min(0, ...ys), hi = Math.max(...ys);
+  if (hi === lo) hi = lo + 1;
+  hi = hi * 1.08;
+  const x = (i) => points.length === 1 ? L + (W - L - R) / 2 : L + i * (W - L - R) / (points.length - 1);
+  const y = (v) => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  const ticks = [lo, (lo + hi) / 2, hi];
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  ticks.forEach((t) => { s += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)" stroke-width="1"/><text x="${L - 6}" y="${y(t) + 3}" text-anchor="end">${esc(fmt(t, "", t < 10 && digits ? 1 : 0))}</text>`; });
+  if (points.length > 1) s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${points.map((p, i) => `${x(i)},${y(p.y)}`).join(" ")}"/>`;
+  points.forEach((p, i) => {
+    const last = i === points.length - 1;
+    s += `<circle cx="${x(i)}" cy="${y(p.y)}" r="${last ? 4.5 : 3.5}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+    s += `<circle class="hit" data-tip="${esc(p.x)}：${esc(fmt(p.y, unit, digits))}" cx="${x(i)}" cy="${y(p.y)}" r="14" fill="transparent" style="cursor:pointer"><title>${esc(p.x)}：${esc(fmt(p.y, unit, digits))}</title></circle>`;
+  });
+  const first = points[0], lastP = points[points.length - 1];
+  s += `<text x="${x(0)}" y="${H - 6}" text-anchor="${points.length === 1 ? "middle" : "start"}">${esc(first.x.slice(5))}</text>`;
+  if (points.length > 1) s += `<text x="${x(points.length - 1)}" y="${H - 6}" text-anchor="end">${esc(lastP.x.slice(5))}</text>`;
+  return s + "</svg>";
+}
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest && e.target.closest(".hit");
+  if (!hit) return;
+  const tip = hit.closest(".chart").querySelector(".tip");
+  if (tip) tip.textContent = hit.dataset.tip;
+});
+
+function divergingBars(rows) {
+  const W = 300, rowH = 30, L = 78, R = 52, T = 6;
+  const H = T * 2 + rows.length * rowH;
+  const maxAbs = Math.max(10, ...rows.map((r) => Math.abs(r.pct || 0)));
+  const mid = L + (W - L - R) / 2, half = (W - L - R) / 2;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="ベースライン比">`;
+  s += `<line x1="${mid}" x2="${mid}" y1="0" y2="${H}" stroke="var(--line)" stroke-width="1"/>`;
+  rows.forEach((r, i) => {
+    const yy = T + i * rowH + 6, h = rowH - 12, w = Math.max(2, Math.abs(r.pct) / maxAbs * half);
+    const pos = r.pct >= 0;
+    s += `<text class="lab" x="0" y="${yy + h / 2 + 4}">${esc(r.category)}</text>`;
+    s += `<rect x="${pos ? mid : mid - w}" y="${yy}" width="${w}" height="${h}" rx="3" fill="${pos ? "var(--accent)" : "var(--neg)"}"><title>${esc(r.category)} ${esc(fmtPct(r.pct))}</title></rect>`;
+    s += `<text class="val" x="${pos ? mid + w + 4 : mid - w - 4}" y="${yy + h / 2 + 4}" text-anchor="${pos ? "start" : "end"}">${esc(fmtPct(r.pct))}</text>`;
+  });
+  return s + "</svg>";
+}
+
+// ---------- ① ベースライン ----------
+const B_CHARTS = [["フォロワー数", "followers", "人", 0], ["直近10本の平均再生数", "avg_views", "回", 0], ["平均視聴維持率", "avg_retention", "%", 1], ["平均保存数", "avg_saves", "件", 1]];
+function renderBaseline() {
+  const bs = sortedBaseline(), v = $("v-baseline");
+  if (!bs.length) {
+    v.innerHTML = `<div class="empty"><b>まだ記録がありません</b>上のフォームに、いまのアカウントの数字を入れて「登録する」を押してください。<br>これが「取り組み前の現状」になります。</div>`;
+    return;
+  }
+  const first = bs[0], last = bs[bs.length - 1];
+  let h = `<div style="display:grid;gap:14px"><h3>推移</h3>`;
+  if (bs.length === 1) h += `<p class="muted">2回以上記録すると線でつながります。</p>`;
+  h += `<div class="charts">`;
+  B_CHARTS.forEach(([label, col, unit, d]) => {
+    const pts = bs.filter((b) => isNum(b[col])).map((b) => ({ x: b.date, y: b[col] }));
+    if (!pts.length) return;
+    h += `<div class="chart"><div class="head"><b>${label}</b><span class="num ink2" style="font-size:13px">${fmt(last[col], unit, d)}<span class="muted">（初回比 ${fmtPct(diffPct(last[col], first[col]))}）</span></span></div>${lineChart(pts, unit, d)}<div class="tip"></div></div>`;
+  });
+  h += `</div></div><div style="display:grid;gap:10px"><h3>記録一覧</h3><div class="table-scroll"><table><thead><tr><th>日付</th><th>フォロワー</th><th>平均再生</th><th>維持率</th><th>保存</th><th></th></tr></thead><tbody>`;
+  bs.slice().reverse().forEach((b) => {
+    h += `<tr><td class="num">${esc(b.date)}</td><td>${fmt(b.followers)}</td><td>${fmt(b.avg_views)}</td><td>${fmt(b.avg_retention, "%", 1)}</td><td>${fmt(b.avg_saves, "", 1)}</td>
+      <td><button class="btn small danger del" type="button" data-col="baseline" data-id="${esc(b._id)}">削除</button></td></tr>`;
+  });
+  v.innerHTML = h + `</tbody></table></div><p class="muted">数字を直すときは、同じ日付でもう一度登録してください。</p></div>`;
+}
+$("f-baseline").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const date = $("b-date").value;
+  const row = { date, followers: readNum($("b-followers")), avg_views: readNum($("b-views")), avg_retention: readNum($("b-retention")), avg_saves: readNum($("b-saves")) };
+  if (!date || [row.followers, row.avg_views, row.avg_retention, row.avg_saves].some((v) => v === null)) { toast("すべての項目を入力してください。"); return; }
+  const exists = S.baseline.some((b) => b._id === date);
+  if (await write(() => db.collection("baseline").doc(date).set(row), `${date} の記録を${exists ? "上書き" : "登録"}しました。`)) {
+    ["b-followers", "b-views", "b-retention", "b-saves"].forEach((id) => { $(id).value = ""; });
+  }
+});
+
+// 2回押して削除（確認ダイアログはこの画面では出せないため）
+document.addEventListener("click", async (e) => {
+  const btn = e.target.closest && e.target.closest(".del");
+  if (!btn) return;
+  if (btn.dataset.armed !== "1") {
+    btn.dataset.armed = "1"; const old = btn.textContent; btn.textContent = "もう一度押すと削除";
+    setTimeout(() => { if (btn.isConnected) { btn.dataset.armed = ""; btn.textContent = old; } }, 3000);
+    return;
+  }
+  await write(() => db.collection(btn.dataset.col).doc(btn.dataset.id).delete(), "削除しました。");
+});
+
+// ---------- ② 目標 ----------
+let gMetric = "再生数", gCurrentTouched = false;
+$("g-metrics").innerHTML = Object.keys(GOAL_METRICS).map((m, i) =>
+  `<label><input type="radio" name="g-metric" value="${m}" ${i === 0 ? "checked" : ""}><span>${m}</span></label>`).join("");
+$("g-metrics").addEventListener("change", (e) => { gMetric = e.target.value; gCurrentTouched = false; syncGoalForm(); });
+$("g-current").addEventListener("input", () => { gCurrentTouched = true; });
+function syncGoalForm() {
+  const [unit, d] = GOAL_METRICS[gMetric];
+  document.querySelectorAll(".g-unit").forEach((el) => { el.textContent = unit; });
+  const sug = suggestCurrent(gMetric);
+  if (!gCurrentTouched) $("g-current").value = isNum(sug) ? (+sug.toFixed(d)) : "";
+  $("g-current").min = gMetric === "フォロワー増加数" ? "" : "0";
+  $("g-hint").textContent = gMetric === "フォロワー増加数" ? "現在値は、最初のベースラインからの増加人数です（記録から自動で候補を入れています）。"
+    : isNum(sug) ? "現在値には、最新のベースラインの数字を候補として入れています。" : "①でベースラインを登録すると、現在値の候補が自動で入ります。";
+}
+function renderGoal() {
+  const g = latestGoal(), v = $("v-goal");
+  $("g-form-title").textContent = g ? "目標を立て直す" : "目標を立てる";
+  syncGoalForm();
+  if (!g) { v.innerHTML = `<div class="empty"><b>まだ目標がありません</b>下のフォームで、追いかける指標を1つ選んで目標を立てましょう。</div>`; return; }
+  const [unit, d] = GOAL_METRICS[g.metric] || ["", 0];
+  const rate = achievement(g.current_value, g.target_value), prog = progressRate(g.start_value, g.current_value, g.target_value);
+  const left = daysLeft(g.deadline);
+  const delta = isNum(g.current_value) && isNum(g.start_value) ? g.current_value - g.start_value : null;
+  const sug = suggestCurrent(g.metric, g.created_at);
+  let h = `<div class="card"><h3>現在の目標：${esc(g.metric)}を <span class="num">${fmt(g.target_value, unit, d)}</span> に</h3>
+    <div class="tiles">
+      <div class="tile"><span>達成率</span><b>${fmtPct(rate, false)}</b><em>現在値÷目標値</em></div>
+      <div class="tile"><span>現在値</span><b>${fmt(g.current_value, unit, d)}</b><em>設定時から ${isNum(delta) ? (delta >= 0 ? "+" : "") + fmt(delta, unit, d) : "—"}</em></div>
+      <div class="tile"><span>目標値</span><b>${fmt(g.target_value, unit, d)}</b><em>設定時 ${fmt(g.start_value, unit, d)}</em></div>
+      <div class="tile"><span>期限まで</span><b>${left === null ? "—" : left < 0 ? "期限切れ" : left + "日"}</b><em>${esc(g.deadline)}</em></div>
+    </div>
+    <div class="bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${isNum(rate) ? Math.round(rate) : 0}"><i style="width:${isNum(rate) ? Math.min(Math.max(rate, 0), 100) : 0}%"></i></div>
+    ${isNum(prog) ? `<p class="muted">設定時の値から見た伸び幅の進捗：<span class="num">${fmtPct(prog, false)}</span></p>` : ""}
+    <details><summary>現在値を更新する</summary>
+      <div style="display:grid;gap:10px">
+        ${isNum(sug) ? `<p class="muted">最新のベースラインから計算した候補：<span class="num">${fmt(sug, unit, d)}</span></p>` : ""}
+        <div class="row"><input type="number" id="g-update" inputmode="decimal" step="any" style="max-width:180px" value="${isNum(sug) ? +sug.toFixed(d) : (g.current_value ?? "")}">
+        <button class="btn" type="button" id="g-update-btn" data-id="${esc(g._id)}">現在値を保存</button></div>
+      </div></details></div>`;
+  const hist = S.goals.slice().sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+  if (hist.length > 1) {
+    h += `<details style="margin-top:12px"><summary>目標の履歴（${hist.length}件）</summary><div class="table-scroll"><table><thead><tr><th>設定日</th><th>指標</th><th>設定時</th><th>現在値</th><th>目標値</th><th>期限</th></tr></thead><tbody>`;
+    hist.forEach((x) => { const [u, dd] = GOAL_METRICS[x.metric] || ["", 0]; h += `<tr><td class="num">${esc(x.created_at)}</td><td>${esc(x.metric)}</td><td>${fmt(x.start_value, u, dd)}</td><td>${fmt(x.current_value, u, dd)}</td><td>${fmt(x.target_value, u, dd)}</td><td>${esc(x.deadline)}</td></tr>`; });
+    h += `</tbody></table></div></details>`;
+  }
+  v.innerHTML = h;
+  $("g-update-btn").addEventListener("click", (e) => {
+    const val = readNum($("g-update"));
+    if (val === null) { toast("数字を入力してください。"); return; }
+    write(() => db.collection("goals").doc(e.target.dataset.id).update({ current_value: val }), "現在値を更新しました。");
+  });
+}
+$("f-goal").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const cur = readNum($("g-current")), target = readNum($("g-target")), deadline = $("g-deadline").value;
+  if (cur === null || target === null || !deadline) { toast("現在値・目標値・期限を入力してください。"); return; }
+  if (target <= 0) { toast("目標値は0より大きくしてください。"); return; }
+  const row = { created_at: todayStr(), metric: gMetric, start_value: cur, current_value: cur, target_value: target, deadline, saved_at: new Date().toISOString() };
+  if (await write(() => db.collection("goals").doc("g" + Date.now()).set(row), "目標を登録しました。")) { $("g-target").value = ""; gCurrentTouched = false; }
+});
+
+// ---------- ③ 投稿ログ ----------
+function metricInputs(prefix) {
+  return POST_METRICS.map(([k, l, step]) => `<label class="f">${l}<input type="number" id="${prefix}-${k}" inputmode="${step === "1" ? "numeric" : "decimal"}" min="0" ${k === "retention" ? 'max="100"' : ""} step="${step === "1" ? "1" : "any"}"></label>`).join("");
+}
+$("p-metrics").innerHTML = metricInputs("p");
+$("e-metrics").innerHTML = metricInputs("e");
+const catOptions = CATEGORIES.map((c) => `<option>${c}</option>`).join("");
+$("p-category").innerHTML = catOptions;
+$("e-category").innerHTML = catOptions;
+
+function showChangeWarn(inputId, boxId) {
+  const w = checkChange($(inputId).value);
+  $(boxId).innerHTML = w.map((m) => `<div class="note warn">${esc(m)}</div>`).join("");
+  return w;
+}
+function syncPostWarn() { const w = showChangeWarn("p-change", "p-change-warn"); $("p-confirm-wrap").hidden = !w.length; if (!w.length) $("p-confirm").checked = false; }
+$("p-change").addEventListener("input", syncPostWarn);
+$("e-change").addEventListener("input", () => showChangeWarn("e-change", "e-change-warn"));
+
+function readPostForm(prefix) {
+  const r = { posted_at: $(`${prefix}-at`).value, title: $(`${prefix}-title`).value.trim(), change: $(`${prefix}-change`).value.trim(),
+    category: $(`${prefix}-category`).value, hypothesis: $(`${prefix}-hypothesis`).value.trim(), insight: $(`${prefix}-insight`).value.trim() };
+  POST_METRICS.forEach(([k]) => { r[k] = readNum($(`${prefix}-${k}`)); });
+  return r;
+}
+$("f-post").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const r = readPostForm("p");
+  if (!r.posted_at || !r.title) { toast("投稿日時と動画タイトルを入力してください。"); return; }
+  if (checkChange(r.change).length && !$("p-confirm").checked) { toast("「今回変えた点」の警告を確認してください（1つに絞るか、確認のチェックを入れる）。"); return; }
+  r.created_at = new Date().toISOString();
+  if (await write(() => db.collection("posts").doc("p" + Date.now()).set(r), `「${r.title}」を保存しました。`)) {
+    ["p-title", "p-change", "p-hypothesis", "p-insight", ...POST_METRICS.map(([k]) => `p-${k}`)].forEach((id) => { $(id).value = ""; });
+    $("p-at").value = nowLocal(); syncPostWarn();
+  }
+});
+
+function postCard(p) {
+  const warn = checkChange(p.change).length;
+  const miss = missingMetrics(p).length;
+  return `<div class="item">
+    <div class="meta"><span class="num">${esc(String(p.posted_at || "").replace("T", " "))}</span><span class="chip">${esc(p.category || "—")}</span>
+      ${warn ? `<span class="chip warn">! 変えた点を要確認</span>` : ""}${miss ? `<span class="chip bad">数値 未入力</span>` : ""}</div>
+    <div class="title">${esc(p.title)}</div>
+    <div class="change"><span class="muted">変えた点 </span>${esc(p.change || "（未記入）")}</div>
+    ${p.hypothesis ? `<div class="ink2" style="font-size:13px"><span class="muted">仮説 </span>${esc(p.hypothesis)}</div>` : ""}
+    <div class="nums">${POST_METRICS.map(([k, l]) => `<span>${l.replace("(%)", "")} <b>${k === "retention" ? fmt(p[k], "%", 1) : fmt(p[k])}</b></span>`).join("")}</div>
+    ${p.insight ? `<div class="ink2" style="font-size:13px"><span class="muted">気づき </span>${esc(p.insight)}</div>` : ""}
+    <div class="row"><button class="btn small edit" type="button" data-id="${esc(p._id)}">${miss ? "数値を入力・編集" : "編集"}</button></div>
+  </div>`;
+}
+function renderPosts() {
+  const pend = pendingPosts(), ready = pend.filter((p) => p.ready), waiting = pend.filter((p) => !p.ready);
+  const badge = $("badge"); badge.hidden = !ready.length; badge.textContent = ready.length;
+  let h = `<div style="display:grid;gap:10px"><h3>数値が未入力の投稿</h3>`;
+  if (!pend.length) h += `<p class="muted">未入力の投稿はありません。</p>`;
+  if (ready.length) {
+    h += `<div class="note warn">投稿から48時間が経った投稿が ${ready.length}件 あります。数値を入力しましょう。</div><div class="list">`;
+    ready.forEach((p) => { h += `<div class="item"><div class="meta"><span class="num">${esc(p.posted_at.replace("T", " "))}</span><span>未入力：${esc(p.missing)}</span></div><div class="title">${esc(p.title)}</div><div class="row"><button class="btn small primary edit" type="button" data-id="${esc(p._id)}">数値を入力</button></div></div>`; });
+    h += `</div>`;
+  }
+  if (waiting.length) {
+    h += `<div class="note info"><div>48時間待ちの投稿<br>${waiting.map((p) => `${esc(String(p.posted_at).replace("T", " "))}「${esc(p.title)}」… ${p.hours === null ? "投稿日時が不明" : "あと約" + Math.max(0, Math.ceil(WAIT_H - p.hours)) + "時間"}`).join("<br>")}</div></div>`;
+  }
+  $("v-pending").innerHTML = h + `</div>`;
+
+  const all = S.posts.slice().sort((a, b) => String(b.posted_at).localeCompare(String(a.posted_at)));
+  let l = `<div style="display:grid;gap:10px"><h3>投稿ログ（${all.length}本）</h3>`;
+  if (!all.length) l += `<div class="empty"><b>まだ投稿がありません</b>投稿したら、上のフォームで「今回変えた点」と仮説を記録しましょう。</div>`;
+  else {
+    const flagged = all.filter((p) => checkChange(p.change).length);
+    if (flagged.length) l += `<div class="note warn">「今回変えた点」が空欄・複数の投稿が ${flagged.length}本 あります。</div>`;
+    l += `<div class="list">${all.map(postCard).join("")}</div>`;
+  }
+  $("v-posts").innerHTML = l + `</div>`;
+}
+
+// 編集シート
+let editingId = null;
+document.addEventListener("click", (e) => {
+  const btn = e.target.closest && e.target.closest(".edit");
+  if (!btn) return;
+  const p = S.posts.find((x) => x._id === btn.dataset.id);
+  if (!p) return;
+  editingId = p._id;
+  $("e-heading").textContent = missingMetrics(p).length ? "数値を入力・編集" : "投稿を編集";
+  $("e-at").value = String(p.posted_at || "").replace(" ", "T").slice(0, 16);
+  $("e-category").value = CATEGORIES.includes(p.category) ? p.category : "その他";
+  ["title", "change", "hypothesis", "insight"].forEach((k) => { $(`e-${k}`).value = p[k] || ""; });
+  POST_METRICS.forEach(([k]) => { $(`e-${k}`).value = isNum(p[k]) ? p[k] : ""; });
+  showChangeWarn("e-change", "e-change-warn");
+  const del = $("e-delete"); del.dataset.armed = ""; del.textContent = "この投稿を削除";
+  $("sheet").showModal();
+});
+$("e-close").addEventListener("click", () => $("sheet").close());
+$("sheet").addEventListener("click", (e) => { if (e.target === $("sheet")) $("sheet").close(); });
+$("f-edit").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const r = readPostForm("e");
+  if (!r.posted_at || !r.title) { toast("投稿日時と動画タイトルを入力してください。"); return; }
+  const old = S.posts.find((x) => x._id === editingId) || {};
+  const id = editingId;
+  if (await write(() => db.collection("posts").doc(id).set({ ...clean(old), ...r, updated_at: new Date().toISOString() }), `「${r.title}」を保存しました。`)) $("sheet").close();
+});
+$("e-delete").addEventListener("click", async () => {
+  const b = $("e-delete");
+  if (b.dataset.armed !== "1") { b.dataset.armed = "1"; b.textContent = "もう一度押すと削除"; return; }
+  const id = editingId;
+  if (await write(() => db.collection("posts").doc(id).delete(), "投稿を削除しました。")) $("sheet").close();
+});
+
+// ---------- ④ 月次振り返り ----------
+const R_SECTIONS = [["worked", "効いた施策"], ["not_worked", "効かなかった施策"], ["next", "来月試すこと"]];
+$("r-groups").innerHTML = R_SECTIONS.map(([k, t]) => `<fieldset><legend>${t}</legend>${[1, 2, 3].map((i) =>
+  `<input type="text" id="r-${k}-${i}" aria-label="${t} ${i}行目" placeholder="${i}行目">`).join("")}</fieldset>`).join("");
+let rMonth = null, rFilledFor = null, rDirty = false;
+document.querySelectorAll("#r-groups input").forEach((el) => el.addEventListener("input", () => { rDirty = true; }));
+$("r-month").addEventListener("change", (e) => { rMonth = e.target.value; rDirty = false; rFilledFor = null; renderReview(); });
+$("r-threshold").addEventListener("input", () => renderReview());
+
+function renderReview() {
+  const months = availableMonths();
+  if (!rMonth || !months.includes(rMonth)) {
+    const withPosts = new Set(S.posts.map((p) => monthOf(p.posted_at)));
+    rMonth = months.find((m) => withPosts.has(m)) || months[0];
+  }
+  $("r-month").innerHTML = months.map((m) => `<option ${m === rMonth ? "selected" : ""}>${m}</option>`).join("");
+  const th = Number($("r-threshold").value);
+  $("r-th-label").textContent = `+${th}%`;
+  const base = baselineForMonth(rMonth), mp = postsInMonth(rMonth), measured = mp.filter((p) => isNum(p.views));
+  let h = `<div style="display:grid;gap:16px">`;
+  let split = null;
+  if (!base) h += `<div class="note warn">ベースラインが未登録のため比較できません。①でベースラインを登録してください。</div>`;
+  else h += `<p class="ink2" style="font-size:14px">比較に使うベースライン：<b class="num">${esc(base.date)}</b> の記録（平均再生数 <b class="num">${fmt(base.avg_views, "回")}</b>）<br><span class="muted">月初以前で最新の記録を使います（無ければ最初の記録）。</span></p>`;
+  h += `<p style="font-size:14px">この月の投稿 <b class="num">${mp.length}本</b>（数値入力済み <span class="num">${measured.length}本</span>）${mp.length > measured.length ? `<br><span class="muted">再生数が未入力の投稿は集計から外しています。</span>` : ""}</p>`;
+  if (base && measured.length) {
+    const sum = categorySummary(measured, base.avg_views);
+    h += `<div style="display:grid;gap:8px"><h3>変更カテゴリ別の平均再生数</h3><div class="table-scroll"><table><thead><tr><th>カテゴリ</th><th>本数</th><th>平均再生</th><th>ベース</th><th>差</th><th>差(%)</th><th>維持率</th><th>保存</th></tr></thead><tbody>`;
+    sum.forEach((r) => { h += `<tr><td>${esc(r.category)}</td><td>${r.n}</td><td>${fmt(r.views)}</td><td>${fmt(base.avg_views)}</td><td>${isNum(r.diff) ? (r.diff >= 0 ? "+" : "") + fmt(r.diff) : "—"}</td><td>${fmtPct(r.pct)}</td><td>${fmt(r.retention, "%", 1)}</td><td>${fmt(r.saves, "", 1)}</td></tr>`; });
+    h += `</tbody></table></div>`;
+    h += `<div class="chart"><div class="head"><b>ベースライン比</b><span class="muted">右に伸びるほど、いつもより再生された</span></div>${divergingBars(sum.filter((r) => isNum(r.pct)))}</div>`;
+    if (sum.some((r) => r.n < 2)) h += `<p class="muted">※ 1本だけのカテゴリは偶然の影響が大きいので、結論は控えめに。</p>`;
+    h += `</div>`;
+    split = splitByEffect(measured, base.avg_views, th);
+    const li = (p) => `<li><b>${esc(p.change || "（変えた点 未記入）")}</b> <span class="muted">［${esc(p.category)}］</span> <span class="num">${fmt(p.views, "回")}（${fmtPct(p.pct)}）</span></li>`;
+    h += `<div class="effects">
+      <div><h3><span class="chip good">✓ 効いた</span> +${th}%以上</h3>${split.worked.length ? `<ul>${split.worked.map(li).join("")}</ul>` : `<p class="muted">該当なし</p>`}</div>
+      <div><h3><span class="chip bad">× 効かなかった</span> +${th}%未満</h3>${split.notWorked.length ? `<ul>${split.notWorked.map(li).join("")}</ul>` : `<p class="muted">該当なし</p>`}</div>
+    </div>`;
+  } else if (base) {
+    h += `<div class="empty"><b>この月は、数値入力済みの投稿がまだありません</b>③投稿ログで、投稿48時間後の数字を入れると集計されます。</div>`;
+  }
+  $("v-review").innerHTML = h + `</div>`;
+
+  // 書く欄：候補（placeholder）と保存済みの内容
+  $("r-form-title").textContent = `${rMonth} の振り返りを書く`;
+  const saved = S.reviews.find((r) => r._id === rMonth) || null;
+  $("r-saved").textContent = saved ? `保存済み（${saved.saved_at || ""}）。書き換えて保存すると上書きされます。` : "";
+  const hints = { worked: (split?.worked || []).slice(0, 3), not_worked: (split?.notWorked || []).slice(0, 3), next: [] };
+  R_SECTIONS.forEach(([k]) => [1, 2, 3].forEach((i) => {
+    const el = $(`r-${k}-${i}`), hint = hints[k][i - 1];
+    el.placeholder = hint ? `${hint.change}（${fmtPct(hint.pct)}）` : `${i}行目`;
+    if (rFilledFor !== rMonth || !rDirty) el.value = saved ? (saved[`${k}_${i}`] || "") : "";
+  }));
+  rFilledFor = rMonth;
+}
+$("f-review").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const row = { month: rMonth, saved_at: nowLocal().replace("T", " ") };
+  R_SECTIONS.forEach(([k]) => [1, 2, 3].forEach((i) => { row[`${k}_${i}`] = $(`r-${k}-${i}`).value.trim(); }));
+  const m = rMonth;
+  if (await write(() => db.collection("reviews").doc(m).set(row), `${m} の振り返りを保存しました。`)) rDirty = false;
+});
+
+// ---------- ⑤ ガクチカ素材 ----------
+const cell = (s) => (String(s ?? "").replace(/\|/g, "／").replace(/\n/g, " ").trim() || "—");
+const B_ROWS = [["フォロワー数", "followers", "人", 0], ["直近10本の平均再生数", "avg_views", "回", 0], ["平均視聴維持率", "avg_retention", "%", 1], ["平均保存数", "avg_saves", "件", 1]];
+function buildMarkdown() {
+  const bs = sortedBaseline(), first = bs[0] || null, last = bs[bs.length - 1] || null, g = latestGoal();
+  const posts = S.posts.slice().sort((a, b) => String(a.posted_at).localeCompare(String(b.posted_at)));
+  const done = posts.filter((p) => isNum(p.views));
+  const o = ["# TikTok改善実験の記録（ガクチカ素材）", "", `出力日: ${todayStr()}`, ""];
+
+  o.push("## 1. ベースライン（取り組み前の現状）", "");
+  if (!first) o.push("（ベースラインが未登録です）", "");
+  else { o.push(`記録日: ${first.date}`, "", "| 指標 | 値 |", "|---|---|"); B_ROWS.forEach(([l, c, u, d]) => o.push(`| ${l} | ${fmt(first[c], u, d)} |`)); o.push(""); }
+
+  o.push("## 2. 目標", "");
+  if (!g) o.push("（目標が未設定です）", "");
+  else {
+    const [u, d] = GOAL_METRICS[g.metric] || ["", 0];
+    o.push(`- 指標: **${g.metric}**`, `- 設定時の値: ${fmt(g.start_value, u, d)} → 目標値: **${fmt(g.target_value, u, d)}**（期限: ${g.deadline}）`,
+      `- 現在値: ${fmt(g.current_value, u, d)}（達成率 ${fmtPct(achievement(g.current_value, g.target_value), false)}）`, "");
+  }
+
+  o.push("## 3. 実施した施策（1投稿につき変更は1つ）", "");
+  if (!posts.length) o.push("（投稿ログがありません）", "");
+  else {
+    const dates = posts.map((p) => String(p.posted_at || "").slice(0, 10)).filter(Boolean).sort();
+    const counts = CATEGORIES.map((c) => [c, posts.filter((p) => p.category === c).length]).filter(([, n]) => n);
+    o.push(`期間 ${dates[0]}〜${dates[dates.length - 1]} に **${posts.length}本** の検証投稿を行った。`, "",
+      "カテゴリ別の本数: " + counts.map(([c, n]) => `${c} ${n}本`).join("、"), "",
+      "| 投稿日 | 今回変えた点 | カテゴリ | 仮説 | 再生数 | ベースライン比 |", "|---|---|---|---|---|---|");
+    posts.forEach((p) => {
+      const m = monthOf(p.posted_at), b = m ? baselineForMonth(m) : null;
+      o.push(`| ${cell(String(p.posted_at).slice(0, 10))} | ${cell(p.change)} | ${cell(p.category)} | ${cell(p.hypothesis)} | ${fmt(p.views, "回")} | ${fmtPct(b ? diffPct(p.views, b.avg_views) : null)} |`);
+    });
+    o.push("");
+  }
+
+  o.push("## 4. 結果の数字", "");
+  if (first && last && bs.length >= 2) {
+    o.push(`ベースライン（${first.date}）と最新の記録（${last.date}）の比較:`, "", "| 指標 | 開始時 | 最新 | 変化 |", "|---|---|---|---|");
+    B_ROWS.forEach(([l, c, u, d]) => o.push(`| ${l} | ${fmt(first[c], u, d)} | ${fmt(last[c], u, d)} | ${fmtPct(diffPct(last[c], first[c]))} |`));
+    o.push("");
+  } else o.push("（ベースラインを2回以上記録すると、開始時と最新の比較が入ります）", "");
+  if (first && done.length) {
+    const sum = categorySummary(done, first.avg_views).sort((a, b) => (b.pct ?? -Infinity) - (a.pct ?? -Infinity));
+    o.push(`変更カテゴリ別の平均再生数（開始時の平均 ${fmt(first.avg_views, "回")} と比較）:`, "", "| カテゴリ | 投稿数 | 平均再生数 | 開始時比 |", "|---|---|---|---|");
+    sum.forEach((r) => o.push(`| ${r.category} | ${r.n} | ${fmt(r.views, "回")} | ${fmtPct(r.pct)} |`));
+    o.push("");
+  }
+  if (done.length) {
+    const best = done.slice().sort((a, b) => b.views - a.views)[0];
+    o.push(`最も再生された投稿: 「${best.title}」（${fmt(best.views, "回")}／変えた点: ${best.change || "未記入"}）`, "");
+  }
+
+  o.push("## 5. 学び", "");
+  let wrote = false;
+  S.reviews.slice().sort((a, b) => String(a.month).localeCompare(String(b.month))).forEach((r) => {
+    const secs = [["効いた施策", reviewLines(r, "worked")], ["効かなかった施策", reviewLines(r, "not_worked")], ["次に試すこと", reviewLines(r, "next")]];
+    if (!secs.some(([, ls]) => ls.length)) return;
+    wrote = true; o.push(`### ${r.month} の振り返り`, "");
+    secs.forEach(([t, ls]) => { if (ls.length) { o.push(`**${t}**`); ls.forEach((x) => o.push(`- ${x}`)); o.push(""); } });
+  });
+  const ins = posts.filter((p) => (p.insight || "").trim());
+  if (ins.length) { wrote = true; o.push("### 投稿ごとの気づき", ""); ins.forEach((p) => o.push(`- ${String(p.posted_at).slice(0, 10)}（${p.change || "変更点未記入"}）: ${p.insight}`)); o.push(""); }
+  if (!wrote) o.push("（月次振り返りや投稿の「気づき」を入力すると、ここに入ります）", "");
+
+  o.push("## 面接で話すときの骨子（下書き）", "");
+  let pitch = "";
+  if (first) pitch += `フォロワー${fmt(first.followers, "人")}・平均再生${fmt(first.avg_views, "回")}の状態から、`;
+  if (g) { const [u, d] = GOAL_METRICS[g.metric] || ["", 0]; pitch += `「${g.metric}を${fmt(g.target_value, u, d)}にする」という目標を立て、`; }
+  pitch += `1投稿につき変更を1つに絞るルールで${posts.length}本の仮説検証を行った。`;
+  if (first && last && bs.length >= 2) pitch += `その結果、平均再生数は${fmt(first.avg_views, "回")}から${fmt(last.avg_views, "回")}（${fmtPct(diffPct(last.avg_views, first.avg_views))}）になった。`;
+  o.push(pitch, "");
+  return o.join("\n");
+}
+function renderExport() { $("x-md").textContent = buildMarkdown(); }
+
+async function offer(filename, data) {
+  if (!downloads) { toast("この画面ではファイル保存が使えません。コピーを使ってください。"); return; }
+  try { await downloads.save({ filename, data }); toast("保存しました。"); }
+  catch (e) { if (e && e.code !== "declined") toast("ファイルを保存できませんでした。"); }
+}
+$("x-copy").addEventListener("click", async () => {
+  const text = $("x-md").textContent;
+  try { await navigator.clipboard.writeText(text); toast("コピーしました。"); }
+  catch (e) { const r = document.createRange(); r.selectNodeContents($("x-md")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast("選択しました。共有メニューからコピーしてください。"); }
+});
+const stamp = () => todayStr().replace(/-/g, "");
+$("x-save-md").addEventListener("click", () => offer(`gakuchika_${stamp()}.md`, buildMarkdown()));
+$("x-backup").addEventListener("click", () => {
+  const out = { app: "tiktok-experiment-note", version: 1, exported_at: new Date().toISOString() };
+  COLLECTIONS.forEach((c) => { out[c] = S[c].map((x) => ({ _id: x._id, ...clean(x) })); });
+  offer(`tiktok_backup_${stamp()}.json`, JSON.stringify(out, null, 2));
+});
+$("x-csv").addEventListener("click", () => {
+  const cols = ["posted_at", "title", "change", "category", "hypothesis", "views", "retention", "saves", "likes", "insight"];
+  const q = (v) => { const s = v === null || v === undefined ? "" : String(v); return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+  const lines = [["投稿日時", "動画タイトル", "今回変えた点", "変更カテゴリ", "仮説", "再生数", "視聴維持率(%)", "保存数", "いいね数", "気づき"].join(",")];
+  S.posts.slice().sort((a, b) => String(a.posted_at).localeCompare(String(b.posted_at))).forEach((p) => lines.push(cols.map((c) => q(p[c])).join(",")));
+  offer(`tiktok_posts_${stamp()}.csv`, "﻿" + lines.join("\r\n"));
+});
+let restoreData = null;
+$("x-restore-file").addEventListener("change", async (e) => {
+  const f = e.target.files[0], box = $("x-restore-info");
+  restoreData = null; box.innerHTML = "";
+  if (!f) return;
+  try {
+    const j = JSON.parse(await f.text());
+    if (j.app !== "tiktok-experiment-note") throw new Error("format");
+    restoreData = j;
+    const n = COLLECTIONS.map((c) => `${{ baseline: "現状", goals: "目標", posts: "投稿", reviews: "振り返り" }[c]} ${(j[c] || []).length}件`).join("・");
+    box.innerHTML = `<div class="note info">${esc(n)}（${esc(String(j.exported_at || "").slice(0, 10))} のバックアップ）を書き込みます。同じ記録は上書きされ、今ある他の記録は消えません。</div><div class="row"><button class="btn primary" type="button" id="x-restore-go">復元する</button></div>`;
+    $("x-restore-go").addEventListener("click", async () => {
+      const btn = $("x-restore-go"); btn.disabled = true; btn.textContent = "復元中…";
+      const ok = await write(async () => {
+        for (const c of COLLECTIONS) for (const x of (restoreData[c] || [])) {
+          if (!x || typeof x._id !== "string") continue;
+          await db.collection(c).doc(x._id).set(clean(x));
+        }
+      }, "バックアップから復元しました。");
+      box.innerHTML = ok ? "" : `<div class="note bad">途中で止まりました。もう一度ファイルを選んで復元してください。</div>`;
+      $("x-restore-file").value = "";
+    });
+  } catch (err) { box.innerHTML = `<div class="note bad">このアプリのバックアップファイル（JSON）を選んでください。</div>`; }
+});
+
+// ---------- 起動 ----------
+function renderAll() { renderBaseline(); renderGoal(); renderPosts(); renderReview(); renderExport(); }
+function setSaveEnabled(on) { document.querySelectorAll(".save-btn").forEach((b) => { b.disabled = !on; }); }
+function setDlEnabled(on) { document.querySelectorAll(".dl-btn").forEach((b) => { b.hidden = !on; }); }
+
+$("b-date").value = todayStr();
+$("p-at").value = nowLocal();
+{ const d = new Date(); d.setDate(d.getDate() + 30); $("g-deadline").value = todayStr(d); }
+try { const t = localStorage.getItem("tab"); if (t && document.querySelector(`[data-tab="${t}"]`)) go(t); } catch (e) {}
+if (/^#(baseline|goal|posts|review|export)$/.test(location.hash)) go(location.hash.slice(1));
+setSaveEnabled(false); setDlEnabled(false);
+renderAll();
+
+(async () => {
+  const use = window.claude && window.claude.use ? (n) => window.claude.use(n).catch(() => null) : async () => null;
+  const [dbNs, dl, user] = await Promise.all([use("db"), use("downloads"), use("user")]);
+  downloads = dl; setDlEnabled(!!dl);
+  const sync = $("sync"), note = $("global-note");
+  if (!dbNs) {
+    sync.textContent = "保存できません"; sync.className = "pill ng";
+    note.hidden = false; note.className = "note bad";
+    note.textContent = "記録を保存できない状態です。claude.ai にログインして、このページをもう一度開いてください。";
+    return;
+  }
+  db = dbNs;
+  canWrite = user ? (user.isOwner() || (await user.can("data.write")) !== false) : true;
+  if (!canWrite) { note.hidden = false; note.className = "note info"; note.textContent = "閲覧のみです。記録を追加・編集できるのは、このノートの持ち主だけです。"; }
+  setSaveEnabled(canWrite);
+  sync.textContent = "読み込み中…";
+  const got = new Set();
+  COLLECTIONS.forEach((c) => {
+    db.collection(c).onSnapshot((snap) => {
+      S[c] = snap.docs.map((d) => ({ _id: d.id, ...d.data() }));
+      got.add(c);
+      if (got.size === COLLECTIONS.length) { sync.textContent = "claude.ai に保存"; sync.className = "pill ok"; }
+      renderAll();
+    }, () => { sync.textContent = "同期が止まりました"; sync.className = "pill ng"; });
+  });
+})();
+</script>

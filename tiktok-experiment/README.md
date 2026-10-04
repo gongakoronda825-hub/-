@@ -6,7 +6,18 @@ TikTokの改善実験を「仮説 → 検証 → 改善」の形で記録・分�
 - Python + Streamlit。データはCSVで、自分のPCの中だけに保存されます（DB・通信なし）
 - 最後に、面接用の素材をMarkdownファイルで書き出せます
 
-## 起動手順
+## iPhoneで使う（おすすめ）
+
+`web/index.html` は、同じ機能をiPhone向けにしたWeb版です。claude.ai 上に公開してあり、
+URLをSafariまたはClaudeアプリで開くだけで使えます（claude.ai へのログインが必要）。
+
+- 記録は claude.ai のサーバーに保存されます。iPhoneのデータを消しても残ります
+- 読み書きできるのは持ち主本人だけです
+- ⑤の画面から、バックアップ（JSON）と投稿ログ（CSV）をファイルに保存・復元できます
+
+以下は、PCで動かすStreamlit版の手順です。
+
+## 起動手順（PC・Streamlit版）
 
 Python 3.10 以上が必要です。
 
