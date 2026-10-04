@@ -392,6 +392,7 @@ const BASE_N = 10;      // 「いつも」= 同じジャンルの直近10本の�
 const MIN_BASE = 3;     // 基準を出すのに最低限ほしい本数
 const COLLECTIONS = ["posts", "hypotheses", "analyses", "settings", "followers"];
 const FOL = "followers_total";   // 目標の指標：アカウントのフォロワー数
+const VX = "views_x";            // 目標の指標：全ジャンルの視聴数（各ジャンルの取り組み前の中央値の何倍か）
 const STATUS = { testing: "検証中", hit: "当たり", miss: "外れ", unclear: "わからない" };
 
 const S = { posts: [], hypotheses: [], analyses: [], settings: [], followers: [] };
@@ -471,9 +472,29 @@ const followRate = (p) => isNum(p.follows) && p.views > 0 ? p.follows / p.views 
 // ---------- 目標 ----------
 const goal = () => (S.settings.find((s) => s._id === "goal") || null);
 const folRecords = () => S.followers.filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.date || "") && isNum(f.count)).sort((a, b) => a.date.localeCompare(b.date));
-const goalName = (gl) => gl.metric === FOL ? "アカウントのフォロワー数" : `${gLabel(gl.genre)}の${METRICS[gl.metric][0]}（1本あたり中央値）`;
-const goalUnit = (gl) => gl.metric === FOL ? "人" : METRICS[gl.metric][1];
+const goalName = (gl) => gl.metric === FOL ? "アカウントのフォロワー数" : gl.metric === VX ? "全ジャンルの視聴数（各ジャンルの取り組み前の中央値に対する倍率・中央値）" : `${gLabel(gl.genre)}の${METRICS[gl.metric][0]}（1本あたり中央値）`;
+const goalUnit = (gl) => gl.metric === FOL ? "人" : gl.metric === VX ? "倍" : METRICS[gl.metric][1];
+const goalFmt = (gl, v) => gl.metric === VX ? fmt(v, "倍", 2) : fmt(v, goalUnit(gl));
+/** 各ジャンルの「取り組み前」の視聴数の中央値（開始日より前の直近10本。3本未満のジャンルは出さない） */
+function preMedians(start) {
+  const out = {};
+  GENRES.forEach((g) => {
+    const b = genrePosts(g.id).filter((p) => String(p.posted_at) < start && isNum(p.views)).slice(-BASE_N);
+    if (b.length >= MIN_BASE) out[g.id] = { value: median(b.map((p) => p.views)), n: b.length };
+  });
+  return out;
+}
+/** 期間中の各投稿が、そのジャンルの取り組み前の何倍だったか */
+function vxRatios(start) {
+  const pm = preMedians(start);
+  return S.posts.filter((p) => String(p.posted_at) >= start && isNum(p.views) && pm[p.genre] && pm[p.genre].value > 0)
+    .sort(byDate).map((p) => ({ p, ratio: p.views / pm[p.genre].value }));
+}
 function goalBase(g, metric, start) {
+  if (metric === VX) {
+    const pm = preMedians(start), n = Object.keys(pm).length;
+    return n ? { value: 1, n, pm } : null;
+  }
   if (metric === FOL) {
     const fs = folRecords(), before = fs.filter((f) => f.date <= start);
     const f = before.length ? before[before.length - 1] : null;
@@ -483,6 +504,10 @@ function goalBase(g, metric, start) {
   return before.length ? { value: median(before.map((p) => p[metric])), n: before.length } : null;
 }
 function goalCurrent(gl) {
+  if (gl.metric === VX) {
+    const rs = vxRatios(gl.start);
+    return rs.length ? { value: median(rs.map((r) => r.ratio)), n: rs.length } : null;
+  }
   if (gl.metric === FOL) {
     const fs = folRecords(), f = fs[fs.length - 1];
     return f ? { value: f.count, n: 1, date: f.date } : null;
@@ -587,15 +612,17 @@ function renderGoalCard() {
     const prog = cur && isNum(base) && gl.target !== base ? (cur.value - base) / (gl.target - base) * 100 : null;
     const total = daysBetween(gl.start, gl.end), passed = Math.min(Math.max(daysBetween(gl.start, todayStr()), 0), total);
     const left = daysBetween(todayStr(), gl.end);
-    v.innerHTML = `<div class="card"><h3>目標：${esc(goalName(gl))}を ${fmt(base, unit)} → <span class="num">${fmt(gl.target, unit)}</span></h3>
+    const F = (x) => goalFmt(gl, x), isVx = gl.metric === VX;
+    const pm = isVx ? preMedians(gl.start) : null;
+    v.innerHTML = `<div class="card"><h3>目標：${isVx ? "全ジャンルの視聴数を、取り組み前の" : esc(goalName(gl)) + "を "}${isVx ? "" : F(base) + " → "}<span class="num">${F(gl.target)}</span>${isVx ? "にする" : ""}</h3>
       <div class="tiles">
-        <div class="tile"><span>${isFol ? "開始時" : "取り組み前"}</span><b>${fmt(base, unit)}</b><em>${isFol ? esc(gl.start) : `${esc(gl.start)}より前`}</em></div>
-        <div class="tile"><span>いま</span><b>${cur ? fmt(cur.value, unit) : "—"}</b><em>${cur ? (isFol ? `${esc(cur.date)}の記録` : `直近${cur.n}本の中央値`) : (isFol ? "下で記録してください" : "期間中の投稿なし")}</em></div>
-        <div class="tile"><span>目標</span><b>${fmt(gl.target, unit)}</b><em>${isFol && isNum(base) ? `+${fmt(gl.target - base, "人")}` : isNum(base) && base > 0 ? `${fmtX(gl.target / base)}` : ""}</em></div>
+        <div class="tile"><span>${isFol ? "開始時" : "取り組み前"}</span><b>${F(base)}</b><em>${isFol ? esc(gl.start) : `${esc(gl.start)}より前`}</em></div>
+        <div class="tile"><span>いま</span><b>${cur ? F(cur.value) : "—"}</b><em>${cur ? (isFol ? `${esc(cur.date)}の記録` : isVx ? `期間中${cur.n}本の中央値` : `直近${cur.n}本の中央値`) : (isFol ? "下で記録してください" : "期間中の投稿なし")}</em></div>
+        <div class="tile"><span>目標</span><b>${F(gl.target)}</b><em>${isFol && isNum(base) ? `+${fmt(gl.target - base, "人")}` : !isVx && isNum(base) && base > 0 ? `${fmtX(gl.target / base)}` : ""}</em></div>
         <div class="tile"><span>終了まで</span><b>${left < 0 ? "終了" : left + "日"}</b><em>${esc(gl.end)}</em></div>
       </div>
       <div class="bar" role="progressbar" aria-label="目標への進み具合" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${isNum(prog) ? Math.round(prog) : 0}"><i style="width:${isNum(prog) ? Math.min(Math.max(prog, 0), 100) : 0}%"></i></div>
-      <p class="muted">目標への進み具合 ${isNum(prog) ? fmt(Math.max(prog, 0), "%") : "—"}・期間の ${total > 0 ? Math.round(passed / total * 100) : 0}% が経過${gl.why ? `<br>なぜこの目標：${esc(gl.why)}` : ""}</p>
+      <p class="muted">目標への進み具合 ${isNum(prog) ? fmt(Math.max(prog, 0), "%") : "—"}・期間の ${total > 0 ? Math.round(passed / total * 100) : 0}% が経過${isVx ? `<br>各投稿を、同じジャンルの取り組み前の中央値（${GENRES.filter((g) => pm[g.id]).map((g) => `${g.label} ${fmt(pm[g.id].value, "回")}`).join("・") || "未計算"}）で割った倍率の中央値です。` : ""}${gl.why ? `<br>なぜこの目標：${esc(gl.why)}` : ""}</p>
       <div class="row"><button class="btn small save-btn" type="button" id="open-goal">目標を変更</button></div></div>`;
   }
   v.innerHTML += followerCard();
@@ -765,13 +792,22 @@ let goalGenre = "trivia", goalMetric = FOL;
 $("goal-genres").innerHTML = genreRadios("goal-genre", goalGenre);
 function syncGoalMetrics() {
   const g = genre(goalGenre);
-  if (goalMetric !== FOL && !g.kpis.includes(goalMetric)) goalMetric = g.kpis[0];
-  const opts = [[FOL, "アカウントのフォロワー数"], ...g.kpis.map((m) => [m, `投稿の${METRICS[m][0]}`])];
+  if (goalMetric !== FOL && goalMetric !== VX && !g.kpis.includes(goalMetric)) goalMetric = g.kpis[0];
+  const opts = [[FOL, "アカウントのフォロワー数"], [VX, "全ジャンルの視聴数（何倍か）"], ...g.kpis.map((m) => [m, `${g.label}の${METRICS[m][0]}`])];
   $("goal-metrics").innerHTML = opts.map(([m, l]) => `<label><input type="radio" name="goal-metric" value="${m}" ${m === goalMetric ? "checked" : ""}><span>${l}</span></label>`).join("");
-  $("goal-genre-wrap").hidden = goalMetric === FOL;
+  $("goal-genre-wrap").hidden = goalMetric === FOL || goalMetric === VX;
+  $("goal-base").readOnly = goalMetric === VX;
   const b = goalBase(goalGenre, goalMetric, $("goal-start").value || todayStr());
   $("goal-base").value = b ? +b.value.toFixed(1) : "";
-  if (goalMetric === FOL) {
+  if (goalMetric === VX) {
+    $("goal-base").value = 1;
+    $("goal-target").value = 1.25;
+    const pm = b ? b.pm : {};
+    const missing = GENRES.filter((g) => !pm[g.id]).map((g) => g.label);
+    $("goal-hint").textContent = `期間中の各投稿を「同じジャンルの取り組み前（開始日より前の直近${BASE_N}本）の視聴数の中央値」で割り、その倍率の中央値で見ます。1.00倍がいつも通りです。`
+      + (b ? ` 取り組み前の中央値：${GENRES.filter((g) => pm[g.id]).map((g) => `${g.label} ${fmt(pm[g.id].value, "回")}`).join("・")}。` : "")
+      + (missing.length ? ` ${missing.join("・")}は開始日より前の記録が${MIN_BASE}本未満なので、記録を足すまで計算に入りません。` : "");
+  } else if (goalMetric === FOL) {
     $("goal-target").value = b ? Math.round(b.value * 1.3) : "";
     $("goal-hint").textContent = b ? `開始時の値は、開始日以前で最新のフォロワー数の記録（${b.date}）です。目標はひとまず1.3倍を入れています。`
       : "フォロワー数の記録がまだないので、開始時の値（いまのフォロワー数）を手で入れてください。保存すると、開始日のフォロワー数としても記録します。";
@@ -793,7 +829,11 @@ function openGoal() {
   $("goal-sheet").showModal();
 }
 $("goal-genres").addEventListener("change", (e) => { goalGenre = e.target.value; syncGoalMetrics(); });
-$("goal-metrics").addEventListener("change", (e) => { goalMetric = e.target.value; syncGoalMetrics(); });
+$("goal-metrics").addEventListener("change", (e) => {
+  goalMetric = e.target.value;
+  if (goalMetric === VX) $("goal-end").value = addDays($("goal-start").value || todayStr(), 30);
+  syncGoalMetrics();
+});
 $("goal-start").addEventListener("change", syncGoalMetrics);
 $("goal-close").addEventListener("click", () => $("goal-sheet").close());
 $("f-goal").addEventListener("submit", async (e) => {
@@ -803,6 +843,10 @@ $("f-goal").addEventListener("submit", async (e) => {
   if (!row.start || !row.end || row.end <= row.start) { toast("終了日は開始日より後にしてください。"); return; }
   if (!isNum(row.target) || row.target <= 0) { toast("目標値を入れてください。"); return; }
   if (row.metric === FOL && !isNum(row.base)) { toast("開始時のフォロワー数を入れてください。"); return; }
+  if (row.metric === VX) {
+    row.base = 1;
+    if (!goalBase(null, VX, row.start)) { toast(`開始日より前の記録が足りません。各ジャンル${MIN_BASE}本以上、過去の投稿を記録してください。`); return; }
+  }
   const ok = await write(async () => {
     await db.collection("settings").doc("goal").set(row);
     if (row.metric === FOL && !goalBase(null, FOL, row.start)) await db.collection("followers").doc(row.start).set({ date: row.start, count: row.base, saved_at: new Date().toISOString() });
@@ -1070,8 +1114,11 @@ function buildMarkdown() {
   o.push("## 1. 目標", "");
   if (!gl) o.push("（目標が未設定です）", "");
   else {
-    const u = goalUnit(gl);
-    o.push(`- ${goalName(gl)}を、${fmt(gl.base, u)} から **${fmt(gl.target, u)}** にする（期間: ${gl.start}〜${gl.end}）`);
+    if (gl.metric === VX) {
+      const pm = preMedians(gl.start);
+      o.push(`- 全ジャンルの視聴数を、取り組み前の **${goalFmt(gl, gl.target)}** にする（期間: ${gl.start}〜${gl.end}）`,
+        `- 測り方: 期間中の各投稿の視聴数を、同じジャンルの取り組み前の中央値（${GENRES.filter((g) => pm[g.id]).map((g) => `${g.label} ${fmt(pm[g.id].value, "回")}`).join("・")}）で割り、その倍率の中央値を見る。ジャンルで再生数の水準が違い、1本のバズで平均が大きく動くため。`);
+    } else o.push(`- ${goalName(gl)}を、${goalFmt(gl, gl.base)} から **${goalFmt(gl, gl.target)}** にする（期間: ${gl.start}〜${gl.end}）`);
     if (gl.why) o.push(`- この目標にした理由: ${gl.why}`);
     o.push("");
   }
@@ -1106,7 +1153,12 @@ function buildMarkdown() {
       const gained = S.posts.filter((p) => String(p.posted_at) >= gl.start && isNum(p.follows));
       if (gained.length) o.push(`- 期間中の投稿${gained.length}本で増えた新規フォロワーの合計: ${fmt(gained.reduce((a, p) => a + p.follows, 0), "人")}`);
       o.push("");
-    } else o.push(`- 目標の指標（${goalName(gl)}）: 取り組み前 ${fmt(gl.base, u)} → 現在 ${cur ? fmt(cur.value, u) : "—"}（直近${cur ? cur.n : 0}本）${cur && isNum(gl.base) && gl.base > 0 ? `、${fmtX(cur.value / gl.base)}` : ""}／目標 ${fmt(gl.target, u)}`, "");
+    } else if (gl.metric === VX) {
+      o.push(`- 全ジャンルの視聴数（取り組み前の何倍か・中央値）: 1.00倍 → 現在 ${cur ? goalFmt(gl, cur.value) : "—"}（期間中${cur ? cur.n : 0}本）／目標 ${goalFmt(gl, gl.target)}`);
+      const rs = vxRatios(gl.start);
+      if (rs.length) o.push(`- 期間中の投稿のうち、取り組み前の中央値を上回った投稿: ${rs.filter((r) => r.ratio > 1).length}/${rs.length}本`);
+      o.push("");
+    } else o.push(`- 目標の指標（${goalName(gl)}）: 取り組み前 ${goalFmt(gl, gl.base)} → 現在 ${cur ? goalFmt(gl, cur.value) : "—"}（直近${cur ? cur.n : 0}本）${cur && isNum(gl.base) && gl.base > 0 ? `、${fmtX(cur.value / gl.base)}` : ""}／目標 ${goalFmt(gl, gl.target)}`, "");
     o.push("| ジャンル | 指標 | 取り組み前（中央値） | 期間中の直近（中央値） | 変化 |", "|---|---|---|---|---|");
     GENRES.forEach((g) => {
       const b = before(g.id).slice(-BASE_N), d = during(g.id).slice(-BASE_N);
@@ -1134,9 +1186,9 @@ function buildMarkdown() {
   o.push("## 面接で話すときの骨子（下書き）", "");
   let pitch = "TikTokで雑学・イベント告知・グッズ紹介の3ジャンルを投稿しているが、1本ごとの伸びの差が大きく、平均では何が効いているのか判断できなかった。";
   pitch += `そこで各投稿を「同じジャンルの直近${BASE_N}本の中央値の何倍か」で評価する記録の仕組みを作り、`;
-  if (gl) pitch += `「${goalName(gl)}を${fmt(gl.base, goalUnit(gl))}から${fmt(gl.target, goalUnit(gl))}にする」という目標を立てた。`;
+  if (gl) pitch += gl.metric === VX ? `「${daysBetween(gl.start, gl.end) <= 35 ? "1ヶ月で、" : ""}全ジャンルの視聴数を各ジャンルの普段（中央値）の${goalFmt(gl, gl.target)}にする」という目標を立てた。` : `「${goalName(gl)}を${goalFmt(gl, gl.base)}から${goalFmt(gl, gl.target)}にする」という目標を立てた。`;
   if (hs.length) pitch += `伸びた投稿と伸びなかった投稿を比べて仮説を${hs.length}個立て、1つにつき複数本で検証した。`;
-  if (gl) { const cur = goalCurrent(gl); if (cur && isNum(gl.base) && gl.base > 0) pitch += gl.metric === FOL ? `その結果、フォロワー数は${fmt(gl.base, "人")}から${fmt(cur.value, "人")}（+${fmt(cur.value - gl.base, "人")}）になった。` : `その結果、中央値は${fmt(gl.base, goalUnit(gl))}から${fmt(cur.value, goalUnit(gl))}（${fmtX(cur.value / gl.base)}）になった。`; }
+  if (gl) { const cur = goalCurrent(gl); if (cur && isNum(gl.base) && gl.base > 0) pitch += gl.metric === VX ? `その結果、視聴数は普段の${goalFmt(gl, cur.value)}（期間中${cur.n}本の中央値）になった。` : gl.metric === FOL ? `その結果、フォロワー数は${fmt(gl.base, "人")}から${fmt(cur.value, "人")}（+${fmt(cur.value - gl.base, "人")}）になった。` : `その結果、中央値は${fmt(gl.base, goalUnit(gl))}から${fmt(cur.value, goalUnit(gl))}（${fmtX(cur.value / gl.base)}）になった。`; }
   o.push(pitch, "");
   return o.join("\n");
 }
