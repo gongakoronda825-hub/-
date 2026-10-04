@@ -347,15 +347,15 @@ dialog::backdrop { background: rgba(8, 14, 12, .45); }
 <dialog id="goal-sheet">
   <form class="sheet" id="f-goal" method="dialog" autocomplete="off">
     <div class="bar-top"><h3>目標を決める</h3><button class="btn small" type="button" id="goal-close">閉じる</button></div>
-    <p class="ink2" style="font-size:14px">ガクチカの軸になる目標を1つ。開始日より前の投稿が「取り組み前」になります。</p>
-    <div class="f"><span class="muted">ジャンル</span><div class="seg genre" id="goal-genres" role="radiogroup" aria-label="ジャンル"></div></div>
-    <div class="f"><span class="muted">指標（1本あたりの中央値）</span><div class="seg" id="goal-metrics" role="radiogroup" aria-label="指標"></div></div>
+    <p class="ink2" style="font-size:14px">ガクチカの軸になる目標を1つ。開始日の時点が「取り組み前」になります。</p>
+    <div class="f"><span class="muted">指標</span><div class="seg" id="goal-metrics" role="radiogroup" aria-label="指標"></div></div>
+    <div class="f" id="goal-genre-wrap"><span class="muted">ジャンル（投稿1本あたりの中央値で見ます）</span><div class="seg genre" id="goal-genres" role="radiogroup" aria-label="ジャンル"></div></div>
     <div class="grid2">
       <label class="f">開始日<input type="date" id="goal-start" required></label>
       <label class="f">終了日<input type="date" id="goal-end" required></label>
     </div>
     <div class="grid2">
-      <label class="f">取り組み前の値<input type="number" id="goal-base" inputmode="decimal" min="0" step="any"></label>
+      <label class="f">開始時の値<input type="number" id="goal-base" inputmode="decimal" min="0" step="any"></label>
       <label class="f">目標値<input type="number" id="goal-target" inputmode="decimal" min="0" step="any" required></label>
     </div>
     <p class="muted" id="goal-hint"></p>
@@ -390,10 +390,11 @@ const GENRE_IDS = GENRES.map((g) => g.id);
 const METRICS = { views: ["視聴数", "回"], likes: ["いいね数", "件"], follows: ["新規フォロワー", "人"] };
 const BASE_N = 10;      // 「いつも」= 同じジャンルの直近10本の中央値
 const MIN_BASE = 3;     // 基準を出すのに最低限ほしい本数
-const COLLECTIONS = ["posts", "hypotheses", "analyses", "settings"];
+const COLLECTIONS = ["posts", "hypotheses", "analyses", "settings", "followers"];
+const FOL = "followers_total";   // 目標の指標：アカウントのフォロワー数
 const STATUS = { testing: "検証中", hit: "当たり", miss: "外れ", unclear: "わからない" };
 
-const S = { posts: [], hypotheses: [], analyses: [], settings: [] };
+const S = { posts: [], hypotheses: [], analyses: [], settings: [], followers: [] };
 let db = null, downloads = null, sample = null, imageOk = false, canWrite = false;
 
 const $ = (id) => document.getElementById(id);
@@ -469,14 +470,52 @@ const followRate = (p) => isNum(p.follows) && p.views > 0 ? p.follows / p.views 
 
 // ---------- 目標 ----------
 const goal = () => (S.settings.find((s) => s._id === "goal") || null);
+const folRecords = () => S.followers.filter((f) => /^\d{4}-\d{2}-\d{2}$/.test(f.date || "") && isNum(f.count)).sort((a, b) => a.date.localeCompare(b.date));
+const goalName = (gl) => gl.metric === FOL ? "アカウントのフォロワー数" : `${gLabel(gl.genre)}の${METRICS[gl.metric][0]}（1本あたり中央値）`;
+const goalUnit = (gl) => gl.metric === FOL ? "人" : METRICS[gl.metric][1];
 function goalBase(g, metric, start) {
+  if (metric === FOL) {
+    const fs = folRecords(), before = fs.filter((f) => f.date <= start);
+    const f = before.length ? before[before.length - 1] : null;
+    return f ? { value: f.count, n: 1, date: f.date } : null;
+  }
   const before = genrePosts(g).filter((p) => String(p.posted_at) < start && isNum(p[metric])).slice(-BASE_N);
   return before.length ? { value: median(before.map((p) => p[metric])), n: before.length } : null;
 }
 function goalCurrent(gl) {
+  if (gl.metric === FOL) {
+    const fs = folRecords(), f = fs[fs.length - 1];
+    return f ? { value: f.count, n: 1, date: f.date } : null;
+  }
   const during = genrePosts(gl.genre).filter((p) => String(p.posted_at) >= gl.start && isNum(p[gl.metric])).slice(-BASE_N);
   return during.length ? { value: median(during.map((p) => p[gl.metric])), n: during.length } : null;
 }
+
+// ---------- グラフ ----------
+function lineChart(points, unit) {
+  const W = 300, H = 120, L = 44, R = 12, T = 12, B = 22;
+  const ys = points.map((p) => p.y);
+  let lo = Math.min(...ys), hi = Math.max(...ys);
+  const padY = Math.max((hi - lo) * 0.15, 1); lo = Math.max(0, lo - padY); hi = hi + padY;
+  const x = (i) => points.length === 1 ? L + (W - L - R) / 2 : L + i * (W - L - R) / (points.length - 1);
+  const y = (v) => T + (H - T - B) * (1 - (v - lo) / (hi - lo));
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="フォロワー数の推移">`;
+  [lo, (lo + hi) / 2, hi].forEach((t) => { s += `<line x1="${L}" x2="${W - R}" y1="${y(t)}" y2="${y(t)}" stroke="var(--grid)" stroke-width="1"/><text x="${L - 6}" y="${y(t) + 3}" text-anchor="end">${esc(fmt(t))}</text>`; });
+  if (points.length > 1) s += `<polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="${points.map((p, i) => `${x(i)},${y(p.y)}`).join(" ")}"/>`;
+  points.forEach((p, i) => {
+    s += `<circle cx="${x(i)}" cy="${y(p.y)}" r="${i === points.length - 1 ? 4.5 : 3.5}" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+    s += `<circle class="hit" data-tip="${esc(p.x)}：${esc(fmt(p.y, unit))}" cx="${x(i)}" cy="${y(p.y)}" r="14" fill="transparent" style="cursor:pointer"><title>${esc(p.x)}：${esc(fmt(p.y, unit))}</title></circle>`;
+  });
+  s += `<text x="${x(0)}" y="${H - 6}" text-anchor="${points.length === 1 ? "middle" : "start"}">${esc(points[0].x.slice(5))}</text>`;
+  if (points.length > 1) s += `<text x="${x(points.length - 1)}" y="${H - 6}" text-anchor="end">${esc(points[points.length - 1].x.slice(5))}</text>`;
+  return s + "</svg>";
+}
+document.addEventListener("click", (e) => {
+  const hit = e.target.closest && e.target.closest(".hit");
+  if (!hit) return;
+  const tip = hit.closest(".chart") && hit.closest(".chart").querySelector(".tip");
+  if (tip) tip.textContent = hit.dataset.tip;
+});
 
 // ---------- 保存 ----------
 async function write(fn, okMsg) {
@@ -538,29 +577,69 @@ function renderGoalCard() {
   if (!gl) {
     const n = S.posts.length;
     v.innerHTML = `<div class="card"><h3>まず、ガクチカの目標を1つ決めましょう</h3>
-      <p class="ink2" style="font-size:14px">例：「3ヶ月で、雑学の視聴数（1本あたりの中央値）を1.5倍にする」。開始日より前の投稿が「取り組み前」の実力になります。</p>
-      ${n < 5 ? `<p class="muted">先に、過去の投稿を各ジャンル10本ほど記録しておくと、取り組み前の値が自動で入ります（いま ${n}本）。</p>` : ""}
+      <p class="ink2" style="font-size:14px">例：「3ヶ月で、アカウントのフォロワー数を1,200人から1,600人にする」「雑学の視聴数（1本あたりの中央値）を1.5倍にする」。</p>
+      ${n < 5 ? `<p class="muted">投稿の数字を目標にする場合は、先に過去の投稿を各ジャンル10本ほど記録しておくと、取り組み前の値が自動で入ります（いま ${n}本）。</p>` : ""}
       <div class="row"><button class="btn save-btn" type="button" id="open-goal">目標を決める</button></div></div>`;
   } else {
-    const [mLabel, unit] = METRICS[gl.metric];
+    const unit = goalUnit(gl), isFol = gl.metric === FOL;
     const cur = goalCurrent(gl);
     const base = isNum(gl.base) ? gl.base : null;
     const prog = cur && isNum(base) && gl.target !== base ? (cur.value - base) / (gl.target - base) * 100 : null;
     const total = daysBetween(gl.start, gl.end), passed = Math.min(Math.max(daysBetween(gl.start, todayStr()), 0), total);
     const left = daysBetween(todayStr(), gl.end);
-    v.innerHTML = `<div class="card"><h3>目標：${gLabel(gl.genre)}の${mLabel}（1本あたり中央値）を ${fmt(base, unit)} → <span class="num">${fmt(gl.target, unit)}</span></h3>
+    v.innerHTML = `<div class="card"><h3>目標：${esc(goalName(gl))}を ${fmt(base, unit)} → <span class="num">${fmt(gl.target, unit)}</span></h3>
       <div class="tiles">
-        <div class="tile"><span>取り組み前</span><b>${fmt(base, unit)}</b><em>${esc(gl.start)}より前</em></div>
-        <div class="tile"><span>いま</span><b>${cur ? fmt(cur.value, unit) : "—"}</b><em>${cur ? `直近${cur.n}本の中央値` : "期間中の投稿なし"}</em></div>
-        <div class="tile"><span>目標</span><b>${fmt(gl.target, unit)}</b><em>${isNum(base) && base > 0 ? `${fmtX(gl.target / base)}` : ""}</em></div>
+        <div class="tile"><span>${isFol ? "開始時" : "取り組み前"}</span><b>${fmt(base, unit)}</b><em>${isFol ? esc(gl.start) : `${esc(gl.start)}より前`}</em></div>
+        <div class="tile"><span>いま</span><b>${cur ? fmt(cur.value, unit) : "—"}</b><em>${cur ? (isFol ? `${esc(cur.date)}の記録` : `直近${cur.n}本の中央値`) : (isFol ? "下で記録してください" : "期間中の投稿なし")}</em></div>
+        <div class="tile"><span>目標</span><b>${fmt(gl.target, unit)}</b><em>${isFol && isNum(base) ? `+${fmt(gl.target - base, "人")}` : isNum(base) && base > 0 ? `${fmtX(gl.target / base)}` : ""}</em></div>
         <div class="tile"><span>終了まで</span><b>${left < 0 ? "終了" : left + "日"}</b><em>${esc(gl.end)}</em></div>
       </div>
       <div class="bar" role="progressbar" aria-label="目標への進み具合" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${isNum(prog) ? Math.round(prog) : 0}"><i style="width:${isNum(prog) ? Math.min(Math.max(prog, 0), 100) : 0}%"></i></div>
       <p class="muted">目標への進み具合 ${isNum(prog) ? fmt(Math.max(prog, 0), "%") : "—"}・期間の ${total > 0 ? Math.round(passed / total * 100) : 0}% が経過${gl.why ? `<br>なぜこの目標：${esc(gl.why)}` : ""}</p>
       <div class="row"><button class="btn small save-btn" type="button" id="open-goal">目標を変更</button></div></div>`;
   }
+  v.innerHTML += followerCard();
   $("open-goal").addEventListener("click", openGoal);
 }
+
+// アカウントのフォロワー数（ときどき記録する）
+function followerCard() {
+  const fs = folRecords();
+  const last = fs[fs.length - 1], prev = fs[fs.length - 2];
+  let h = `<div class="card"><h3>アカウントのフォロワー数</h3>`;
+  if (last) h += `<p class="ink2" style="font-size:14px">最新 <b class="num">${fmt(last.count, "人")}</b>（${esc(last.date)}）${prev ? `<span class="muted">・前回（${esc(prev.date)}）から ${last.count - prev.count >= 0 ? "+" : ""}${fmt(last.count - prev.count, "人")}</span>` : ""}</p>`;
+  if (fs.length >= 2) h += `<div class="chart">${lineChart(fs.map((f) => ({ x: f.date, y: f.count })), "人")}<div class="tip"></div></div>`;
+  h += `<p class="muted">週に1回くらい、プロフィールに出ているフォロワー数を記録してください。${fs.length ? "" : "目標の開始日の数字も入れておくと、開始時の値になります。"}</p>
+    <div class="grid2"><label class="f">日付<input type="date" id="fol-date" value="${todayStr()}"></label><label class="f">フォロワー数<input type="number" id="fol-count" inputmode="numeric" min="0" step="1"></label></div>
+    <div class="row"><button class="btn primary save-btn" type="button" id="fol-save">記録する</button>
+      ${imageOk && sample ? `<label class="btn small" style="position:relative">プロフィールのスクショから読む<input type="file" id="fol-file" accept="image/jpeg,image/png,image/webp,image/gif" style="position:absolute;inset:0;opacity:0;cursor:pointer"></label>` : ""}
+      <span class="muted" id="fol-status"></span></div>`;
+  if (fs.length) h += `<details><summary>記録の一覧（${fs.length}件）</summary><div class="table-scroll"><table><thead><tr><th>日付</th><th>フォロワー数</th><th>前回から</th><th></th></tr></thead><tbody>${fs.slice().reverse().map((f, i, arr) => {
+    const p = arr[i + 1];
+    return `<tr><td class="num">${esc(f.date)}</td><td>${fmt(f.count)}</td><td>${p ? `${f.count - p.count >= 0 ? "+" : ""}${fmt(f.count - p.count)}` : "—"}</td><td><button class="btn small danger del-fol" type="button" data-id="${esc(f._id)}">削除</button></td></tr>`;
+  }).join("")}</tbody></table></div></details>`;
+  return h + `</div>`;
+}
+document.addEventListener("click", async (e) => {
+  if (e.target.id === "fol-save") {
+    const date = $("fol-date").value, count = readNum($("fol-count"));
+    if (!date || count === null) { toast("日付とフォロワー数を入れてください。"); return; }
+    await write(() => db.collection("followers").doc(date).set({ date, count, saved_at: new Date().toISOString() }), `${date} のフォロワー数を記録しました。`);
+    return;
+  }
+  const d = e.target.closest && e.target.closest(".del-fol");
+  if (d && armTwice(d, "削除")) await write(() => db.collection("followers").doc(d.dataset.id).delete(), "削除しました。");
+});
+document.addEventListener("change", async (e) => {
+  if (e.target.id !== "fol-file" || !e.target.files.length || !sample) return;
+  const st = $("fol-status"); st.textContent = "読み取り中…";
+  try {
+    const r = await sample.json(`この画像はTikTokのプロフィール画面のスクリーンショットです。「フォロワー」の人数を読み取り、{"followers": number|null} のJSONだけで返してください。「1.2万」は12000、「3.4K」は3400 に直し、読めなければ null。`, { images: [e.target.files[0]], modelTier: "default" });
+    if (r && typeof r.followers === "number" && Number.isFinite(r.followers)) { $("fol-count").value = Math.round(r.followers); st.textContent = "読み取りました。合っていれば「記録する」を押してください。"; }
+    else st.textContent = "読み取れませんでした。数字を手で入れてください。";
+  } catch (err) { st.textContent = "読み取れませんでした。数字を手で入れてください。"; }
+  e.target.value = "";
+});
 document.addEventListener("change", (e) => { if (e.target.name === "log-filter") { logFilter = e.target.value; renderLog(); } });
 function renderLog() {
   renderGoalCard();
@@ -682,21 +761,29 @@ $("rec-delete").addEventListener("click", async () => {
 });
 
 // 目標シート
-let goalGenre = "trivia", goalMetric = "views";
+let goalGenre = "trivia", goalMetric = FOL;
 $("goal-genres").innerHTML = genreRadios("goal-genre", goalGenre);
 function syncGoalMetrics() {
   const g = genre(goalGenre);
-  if (!g.kpis.includes(goalMetric)) goalMetric = g.kpis[0];
-  $("goal-metrics").innerHTML = g.kpis.map((m) => `<label><input type="radio" name="goal-metric" value="${m}" ${m === goalMetric ? "checked" : ""}><span>${METRICS[m][0]}</span></label>`).join("");
+  if (goalMetric !== FOL && !g.kpis.includes(goalMetric)) goalMetric = g.kpis[0];
+  const opts = [[FOL, "アカウントのフォロワー数"], ...g.kpis.map((m) => [m, `投稿の${METRICS[m][0]}`])];
+  $("goal-metrics").innerHTML = opts.map(([m, l]) => `<label><input type="radio" name="goal-metric" value="${m}" ${m === goalMetric ? "checked" : ""}><span>${l}</span></label>`).join("");
+  $("goal-genre-wrap").hidden = goalMetric === FOL;
   const b = goalBase(goalGenre, goalMetric, $("goal-start").value || todayStr());
   $("goal-base").value = b ? +b.value.toFixed(1) : "";
-  $("goal-target").value = b ? Math.round(b.value * 1.5) : "";
-  $("goal-hint").textContent = b ? `取り組み前の値は、開始日より前の直近${b.n}本の中央値です。目標はひとまず1.5倍を入れています。`
-    : `開始日より前の${gLabel(goalGenre)}の記録がないため、取り組み前の値を計算できません。先に過去の投稿を記録するか、手で入れてください。`;
+  if (goalMetric === FOL) {
+    $("goal-target").value = b ? Math.round(b.value * 1.3) : "";
+    $("goal-hint").textContent = b ? `開始時の値は、開始日以前で最新のフォロワー数の記録（${b.date}）です。目標はひとまず1.3倍を入れています。`
+      : "フォロワー数の記録がまだないので、開始時の値（いまのフォロワー数）を手で入れてください。保存すると、開始日のフォロワー数としても記録します。";
+  } else {
+    $("goal-target").value = b ? Math.round(b.value * 1.5) : "";
+    $("goal-hint").textContent = b ? `取り組み前の値は、開始日より前の直近${b.n}本の中央値です。目標はひとまず1.5倍を入れています。`
+      : `開始日より前の${gLabel(goalGenre)}の記録がないため、取り組み前の値を計算できません。先に過去の投稿を記録するか、手で入れてください。`;
+  }
 }
 function openGoal() {
   const gl = goal();
-  goalGenre = gl ? gl.genre : "trivia"; goalMetric = gl ? gl.metric : "views";
+  goalGenre = gl && isGenre(gl.genre) ? gl.genre : "trivia"; goalMetric = gl ? gl.metric : FOL;
   setRadio("goal-genre", goalGenre);
   $("goal-start").value = gl ? gl.start : todayStr();
   $("goal-end").value = gl ? gl.end : addDays(todayStr(), 90);
@@ -711,11 +798,16 @@ $("goal-start").addEventListener("change", syncGoalMetrics);
 $("goal-close").addEventListener("click", () => $("goal-sheet").close());
 $("f-goal").addEventListener("submit", async (e) => {
   e.preventDefault();
-  const row = { genre: goalGenre, metric: goalMetric, start: $("goal-start").value, end: $("goal-end").value,
+  const row = { genre: goalMetric === FOL ? null : goalGenre, metric: goalMetric, start: $("goal-start").value, end: $("goal-end").value,
     base: readNum($("goal-base")), target: readNum($("goal-target")), why: $("goal-why").value.trim(), saved_at: new Date().toISOString() };
   if (!row.start || !row.end || row.end <= row.start) { toast("終了日は開始日より後にしてください。"); return; }
   if (!isNum(row.target) || row.target <= 0) { toast("目標値を入れてください。"); return; }
-  if (await write(() => db.collection("settings").doc("goal").set(row), "目標を保存しました。")) $("goal-sheet").close();
+  if (row.metric === FOL && !isNum(row.base)) { toast("開始時のフォロワー数を入れてください。"); return; }
+  const ok = await write(async () => {
+    await db.collection("settings").doc("goal").set(row);
+    if (row.metric === FOL && !goalBase(null, FOL, row.start)) await db.collection("followers").doc(row.start).set({ date: row.start, count: row.base, saved_at: new Date().toISOString() });
+  }, "目標を保存しました。");
+  if (ok) $("goal-sheet").close();
 });
 
 // ---------- ② 研究 ----------
@@ -852,7 +944,11 @@ function aiInput() {
 - 新しい仮説は3つまで。次の投稿で具体的にどうすれば確かめられるか（how_to_test）を必ず書く。すでにある仮説と重複させない。
 
 ## 目標
-${gl ? JSON.stringify({ genre: gLabel(gl.genre), metric: METRICS[gl.metric][0], start: gl.start, end: gl.end, before: gl.base, target: gl.target, why: gl.why }) : "まだ未設定"}
+${gl ? JSON.stringify({ goal: goalName(gl), start: gl.start, end: gl.end, start_value: gl.base, target: gl.target, why: gl.why }) : "まだ未設定"}
+${gl && gl.metric === FOL ? "目標はアカウント全体のフォロワー数なので、どの投稿・どんな工夫が新規フォロワーを増やしたか（follows と follows_per_10k）を特に見てください。" : ""}
+
+## アカウントのフォロワー数の推移
+${JSON.stringify(folRecords().map((f) => ({ date: f.date, count: f.count })))}
 
 ## 投稿（古い順、最大80本）
 ${JSON.stringify(posts)}
@@ -974,8 +1070,8 @@ function buildMarkdown() {
   o.push("## 1. 目標", "");
   if (!gl) o.push("（目標が未設定です）", "");
   else {
-    const [ml, u] = METRICS[gl.metric];
-    o.push(`- ${gLabel(gl.genre)}の${ml}（1本あたりの中央値）を、${fmt(gl.base, u)} から **${fmt(gl.target, u)}** にする（期間: ${gl.start}〜${gl.end}）`);
+    const u = goalUnit(gl);
+    o.push(`- ${goalName(gl)}を、${fmt(gl.base, u)} から **${fmt(gl.target, u)}** にする（期間: ${gl.start}〜${gl.end}）`);
     if (gl.why) o.push(`- この目標にした理由: ${gl.why}`);
     o.push("");
   }
@@ -1004,8 +1100,13 @@ function buildMarkdown() {
 
   o.push("## 4. 結果の数字", "");
   if (gl) {
-    const cur = goalCurrent(gl), [ml, u] = METRICS[gl.metric];
-    o.push(`- 目標の指標（${gLabel(gl.genre)}の${ml}・中央値）: 取り組み前 ${fmt(gl.base, u)} → 現在 ${cur ? fmt(cur.value, u) : "—"}（直近${cur ? cur.n : 0}本）${cur && isNum(gl.base) && gl.base > 0 ? `、${fmtX(cur.value / gl.base)}` : ""}／目標 ${fmt(gl.target, u)}`, "");
+    const cur = goalCurrent(gl), u = goalUnit(gl);
+    if (gl.metric === FOL) {
+      o.push(`- アカウントのフォロワー数: 開始時 ${fmt(gl.base, u)}（${gl.start}）→ 現在 ${cur ? `${fmt(cur.value, u)}（${cur.date}）` : "—"}${cur && isNum(gl.base) ? `、+${fmt(cur.value - gl.base, u)}（${fmtX(gl.base > 0 ? cur.value / gl.base : null)}）` : ""}／目標 ${fmt(gl.target, u)}`);
+      const gained = S.posts.filter((p) => String(p.posted_at) >= gl.start && isNum(p.follows));
+      if (gained.length) o.push(`- 期間中の投稿${gained.length}本で増えた新規フォロワーの合計: ${fmt(gained.reduce((a, p) => a + p.follows, 0), "人")}`);
+      o.push("");
+    } else o.push(`- 目標の指標（${goalName(gl)}）: 取り組み前 ${fmt(gl.base, u)} → 現在 ${cur ? fmt(cur.value, u) : "—"}（直近${cur ? cur.n : 0}本）${cur && isNum(gl.base) && gl.base > 0 ? `、${fmtX(cur.value / gl.base)}` : ""}／目標 ${fmt(gl.target, u)}`, "");
     o.push("| ジャンル | 指標 | 取り組み前（中央値） | 期間中の直近（中央値） | 変化 |", "|---|---|---|---|---|");
     GENRES.forEach((g) => {
       const b = before(g.id).slice(-BASE_N), d = during(g.id).slice(-BASE_N);
@@ -1033,9 +1134,9 @@ function buildMarkdown() {
   o.push("## 面接で話すときの骨子（下書き）", "");
   let pitch = "TikTokで雑学・イベント告知・グッズ紹介の3ジャンルを投稿しているが、1本ごとの伸びの差が大きく、平均では何が効いているのか判断できなかった。";
   pitch += `そこで各投稿を「同じジャンルの直近${BASE_N}本の中央値の何倍か」で評価する記録の仕組みを作り、`;
-  if (gl) pitch += `「${gLabel(gl.genre)}の${METRICS[gl.metric][0]}（中央値）を${fmt(gl.base, METRICS[gl.metric][1])}から${fmt(gl.target, METRICS[gl.metric][1])}にする」という目標を立てた。`;
+  if (gl) pitch += `「${goalName(gl)}を${fmt(gl.base, goalUnit(gl))}から${fmt(gl.target, goalUnit(gl))}にする」という目標を立てた。`;
   if (hs.length) pitch += `伸びた投稿と伸びなかった投稿を比べて仮説を${hs.length}個立て、1つにつき複数本で検証した。`;
-  if (gl) { const cur = goalCurrent(gl); if (cur && isNum(gl.base) && gl.base > 0) pitch += `その結果、中央値は${fmt(gl.base, METRICS[gl.metric][1])}から${fmt(cur.value, METRICS[gl.metric][1])}（${fmtX(cur.value / gl.base)}）になった。`; }
+  if (gl) { const cur = goalCurrent(gl); if (cur && isNum(gl.base) && gl.base > 0) pitch += gl.metric === FOL ? `その結果、フォロワー数は${fmt(gl.base, "人")}から${fmt(cur.value, "人")}（+${fmt(cur.value - gl.base, "人")}）になった。` : `その結果、中央値は${fmt(gl.base, goalUnit(gl))}から${fmt(cur.value, goalUnit(gl))}（${fmtX(cur.value / gl.base)}）になった。`; }
   o.push(pitch, "");
   return o.join("\n");
 }
@@ -1078,7 +1179,7 @@ $("x-restore-file").addEventListener("change", async (e) => {
     const j = JSON.parse(await f.text());
     if (j.app !== "tiktok-experiment-note" || j.version !== 3) throw new Error("format");
     restoreData = j;
-    const n = COLLECTIONS.map((c) => `${{ posts: "投稿", hypotheses: "仮説", analyses: "分析", settings: "設定" }[c]} ${(j[c] || []).length}件`).join("・");
+    const n = COLLECTIONS.map((c) => `${{ posts: "投稿", hypotheses: "仮説", analyses: "分析", settings: "設定", followers: "フォロワー数" }[c]} ${(j[c] || []).length}件`).join("・");
     box.innerHTML = `<div class="note info">${esc(n)}（${esc(String(j.exported_at || "").slice(0, 10))} のバックアップ）を書き込みます。同じ記録は上書きされ、今ある他の記録は消えません。</div><div class="row"><button class="btn primary" type="button" id="x-restore-go">復元する</button></div>`;
     $("x-restore-go").addEventListener("click", async () => {
       const btn = $("x-restore-go"); btn.disabled = true; btn.textContent = "復元中…";
