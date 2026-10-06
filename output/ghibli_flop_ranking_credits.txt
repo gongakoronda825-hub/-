@@ -1,0 +1,45 @@
+公開当時コケたジブリ映画ランキング（output/ghibli_flop_ranking.mp4） クレジット
+
+■ 投稿文（説明欄）に必ず入れる表記
+VOICEVOX:四国めたん
+
+■ 数字の出典
+・天空の城ラピュタ：興行収入 約11.6億円、観客満足度 97.7%（東映の調査）
+  https://ja.wikipedia.org/wiki/天空の城ラピュタ
+・ホーホケキョ となりの山田くん：製作費 約20億円、興行収入 15.6億円、のちにビデオ売上などで黒字化
+  https://ja.wikipedia.org/wiki/ホーホケキョ_となりの山田くん
+・かぐや姫の物語：製作費 51.5億円、興行収入 24.7億円
+  https://ja.wikipedia.org/wiki/かぐや姫の物語
+
+■ 場面写真
+出典：スタジオジブリ公式サイト 各作品ページ（利用条件「常識の範囲でご自由にお使いください。」）
+  https://www.ghibli.jp/works/laputa/  https://www.ghibli.jp/works/yamada/  https://www.ghibli.jp/works/kaguyahime/
+使用した画像：
+  ① 題名（3分割） https://www.ghibli.jp/gallery/laputa036.jpg
+                  https://www.ghibli.jp/gallery/yamada020.jpg
+                  https://www.ghibli.jp/gallery/kaguyahime039.jpg
+  ② 第3位        https://www.ghibli.jp/gallery/laputa038.jpg
+  ③              https://www.ghibli.jp/gallery/laputa041.jpg
+  ④ 第2位        https://www.ghibli.jp/gallery/yamada010.jpg
+  ⑤              https://www.ghibli.jp/gallery/yamada018.jpg
+  ⑥ 第1位        https://www.ghibli.jp/gallery/kaguyahime045.jpg
+  ⑦              https://www.ghibli.jp/gallery/kaguyahime030.jpg
+  ⑧ 締め          https://www.ghibli.jp/gallery/kaguyahime037.jpg
+著作権表示（https://www.ghibli.jp/copyright/）：
+  © 1986 Hayao Miyazaki/Studio Ghibli
+  © 1999 Hisaichi Ishii/Isao Takahata/Studio Ghibli, NHD
+  © 2013 Isao Takahata, Riko Sakaguchi/Studio Ghibli, NDHDMTK
+
+■ ナレーション
+VOICEVOX:四国めたん（ノーマル、話速 1.25）
+四国めたん 音源利用規約 https://zunko.jp/con_ongen_kiyaku.html（商用・非商用OK、クレジット表記が必要）
+
+■ 効果音
+効果音ラボ https://soundeffect-lab.info/ （商用利用無料、クレジット表記不要、再配布禁止）
+  ①の頭            クイズ出題1（デデン）
+  順位発表（②④⑥）  和太鼓でドドン
+  ③⑤⑦の切り替わり  高速移動（シュン）
+  ⑧の頭            決定ボタンを押す52（ポン）
+
+■ フォント
+Noto Sans JP（SIL Open Font License）
