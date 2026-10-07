@@ -42,6 +42,7 @@ SFX_DB = -12         # 効果音はナレーションより 12dB 下げる
 
 # 写真は画面の上下中央。テロップは写真のすぐ下 (右端 15% と下 20% は避ける)
 PIC_TOP = (H - round(W * 1038 / 1920)) // 2
+PIC_TOP -= 90          # テロップのパネルが下 20% に入らないよう、全体を少し上に
 TELOP_TOP = PIC_TOP + round(W * 1038 / 1920) + 24
 TELOP_CX = int(W * 0.85 / 2) + 20   # 左端 40px〜右端 15% 手前の中央
 TELOP_MAX_W = int(W * 0.85) - 80
@@ -142,36 +143,51 @@ def crop_frame(name, focus, face_y, crop_h, z):
 _bg = {}
 
 
-def blur_frame(name, top, z, box=None):
-    im = load(name)
-    if name not in _bg:
-        s = H / im.height
-        big = im.resize((round(im.width * s), H), Image.BILINEAR)
-        x = (big.width - W) // 2
-        big = big.crop((x, 0, x + W, H)).filter(ImageFilter.GaussianBlur(36))
-        _bg[name] = ImageEnhance.Brightness(big).enhance(0.55)
-    frame = _bg[name].copy()
+BG = Image.open(HERE / "assets" / "bg_grid.jpg").convert("RGB").resize((W, H))  # 方眼の背景
+CARD_W = 960          # 写真カードの幅 (左右に方眼が見えるよう少し小さく)
+BORDER = 14
+
+
+def put_card(frame, photo, x, y):
+    """写真に白いフチと影を付けて、背景の上に置く"""
+    w, h = photo.size
+    shadow = Image.new("L", (w + 2 * BORDER + 80, h + 2 * BORDER + 80), 0)
+    ImageDraw.Draw(shadow).rectangle((40, 40, 40 + w + 2 * BORDER, 40 + h + 2 * BORDER), fill=110)
+    shadow = shadow.filter(ImageFilter.GaussianBlur(18))
+    frame.paste((40, 60, 40), (x - BORDER - 40 + 10, y - BORDER - 40 + 16), shadow)
+    frame.paste((255, 255, 255), (x - BORDER, y - BORDER, x + w + BORDER, y + h + BORDER))
+    frame.paste(photo, (x, y))
+
+
+def zoomed(im, z, size, box=None):
     bx, bw = box if box else (0, im.width)
-    fh = round(W * im.height / bw)
     cw, ch = bw / z, im.height / z
     cx, cy = bx + (bw - cw) / 2, (im.height - ch) / 2
-    frame.paste(im.resize((W, fh), Image.BICUBIC, box=(cx, cy, cx + cw, cy + ch)), (0, top))
+    return im.resize(size, Image.BICUBIC, box=(cx, cy, cx + cw, cy + ch))
+
+
+def blur_frame(name, top, z, box=None):
+    """方眼の背景に、写真カードを上下中央 (テロップの上) に置く"""
+    im = load(name)
+    frame = BG.copy()
+    bw = box[1] if box else im.width
+    h = round(CARD_W * im.height / bw)
+    y = top + (round(W * 1038 / 1920) - h) // 2
+    put_card(frame, zoomed(im, z, (CARD_W, h), box), (W - CARD_W) // 2, y)
     return frame
 
 
-STACK_GAP = 12
+STACK_GAP = 40
+STACK_W = 1000
 
 
 def stack_frame(names, z):
-    """3 枚を縦に並べる。それぞれの写真の中でゆっくりズーム"""
-    ph = round(W * 1038 / 1920)
-    frame = Image.new("RGB", (W, H), (10, 10, 10))
+    """3 枚の写真カードを方眼の上に縦に並べる。それぞれの写真の中でゆっくりズーム"""
+    ph = round(STACK_W * 1038 / 1920)
+    frame = BG.copy()
     top = (H - 3 * ph - 2 * STACK_GAP) // 2
     for k, name in enumerate(names):
-        im = load(name)
-        cw, ch = im.width / z, im.height / z
-        cx, cy = (im.width - cw) / 2, (im.height - ch) / 2
-        frame.paste(im.resize((W, ph), Image.BICUBIC, box=(cx, cy, cx + cw, cy + ch)), (0, top + k * (ph + STACK_GAP)))
+        put_card(frame, zoomed(load(name), z, (STACK_W, ph)), (W - STACK_W) // 2, top + k * (ph + STACK_GAP))
     return frame
 
 
@@ -394,9 +410,16 @@ def main():
     size = fit_size()
     for c in CUTS:
         c["telop_img"] = telop_image(c["telop"], title_size() if c.get("title") else size)
+        if not c.get("title"):  # 方眼の線と文字が重ならないよう、深緑の半透明パネルを敷く
+            t = c["telop_img"]
+            panel = Image.new("RGBA", (t.width + 60, t.height + 30), (0, 0, 0, 0))
+            ImageDraw.Draw(panel).rounded_rectangle((0, 0, panel.width - 1, panel.height - 1), radius=36,
+                                                    fill=(38, 96, 56, 215))
+            panel.alpha_composite(t, (30, 15))
+            c["telop_img"] = panel
         if c.get("title"):   # 画面中央に置くので、読みやすいよう半透明の黒い帯を敷く
             t = c["telop_img"]
-            band = Image.new("RGBA", (W, t.height + 60), (0, 0, 0, 165))
+            band = Image.new("RGBA", (W, t.height + 60), (38, 96, 56, 220))
             band.alpha_composite(t, ((W - t.width) // 2, 30))
             c["telop_img"] = band
     make_badges()
