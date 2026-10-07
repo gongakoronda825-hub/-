@@ -1,13 +1,16 @@
-"""TikTok ジブリグッズ紹介「買ってよかったジブリグッズ3選」のテンプレート (写真は仮の画像) — ナレーション生成から動画書き出しまで
+"""TikTok ジブリグッズ紹介「ガチで買ってよかったジブリグッズ3選」のテンプレート
 
-1. VOICEVOX (http://localhost:50021) で各カットのナレーションを作る
-2. ナレーションの長さからカットの長さを決める (前 0.2 秒でテロップ、後ろ 0.3 秒の余白)
-3. 1080x1920 / 30fps の映像を描き、ナレーション＋効果音と合わせて output/goods_sample.mp4 に書き出す
-
-使い方: python3 goods-video/make.py
+写真は raw/sample/ の仮の画像。実物の写真に差し替えるときは CUTS の img を変える。
+TikTok で伸びている購入品紹介の作りを取り入れている:
+  ・チェキ風に少し傾けた写真カード＋マスキングテープ、ポンッと弾んで登場
+  ・丸い値段シール、1 行ずつ弾んで出るテロップ ({ } で囲んだ言葉は黄色)
+  ・順位発表は大きな文字＋キラキラ＋画面の揺れ＋白フラッシュ＋「ドドン」
+  ・締めは「保存して見返してね」
+使い方: python3 goods-video/make.py   (VOICEVOX Engine を localhost:50021 で起動しておく)
 """
 import io
 import json
+import math
 import subprocess
 import urllib.parse
 import urllib.request
@@ -16,12 +19,13 @@ from pathlib import Path
 
 import imageio_ffmpeg
 import numpy as np
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 ROOT = Path(__file__).resolve().parent.parent
 HERE = Path(__file__).resolve().parent
 RAW = ROOT / "raw"
 OUT = ROOT / "output"
+SFX_DIR = ROOT / "chihiro-video" / "sfx"
 FFMPEG = imageio_ffmpeg.get_ffmpeg_exe()
 FONT = ROOT / "ghibli-video" / "fonts" / "NotoSansJP.ttf"
 EMOJI_FONT = "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf"
@@ -30,61 +34,58 @@ W, H, FPS, SR = 1080, 1920, 30, 44100
 ENGINE = "http://localhost:50021"
 SPEAKER = 2          # 四国めたん ノーマル
 SPEED = 1.25
-PAUSE = 0.5          # 「、」「。」での間 (1.0 が標準)
-LEAD = 0.2           # テロップをナレーションより早く出す秒数
-TAIL = 0.3           # ナレーション後の余白
-XFADE = 0.25         # カット間のクロスフェード
-LOOP_FADE = 0.5      # 最後に①の画像へ戻すフェード
-FLASH = 0.3          # 順位発表の白フラッシュ
-RANK_LEAD = 0.7      # 順位発表では「ドドン」を聞かせてから読み始める
-ZOOM = 0.08          # 100% → 108%
-SFX_DB = -12         # 効果音はナレーションより 12dB 下げる
+PAUSE = 0.5
+LEAD = 0.2           # テロップ・写真を出してからナレーションまで
+RANK_LEAD = 0.7      # 順位発表は「ドドン」を聞かせてから
+TAIL = 0.25
+SFX_DB = -12
+SAFE_BOTTOM = int(H * 0.80)   # ここより下は TikTok の説明文・ボタンと重なる
+SAFE_RIGHT = int(W * 0.85)    # 右端 15% はいいね・コメントのボタン
 
-# 写真は画面の上下中央。テロップは写真のすぐ下 (右端 15% と下 20% は避ける)
-PIC_TOP = (H - round(W * 1038 / 1920)) // 2
-PIC_TOP -= 90          # テロップのパネルが下 20% に入らないよう、全体を少し上に
-TELOP_TOP = PIC_TOP + round(W * 1038 / 1920) + 24
-TELOP_CX = int(W * 0.85 / 2) + 20   # 左端 40px〜右端 15% 手前の中央
-TELOP_MAX_W = int(W * 0.85) - 80
-# 題名 (カット①) だけは写真の上に大きく。画面上部には TikTok のボタンがないので横幅いっぱいに使う
-TITLE_MAX_W = W - 80
+GREEN = (38, 96, 56)
+YELLOW = (255, 214, 0)
+RED = (232, 67, 58)
+RANK_COLOR = {"第3位": (196, 120, 60), "第2位": (128, 140, 165), "第1位": (232, 176, 20)}
 
-# ---- カット定義 ------------------------------------------------------------
-# layout "crop": 9:16 に切り抜く。focus=(x, y) 元画像での顔の位置, face_y=出力での顔の高さ(比率), crop_h=切り抜く高さ
-# layout "blur": ぼかした同じ画像を背景に敷き、元画像を top の位置に置く
-#   box=(x0, 幅) を指定すると、元画像をその範囲で正方形に切り抜いて置く (顔のアップ用。
-#   9:16 に切り抜くと顔がテロップ帯 (上から35〜45%) にかかってしまうため)
-# 写真は raw/sample/ の仮の画像。実物の写真に差し替えるときは img / stack を変える
-L3, L2, L1 = "第3位 グッズC", "第2位 グッズB", "第1位 グッズA"
+# ---- カット -----------------------------------------------------------------
+# telop: 1 行ずつ弾んで出る。{ } で囲んだ部分は黄色。 price: 値段シール。 tilt: 写真カードの傾き(度)
 CUTS = [
-    dict(name="① 題名", img="sample/004", stack=["sample/003", "sample/002", "sample/001"], title=True,
-         telop=["ジブリ好きが", "本気で買ってよかった", "グッズ3選"],
-         voice="ジブリ好きが、本気で買ってよかった、ジブリグッズ3選！",
-         sfx=[("start", "question1.mp3")]),
-    dict(name="② 第3位", img="sample/003", rank="第3位", label=L3,
-         telop=["グッズC", "◯◯円（税込）", "ここに推しポイント"],
-         voice="第3位は、グッズシー。ここに、おすすめのポイントが入ります",
-         sfx=[("start", "drum-japanese2.mp3")]),
-    dict(name="③ 第2位", img="sample/002", rank="第2位", label=L2,
-         telop=["グッズB", "◯◯円（税込）", "使ってわかった良さ"],
-         voice="第2位は、グッズビー。実際に使ってわかった、良いところを紹介します",
-         sfx=[("start", "drum-japanese2.mp3")]),
-    dict(name="④ 第1位", img="sample/001", rank="第1位", label=L1,
-         telop=["グッズA", "◯◯円（税込）", "毎日使うほどお気に入り"],
-         voice="そして第1位は、グッズエー。毎日使うほどお気に入りの理由が入ります",
-         sfx=[("start", "drum-japanese2.mp3")]),
-    dict(name="⑤ 締め", img="sample/004",
-         telop=["あなたの推し", "ジブリグッズは？", "コメントで教えてね"],
-         voice="あなたの推しジブリグッズは？コメントで教えてね",
-         sfx=[("start", "decision52.mp3")]),
+    dict(name="① つかみ", kind="title", imgs=["sample/003", "sample/002", "sample/001"],
+         telop=["{ガチで}買ってよかった", "ジブリグッズ3選✨"], teaser="最後の1位が神すぎた…",
+         voice="ガチで買ってよかった、ジブリグッズ3選！最後の1位は、神すぎました",
+         sfx=[(0.0, "question1.mp3")]),
+    dict(name="② 第3位", kind="rank", rank="第3位", img="sample/003", tilt=-3, price="◯◯円",
+         telop=["グッズC"],
+         voice="第3位は、グッズシー。お値段は、まるまる円です",
+         sfx=[(0.0, "drum-japanese2.mp3"), (0.9, "decision22.mp3")]),
+    dict(name="③ 第3位の推し", kind="item", img="sample/003", tilt=2, label="第3位",
+         telop=["✅ {推しポイント①}", "✅ {推しポイント②}"],
+         voice="推しポイントは、ここに2つ入ります",
+         sfx=[(-0.1, "highspeed-movement1.mp3")]),
+    dict(name="④ 第2位", kind="rank", rank="第2位", img="sample/002", tilt=3, price="◯◯円",
+         telop=["グッズB"],
+         voice="第2位は、グッズビー。お値段は、まるまる円",
+         sfx=[(0.0, "drum-japanese2.mp3"), (0.9, "decision22.mp3")]),
+    dict(name="⑤ 第2位の推し", kind="item", img="sample/002", tilt=-2, label="第2位",
+         telop=["✅ {使ってわかった良さ}", "✅ {ここが最高}"],
+         voice="実際に使ってわかった良いところを、ここで紹介します",
+         sfx=[(-0.1, "highspeed-movement1.mp3")]),
+    dict(name="⑥ 第1位", kind="rank", rank="第1位", img="sample/001", tilt=-3, price="◯◯円",
+         telop=["グッズA"],
+         voice="そして第1位は、グッズエー。お値段は、まるまる円",
+         sfx=[(0.0, "drum-japanese2.mp3"), (0.9, "decision22.mp3")]),
+    dict(name="⑦ 第1位の推し", kind="item", img="sample/001", tilt=2, label="第1位",
+         telop=["✅ {毎日使うほどお気に入り}", "✅ {ここが神}"],
+         voice="毎日使うほどお気に入りの理由が、ここに入ります",
+         sfx=[(-0.1, "highspeed-movement1.mp3"), (0.4, "eye-shine1.mp3")]),
+    dict(name="⑧ 締め", kind="end", img="sample/004", tilt=-2,
+         telop=["あなたの推しグッズは？", "{コメント}で教えてね💬"],
+         voice="あなたの推しジブリグッズは？コメントで教えてね。保存して、見返してね",
+         sfx=[(0.0, "decision52.mp3")]),
 ]
-for _c in CUTS:              # 全カット: ぼかし背景＋元の写真を画面の上下中央に (①だけ 3 枚を縦に 3 分割)
-    _c.update(layout="stack" if "stack" in _c else "blur", top=PIC_TOP)
-SWAP_AT = 0.45       # ④ で 2 枚目に切り替える位置 (カット内の比率)
-SWAP_LEN = 0.6
 
 
-# ---- ナレーション (VOICEVOX) ------------------------------------------------
+# ---- ナレーション -------------------------------------------------------------
 def post(path, params, body=b""):
     req = urllib.request.Request(f"{ENGINE}{path}?{urllib.parse.urlencode(params)}", data=body,
                                  method="POST", headers={"Content-Type": "application/json"})
@@ -110,267 +111,266 @@ def build_timeline():
     t = 0.0
     for c in CUTS:
         c["audio"], c["kana"] = synth(c["voice"])
-        dur = len(c["audio"]) / SR
         c["start"] = t
-        c["voice_start"] = t + (RANK_LEAD if c.get("rank") else LEAD)
-        c["end"] = round((c["voice_start"] + dur + TAIL) * FPS) / FPS
+        c["voice_start"] = t + (RANK_LEAD if c["kind"] == "rank" else LEAD)
+        c["end"] = round((c["voice_start"] + len(c["audio"]) / SR + TAIL) * FPS) / FPS
         t = c["end"]
     return t
 
 
-# ---- 映像 -------------------------------------------------------------------
-_img = {}
+# ---- 描画の部品 ---------------------------------------------------------------
+BG = Image.open(HERE / "assets" / "bg_grid.jpg").convert("RGB").resize((W, H))
+_cache = {}
+
+
+def font(size, weight=b"Black"):
+    key = ("font", size, weight)
+    if key not in _cache:
+        f = ImageFont.truetype(str(FONT), size)
+        f.set_variation_by_name(weight)
+        _cache[key] = f
+    return _cache[key]
+
+
+def emoji(ch, size):
+    key = ("emoji", ch, size)
+    if key not in _cache:
+        e = Image.new("RGBA", (160, 160), (0, 0, 0, 0))
+        ImageDraw.Draw(e).text((0, 0), ch, font=ImageFont.truetype(EMOJI_FONT, 109), embedded_color=True)
+        e = e.crop(e.getbbox())
+        _cache[key] = e.resize((size, round(size * e.height / e.width)), Image.LANCZOS)
+    return _cache[key]
 
 
 def load(name):
-    if name not in _img:
+    if name not in _cache:
         work, num = name.split("/")
-        _img[name] = Image.open(RAW / work / f"{work}{num}.jpg").convert("RGB")
-    return _img[name]
+        _cache[name] = Image.open(RAW / work / f"{work}{num}.jpg").convert("RGB")
+    return _cache[name]
 
 
-def crop_frame(name, focus, face_y, crop_h, z):
-    """顔 (focus) を出力の face_y の高さに置いて 9:16 に切り抜く。z でズーム"""
-    im = load(name)
-    ch = crop_h / z
-    cw = ch * W / H
-    fx, fy = focus
-    x0 = min(max(fx - cw / 2, 0), im.width - cw)
-    y0 = min(max(fy - face_y * ch, 0), im.height - ch)
-    return im.resize((W, H), Image.BICUBIC, box=(x0, y0, x0 + cw, y0 + ch))
+def ease_back(x):
+    """0→1 で少し行き過ぎて戻る (ポンッと弾む)"""
+    x = min(max(x, 0.0), 1.0)
+    c = 1.70158
+    return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2
 
 
-_bg = {}
-
-
-BG = Image.open(HERE / "assets" / "bg_grid.jpg").convert("RGB").resize((W, H))  # 方眼の背景
-CARD_W = 960          # 写真カードの幅 (左右に方眼が見えるよう少し小さく)
-BORDER = 14
-
-
-def put_card(frame, photo, x, y):
-    """写真に白いフチと影を付けて、背景の上に置く"""
-    w, h = photo.size
-    shadow = Image.new("L", (w + 2 * BORDER + 80, h + 2 * BORDER + 80), 0)
-    ImageDraw.Draw(shadow).rectangle((40, 40, 40 + w + 2 * BORDER, 40 + h + 2 * BORDER), fill=110)
-    shadow = shadow.filter(ImageFilter.GaussianBlur(18))
-    frame.paste((40, 60, 40), (x - BORDER - 40 + 10, y - BORDER - 40 + 16), shadow)
-    frame.paste((255, 255, 255), (x - BORDER, y - BORDER, x + w + BORDER, y + h + BORDER))
-    frame.paste(photo, (x, y))
-
-
-def zoomed(im, z, size, box=None):
-    bx, bw = box if box else (0, im.width)
-    cw, ch = bw / z, im.height / z
-    cx, cy = bx + (bw - cw) / 2, (im.height - ch) / 2
-    return im.resize(size, Image.BICUBIC, box=(cx, cy, cx + cw, cy + ch))
-
-
-def blur_frame(name, top, z, box=None):
-    """方眼の背景に、写真カードを上下中央 (テロップの上) に置く"""
-    im = load(name)
-    frame = BG.copy()
-    bw = box[1] if box else im.width
-    h = round(CARD_W * im.height / bw)
-    y = top + (round(W * 1038 / 1920) - h) // 2
-    put_card(frame, zoomed(im, z, (CARD_W, h), box), (W - CARD_W) // 2, y)
-    return frame
-
-
-STACK_GAP = 40
-STACK_W = 1000
-
-
-def stack_frame(names, z):
-    """3 枚の写真カードを方眼の上に縦に並べる。それぞれの写真の中でゆっくりズーム"""
-    ph = round(STACK_W * 1038 / 1920)
-    frame = BG.copy()
-    top = (H - 3 * ph - 2 * STACK_GAP) // 2
-    for k, name in enumerate(names):
-        put_card(frame, zoomed(load(name), z, (STACK_W, ph)), (W - STACK_W) // 2, top + k * (ph + STACK_GAP))
-    return frame
-
-
-def picture(c, lt, dur, which=1):
-    z = 1 + ZOOM * min(max(lt / dur, 0), 1)
-    if c["layout"] == "stack":
-        return stack_frame(c["stack"], z)
-    if c["layout"] == "blur":
-        if which == 2:
-            return blur_frame(c["img2"], c["top"], z, c.get("box2"))
-        return blur_frame(c["img"], c["top"], z, c.get("box"))
-    return crop_frame(c["img"], c["focus"], c["face_y"], c["crop_h"], z)
+def place(frame, el, cx, cy, scale=1.0, angle=0.0, alpha=1.0):
+    """RGBA の部品を中心 (cx, cy) に、拡大・回転・透明度をつけて貼る"""
+    if scale <= 0.01 or alpha <= 0.01:
+        return
+    if scale != 1.0:
+        el = el.resize((max(1, round(el.width * scale)), max(1, round(el.height * scale))), Image.BICUBIC)
+    if angle:
+        el = el.rotate(angle, resample=Image.BICUBIC, expand=True)
+    if alpha < 1.0:
+        el = el.copy()
+        el.putalpha(el.getchannel("A").point(lambda v: int(v * alpha)))
+    frame.alpha_composite(el, (round(cx - el.width / 2), round(cy - el.height / 2)))
 
 
 def is_emoji(ch):
-    return ord(ch) >= 0x1F300
+    o = ord(ch)
+    return o >= 0x1F000 or 0x2600 <= o <= 0x27BF   # 絵文字だけ (日本語の文字は含まない)
 
 
-def telop_image(lines, size):
-    f = ImageFont.truetype(str(FONT), size)
-    f.set_variation_by_name(b"Black")
-    ef = ImageFont.truetype(EMOJI_FONT, 109)
-    sw = max(6, size // 8)
-    lh = int(size * 1.3)
-    rendered = []
-    for line in lines:
-        parts, x = [], 0
-        for ch in line:
-            if is_emoji(ch):
-                e = Image.new("RGBA", (136, 128), (0, 0, 0, 0))
-                ImageDraw.Draw(e).text((0, 0), ch, font=ef, embedded_color=True)
-                e = e.crop(e.getbbox()).resize((int(size * 1.25), int(size * 1.25 * 90 / 120)), Image.LANCZOS)
-                parts.append(("img", e, x))
-                x += e.width + 4
-            else:
-                w = f.getlength(ch)
-                parts.append(("txt", ch, x))
-                x += w
-        rendered.append((parts, x))
-    width = int(max(w for _, w in rendered)) + sw * 2 + 8
-    im = Image.new("RGBA", (width, lh * len(lines) + sw * 2 + 10), (0, 0, 0, 0))
+def text_line(line, size, fill="white", stroke="black"):
+    """1 行のテロップ。{ } の中は黄色、絵文字はカラー"""
+    f = font(size)
+    sw = max(6, size // 7)
+    parts, x, color = [], 0, fill
+    for ch in line:
+        if ch == "{":
+            color = YELLOW
+            continue
+        if ch == "}":
+            color = fill
+            continue
+        if is_emoji(ch):
+            e = emoji(ch, int(size * 1.05))
+            parts.append(("e", e, x))
+            x += e.width + 6
+        elif ch == "️":
+            continue
+        else:
+            parts.append(("t", (ch, color), x))
+            x += f.getlength(ch)
+    im = Image.new("RGBA", (int(x) + sw * 2 + 6, int(size * 1.35) + sw * 2), (0, 0, 0, 0))
     d = ImageDraw.Draw(im)
-    for i, (parts, w) in enumerate(rendered):
-        ox = (width - w) / 2
-        y = sw + i * lh
-        for kind, v, x in parts:
-            if kind == "txt":
-                d.text((ox + x, y), v, font=f, fill="white", stroke_width=sw, stroke_fill="black")
-        for kind, v, x in parts:
-            if kind == "img":
-                im.alpha_composite(v, (int(ox + x), int(y + size * 0.3)))
+    for kind, v, px in parts:
+        if kind == "t":
+            d.text((sw + px, sw), v[0], font=f, fill=v[1], stroke_width=sw, stroke_fill=stroke)
+    for kind, v, px in parts:
+        if kind == "e":
+            im.alpha_composite(v, (int(sw + px), int(sw + size * 0.18)))
     return im
 
 
-def title_size():
-    c = next(c for c in CUTS if c.get("title"))
-    size = 110
-    while telop_image(c["telop"], size).width > TITLE_MAX_W:
-        size -= 2
-    return size
+def pill(el, color=GREEN, alpha=230, pad=(34, 14), radius=40):
+    """テロップの行を、角の丸いシール風のパネルに乗せる"""
+    p = Image.new("RGBA", (el.width + pad[0] * 2, el.height + pad[1] * 2), (0, 0, 0, 0))
+    ImageDraw.Draw(p).rounded_rectangle((0, 0, p.width - 1, p.height - 1), radius=radius, fill=color + (alpha,))
+    p.alpha_composite(el, pad)
+    return p
 
 
-def fit_size():
-    """全カットで同じ文字サイズ。一番長い行が幅に収まる大きさにする"""
-    size = 80
-    while size > 30:
-        if all(telop_image(c["telop"], size).width <= TELOP_MAX_W for c in CUTS if not c.get("title")):
-            return size
-        size -= 2
-    return size
+def fit(el, max_w):
+    return el if el.width <= max_w else el.resize((max_w, round(el.height * max_w / el.width)), Image.LANCZOS)
 
 
-LABEL_COLOR = {"第3位": (176, 112, 60), "第2位": (120, 130, 150), "第1位": (214, 160, 20)}
-_labels = {}
+def polaroid(photo_name, t, w=760):
+    """チェキ風カード: 白い枠 (下を太く)＋マスキングテープ＋影。写真の中はゆっくりズーム"""
+    im = load(photo_name)
+    z = 1 + 0.06 * min(t / 4.0, 1)
+    ph = round(w * im.height / im.width)
+    cw, ch = im.width / z, im.height / z
+    photo = im.resize((w, ph), Image.BICUBIC, box=((im.width - cw) / 2, (im.height - ch) / 2,
+                                                   (im.width + cw) / 2, (im.height + ch) / 2))
+    m, mb = 26, 90
+    card = Image.new("RGBA", (w + 2 * m + 60, ph + m + mb + 60), (0, 0, 0, 0))
+    sh = Image.new("L", card.size, 0)
+    ImageDraw.Draw(sh).rectangle((36, 42, 30 + w + 2 * m + 6, 30 + ph + m + mb + 12), fill=120)
+    card.paste((30, 50, 30, 255), (0, 0), sh.filter(ImageFilter.GaussianBlur(14)))
+    ImageDraw.Draw(card).rectangle((30, 30, 30 + w + 2 * m, 30 + ph + m + mb), fill=(255, 255, 255, 255))
+    card.paste(photo, (30 + m, 30 + m))
+    tape = Image.new("RGBA", (200, 56), (255, 236, 150, 190))
+    for i in range(0, 200, 24):  # テープの斜めストライプ
+        ImageDraw.Draw(tape).line([(i, 0), (i + 20, 56)], fill=(255, 255, 255, 70), width=8)
+    for x, ang in ((70, 32), (card.width - 70, -32)):
+        tp = tape.rotate(ang, expand=True, resample=Image.BICUBIC)
+        card.alpha_composite(tp, (x - tp.width // 2, 34 - tp.height // 2))
+    return card
 
 
-def label_image(text):
-    """写真の上の左に出す「第○位 作品名」ラベル (3位=銅, 2位=銀, 1位=金)"""
-    if text not in _labels:
-        f = ImageFont.truetype(str(FONT), 52)
-        f.set_variation_by_name(b"Black")
-        color = LABEL_COLOR[text[:3]]
-        w = int(f.getlength(text)) + 52
-        im = Image.new("RGBA", (w, 88), (0, 0, 0, 0))
+def price_tag(text):
+    key = ("price", text)
+    if key not in _cache:
+        r = 128
+        im = Image.new("RGBA", (r * 2 + 20, r * 2 + 20), (0, 0, 0, 0))
         d = ImageDraw.Draw(im)
-        d.rounded_rectangle((0, 0, w - 1, 87), radius=20, fill=color + (255,), outline=(255, 255, 255, 255), width=5)
-        d.text((w // 2, 42), text, font=f, fill="white", anchor="mm")
-        _labels[text] = im
-    return _labels[text]
+        d.ellipse((14, 18, 14 + 2 * r, 18 + 2 * r), fill=(0, 0, 0, 70))
+        d.ellipse((10, 10, 10 + 2 * r, 10 + 2 * r), fill=RED + (255,), outline=(255, 255, 255, 255), width=8)
+        d.text((10 + r, 10 + r - 34), "お値段", font=font(38, b"Bold"), fill="white", anchor="mm")
+        d.text((10 + r, 10 + r + 22), text, font=font(52), fill="white", anchor="mm")
+        _cache[key] = im
+    return _cache[key]
 
 
-_ranks = {}
+def rank_text(text):
+    key = ("rank", text)
+    if key not in _cache:
+        f = font(210)
+        w = int(f.getlength(text)) + 80
+        im = Image.new("RGBA", (w, 290), (0, 0, 0, 0))
+        ImageDraw.Draw(im).text((w // 2, 145), text, font=f, fill=RANK_COLOR[text], anchor="mm",
+                                stroke_width=16, stroke_fill="black")
+        _cache[key] = im
+    return _cache[key]
 
 
-def rank_image(text):
-    """順位発表の大きな「第○位」"""
-    if text not in _ranks:
-        f = ImageFont.truetype(str(FONT), 190)
-        f.set_variation_by_name(b"Black")
-        color = LABEL_COLOR[text]
-        w = int(f.getlength(text)) + 60
-        im = Image.new("RGBA", (w, 260), (0, 0, 0, 0))
-        ImageDraw.Draw(im).text((w // 2, 130), text, font=f, fill=color, anchor="mm", stroke_width=14, stroke_fill="black")
-        _ranks[text] = im
-    return _ranks[text]
+def small_rank(text):
+    key = ("srank", text)
+    if key not in _cache:
+        el = text_line(text, 64, fill=RANK_COLOR[text])
+        _cache[key] = el
+    return _cache[key]
 
 
-def make_badges():
-    pass
+def teaser_tag(text):
+    el = text_line(text, 58)
+    return pill(el, color=RED, alpha=255, pad=(30, 10), radius=20)
 
 
-def cut_frame(k, t):
-    """カット k を絶対時刻 t で描く (クロスフェードのため前後にはみ出してもよい)"""
-    c = CUTS[k]
-    lt = t - c["start"]
-    dur = c["end"] - c["start"]
-    if "img2" in c:
-        s0 = dur * c.get("swap_at", SWAP_AT) - SWAP_LEN / 2
-        a = min(max((lt - s0) / SWAP_LEN, 0), 1)
-        frame = picture(c, lt, dur, 1)
-        if a > 0:
-            frame = Image.blend(frame, picture(c, lt, dur, 2), a)
-    else:
-        a = 0
-        frame = picture(c, lt, dur)
-    frame = frame.convert("RGBA")
-    if c.get("rank"):      # 順位発表: 写真の上に大きく。少し大きい所から縮んで止まる
-        r = rank_image(c["rank"])
-        sc = 1.25 - 0.25 * min(lt / 0.2, 1) if lt >= 0 else 1.25
-        if sc != 1:
-            r = r.resize((int(r.width * sc), int(r.height * sc)), Image.BICUBIC)
-        frame.alpha_composite(r, (W // 2 - r.width // 2, PIC_TOP - 40 - r.height))
-    elif c.get("label"):
-        b = label_image(c["label"])
-        frame.alpha_composite(b, (32, PIC_TOP - b.height - 20))
-    a = min(max(lt / 0.12, 0), 1)  # テロップはカット頭 (ナレーションの 0.2 秒前) に出す
-    if a > 0:
-        tl = c["telop_img"]
-        if a < 1:
-            tl = tl.copy()
-            tl.putalpha(tl.getchannel("A").point(lambda v: int(v * a)))
-        if c.get("title"):
-            frame.alpha_composite(tl, (W // 2 - tl.width // 2, H // 2 - tl.height // 2))
-        else:
-            frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_TOP))
+# ---- 1 フレーム ---------------------------------------------------------------
+CARD_CY = 820            # 写真カードの中心
+CARD_CX = (SAFE_RIGHT + 20) // 2   # 右端 15% (ボタン) にかからないよう少し左寄せ
+TELOP_Y0 = 1215          # テロップ 1 行目の中心
+
+
+def draw_telop(frame, c, lt, y0=TELOP_Y0, gap=118, delay=0.0, size=72):
+    for i, line in enumerate(c["telop"]):
+        el = fit(pill(text_line(line, size)), SAFE_RIGHT - 60)
+        p = ease_back((lt - delay - i * 0.22) / 0.28)
+        place(frame, el, (SAFE_RIGHT + 20) / 2 + 10, y0 + i * gap, scale=0.6 + 0.4 * p, alpha=min(1, p * 1.5))
+
+
+def cut_frame(c, lt):
+    frame = BG.copy().convert("RGBA")
+    shake = (0, 0)
+    if c["kind"] == "rank" and lt < 0.35:    # 順位発表で画面が揺れる
+        a = 22 * (1 - lt / 0.35)
+        shake = (a * math.sin(lt * 90), a * math.cos(lt * 70))
+
+    if c["kind"] == "title":
+        pos = [(270, 430, -7, 420), (680, 470, 6, 420), (460, 1390, -3, 600)]   # (x, y, 傾き, 幅)
+        for k, (name, (x, y, ang, w)) in enumerate(zip(c["imgs"], pos)):
+            p = ease_back((lt - k * 0.12) / 0.3)
+            place(frame, polaroid(name, lt, w=w), x, y, scale=0.5 + 0.5 * p, angle=ang, alpha=min(1, p * 2))
+        band_p = ease_back((lt - 0.25) / 0.3)
+        lines = [text_line(line, 104) for line in c["telop"]]
+        for i, el in enumerate(lines):
+            place(frame, fit(pill(el, alpha=235), SAFE_RIGHT - 40), CARD_CX, 830 + i * 180, scale=0.7 + 0.3 * band_p,
+                  alpha=min(1, band_p * 2))
+        tp = ease_back((lt - 0.9) / 0.3)
+        place(frame, teaser_tag(c["teaser"]), CARD_CX, 1150, scale=tp, angle=-3)
+        for k, (x, y) in enumerate(((120, 700), (960, 1080))):   # キラキラが揺れる
+            place(frame, emoji("✨", 110), x, y + 12 * math.sin(lt * 4 + k), alpha=min(1, lt * 3))
+        return frame.convert("RGB")
+
+    # 写真カード
+    p = ease_back(lt / 0.32)
+    place(frame, polaroid(c["img"], lt), CARD_CX + shake[0], CARD_CY + shake[1], scale=0.75 + 0.25 * p,
+          angle=c.get("tilt", 0), alpha=min(1, p * 2))
+
+    if c["kind"] == "rank":
+        r = ease_back(lt / 0.25)
+        place(frame, rank_text(c["rank"]), W / 2 + shake[0], 300 + shake[1], scale=1.6 - 0.6 * r)
+        for k, x in enumerate((150, 930)):
+            place(frame, emoji("✨", 120), x, 290 + 14 * math.sin(lt * 5 + k * 2), alpha=min(1, lt * 4))
+        tp = ease_back((lt - 0.85) / 0.3)
+        place(frame, price_tag(c["price"]), CARD_CX + 300, 560, scale=tp, angle=12)
+        draw_telop(frame, c, lt, delay=0.1, size=96)
+    elif c["kind"] == "item":
+        place(frame, small_rank(c["label"]), 190, 330, angle=4)
+        draw_telop(frame, c, lt)
+    else:  # end
+        draw_telop(frame, c, lt)
+        sp = ease_back((lt - 0.6) / 0.3)
+        place(frame, teaser_tag("保存して見返してね📌"), W / 2, 330, scale=sp, angle=-3)
+
+    if c["kind"] == "rank" and lt < 0.3:     # 白フラッシュ
+        frame.alpha_composite(Image.new("RGBA", (W, H), (255, 255, 255, int(255 * (1 - lt / 0.3) ** 1.5))))
     return frame.convert("RGB")
 
 
 def render_frame(t, total):
     k = max(i for i, c in enumerate(CUTS) if c["start"] <= t + 1e-9)
-    frame = cut_frame(k, t)
-    # 次のカットとのクロスフェード (境目をまたいで XFADE 秒)
-    if k + 1 < len(CUTS) and t > CUTS[k]["end"] - XFADE / 2:
-        a = (t - (CUTS[k]["end"] - XFADE / 2)) / XFADE
-        frame = Image.blend(frame, cut_frame(k + 1, t), a)
-    if k > 0 and t < CUTS[k]["start"] + XFADE / 2:
-        a = (t - (CUTS[k]["start"] - XFADE / 2)) / XFADE
-        frame = Image.blend(cut_frame(k - 1, t), frame, a)
-    c = CUTS[k]
-    if c.get("rank") and t - c["start"] < FLASH:
-        a = int(255 * (1 - (t - c["start"]) / FLASH) ** 1.5)
-        frame = frame.convert("RGBA")
-        frame.alpha_composite(Image.new("RGBA", (W, H), (255, 255, 255, a)))
-        frame = frame.convert("RGB")
-    # 最後の 0.5 秒で ①の最初のフレームへ (ループ再生でつながる)
-    if t > total - LOOP_FADE:
-        a = (t - (total - LOOP_FADE)) / (LOOP_FADE - 1 / FPS)  # 最後のフレームで①の頭と完全に一致
-        frame = Image.blend(frame, cut_frame(0, 0.0), min(a, 1))
+    frame = cut_frame(CUTS[k], t - CUTS[k]["start"])
+    if t > total - 0.4:  # 最後は①の頭へ戻してループでつながるように
+        a = min(1, (t - (total - 0.4)) / (0.4 - 1 / FPS))
+        frame = Image.blend(frame, cut_frame(CUTS[0], 0.0), a)
     return frame
 
 
 # ---- 音声 -------------------------------------------------------------------
 def load_sfx(name):
-    raw = subprocess.run([FFMPEG, "-loglevel", "error", "-i", str(ROOT / "chihiro-video" / "sfx" / name), "-f", "s16le",
-                          "-ac", "1", "-ar", str(SR), "-"], capture_output=True, check=True).stdout
+    path = SFX_DIR / name
+    if not path.exists():  # 効果音ラボの素材は再配布禁止なので、無ければサイトから取る
+        cat = {"drum-japanese2.mp3": "anime", "question1.mp3": "anime", "eye-shine1.mp3": "anime",
+               "highspeed-movement1.mp3": "battle"}.get(name, "button")
+        SFX_DIR.mkdir(parents=True, exist_ok=True)
+        subprocess.run(["curl", "-sSf", "-A", "Mozilla/5.0", "-e", f"https://soundeffect-lab.info/sound/{cat}/",
+                        "-o", str(path), f"https://soundeffect-lab.info/sound/{cat}/mp3/{name}"], check=True)
+    raw = subprocess.run([FFMPEG, "-loglevel", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", str(SR), "-"],
+                         capture_output=True, check=True).stdout
     a = np.frombuffer(raw, "<i2").astype(np.float64) / 32768
     idx = np.nonzero(np.abs(a) > 0.02)[0]
     return a[max(0, idx[0] - 50):] if len(idx) else a
 
 
 def active_rms(a):
-    env = np.abs(a)
-    act = a[env > 0.02]
+    act = a[np.abs(a) > 0.02]
     return np.sqrt(np.mean(act ** 2)) if len(act) else 1e-9
 
 
@@ -380,70 +380,43 @@ def make_audio(total):
     for c in CUTS:
         a = int(c["voice_start"] * SR)
         voice[a:a + len(c["audio"])] += c["audio"]
-    voice *= 10 ** (-13 / 20) / active_rms(voice)          # 話し声の平均を -13dBFS に
+    voice *= 10 ** (-13 / 20) / active_rms(voice)
     buf += voice
     target = active_rms(voice) * 10 ** (SFX_DB / 20)
     events = []
-    for k, c in enumerate(CUTS):
-        for when, name in c["sfx"]:
-            if when == "start":
-                t = c["start"]
-            elif when == "cut_in":                           # 切り替わりの瞬間に「シュッ」が来るよう少し前から
-                t = max(0.0, c["start"] - 0.12)
-            else:                                            # ④ の 2 枚目への切り替え
-                d = c["end"] - c["start"]
-                t = c["start"] + d * c.get("swap_at", SWAP_AT) - 0.1
+    for c in CUTS:
+        for off, name in c["sfx"]:
+            t = max(0.0, c["start"] + off)
             clip = load_sfx(name)
             clip = clip * target / active_rms(clip)
             a = int(t * SR)
             buf[a:a + len(clip)] += clip[: len(buf) - a]
             events.append((round(t, 2), name))
-    buf = buf[: int(SR * total)]
-    path = OUT / "_goods_mix.f32"          # 32bit float のまま渡し、ffmpeg のリミッターで頭だけ抑える
-    buf.astype("<f4").tofile(path)
+    path = OUT / "_goods_mix.f32"
+    buf[: int(SR * total)].astype("<f4").tofile(path)
     return path, events
 
 
 def main():
     OUT.mkdir(exist_ok=True)
     total = build_timeline()
-    size = fit_size()
-    for c in CUTS:
-        c["telop_img"] = telop_image(c["telop"], title_size() if c.get("title") else size)
-        if not c.get("title"):  # 方眼の線と文字が重ならないよう、深緑の半透明パネルを敷く
-            t = c["telop_img"]
-            panel = Image.new("RGBA", (t.width + 60, t.height + 30), (0, 0, 0, 0))
-            ImageDraw.Draw(panel).rounded_rectangle((0, 0, panel.width - 1, panel.height - 1), radius=36,
-                                                    fill=(38, 96, 56, 215))
-            panel.alpha_composite(t, (30, 15))
-            c["telop_img"] = panel
-        if c.get("title"):   # 画面中央に置くので、読みやすいよう半透明の黒い帯を敷く
-            t = c["telop_img"]
-            band = Image.new("RGBA", (W, t.height + 60), (38, 96, 56, 220))
-            band.alpha_composite(t, ((W - t.width) // 2, 30))
-            c["telop_img"] = band
-    make_badges()
     wav, events = make_audio(total)
-
     cmd = [FFMPEG, "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", str(wav),
-           "-map", "0:v", "-map", "1:a", "-af", "alimiter=limit=0.89:level=false", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
-           "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "192k", "-ac", "2",
-           "-t", f"{total:.3f}", "-movflags", "+faststart", str(OUT / "goods_sample.mp4")]
+           "-map", "0:v", "-map", "1:a", "-af", "alimiter=limit=0.89:level=false",
+           "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
+           "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-t", f"{total:.3f}", "-movflags", "+faststart",
+           str(OUT / "goods_sample.mp4")]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
-    n = round(total * FPS)
-    for i in range(n):
+    for i in range(round(total * FPS)):
         proc.stdin.write(render_frame(i / FPS, total).tobytes())
     proc.stdin.close()
     proc.wait()
     wav.unlink()
-
-    info = dict(total=round(total, 3), font_size=size, sfx=events,
-                cuts=[dict(name=c["name"], img=c["img"], img2=c.get("img2"), start=round(c["start"], 3),
-                           end=round(c["end"], 3), voice_start=round(c["voice_start"], 3),
-                           voice_end=round(c["voice_start"] + len(c["audio"]) / SR, 3), kana=c["kana"])
-                      for c in CUTS])
+    info = dict(total=round(total, 3), sfx=events,
+                cuts=[dict(name=c["name"], start=round(c["start"], 3), end=round(c["end"], 3),
+                           voice_start=round(c["voice_start"], 3), kana=c["kana"]) for c in CUTS])
     (OUT / "goods_sample_timeline.json").write_text(json.dumps(info, ensure_ascii=False, indent=1))
     print(json.dumps(info, ensure_ascii=False, indent=1))
 
