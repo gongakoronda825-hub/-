@@ -1,0 +1,78 @@
+{
+ "total": 20.633,
+ "font_size": 72,
+ "sfx": [
+  [
+   0.0,
+   "question1.mp3"
+  ],
+  [
+   3.37,
+   "drum-japanese2.mp3"
+  ],
+  [
+   7.67,
+   "drum-japanese2.mp3"
+  ],
+  [
+   12.6,
+   "drum-japanese2.mp3"
+  ],
+  [
+   17.63,
+   "decision52.mp3"
+  ]
+ ],
+ "cuts": [
+  {
+   "name": "① 題名",
+   "img": "sample/004",
+   "img2": null,
+   "start": 0.0,
+   "end": 3.367,
+   "voice_start": 0.2,
+   "voice_end": 3.062,
+   "kana": "ジブリ_スキガ'、ホンキデ'/カッテヨ'カッタ、ジブリグッズサンセン'"
+  },
+  {
+   "name": "② 第3位",
+   "img": "sample/003",
+   "img2": null,
+   "start": 3.367,
+   "end": 7.667,
+   "voice_start": 4.067,
+   "voice_end": 7.372,
+   "kana": "ダ'イ/サンイ'ワ、グッズ'スィイ、ココニ'、オススメノ'/ポイントガ'/ハイリマ'_ス"
+  },
+  {
+   "name": "③ 第2位",
+   "img": "sample/002",
+   "img2": null,
+   "start": 7.667,
+   "end": 12.6,
+   "voice_start": 8.367,
+   "voice_end": 12.314,
+   "kana": "ダ'イ/ニイ'ワ、グ'ッズ/ビ'イ、ジッサイニ'/_ツカッテ'/ワカ'ッタ、ヨ'イ/トコロオ'/ショオカイ'/シマ'_ス"
+  },
+  {
+   "name": "④ 第1位",
+   "img": "sample/001",
+   "img2": null,
+   "start": 12.6,
+   "end": 17.633,
+   "voice_start": 13.3,
+   "voice_end": 17.328,
+   "kana": "ソ_シテ'/ダ'イ/イチイ'ワ、グ'ッズエエ、マ'イニ_チ/ツカウホド'/オキニイリノ'/リユウガ'/ハイリマ'_ス"
+  },
+  {
+   "name": "⑤ 締め",
+   "img": "sample/004",
+   "img2": null,
+   "start": 17.633,
+   "end": 20.633,
+   "voice_start": 17.833,
+   "voice_end": 20.328,
+   "kana": "アナ'タノ/オシ'/ジブリグ'ッズワ？、コメントデ'/オシエテネ'"
+  }
+ ]
+}
