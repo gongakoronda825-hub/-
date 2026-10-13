@@ -37,7 +37,7 @@ RED = (225, 45, 45)
 YELLOW = (255, 214, 0)
 
 # 読みは Wikipedia (作品記事のふりがな) と作中のセリフで確認したもの
-TITLE = dict(imgs=["nausicaa/009", "mononoke/024", "chihiro/011"],
+TITLE = dict(imgs=["nausicaa/009", "mononoke/024", "chihiro/011"], teaser="乙事主",
              telop=["読めたら真の", "ジブリファン", "漢字クイズ"],
              voice="読めたら真のジブリファン！ジブリ漢字クイズ！")
 QUESTIONS = [
@@ -77,23 +77,23 @@ def build_timeline():
     """区間を作る。各区間: kind, start, end と、音声 (voices: [(秒, 波形)]) と効果音 (sfx: [(秒, 名前)])"""
     segs, t = [], 0.0
     a, kana = synth(TITLE["voice"])
-    segs.append(dict(kind="title", start=0.0, end=round((0.15 + len(a) / SR + 0.5) * FPS) / FPS,
-                     voices=[(0.15, a)], sfx=[(0.0, "question1.mp3")], kana=[kana]))
+    segs.append(dict(kind="title", start=0.0, end=round((0.05 + len(a) / SR + 0.2) * FPS) / FPS,
+                     voices=[(0.05, a)], sfx=[(0.0, "question1.mp3")], kana=[kana]))
     t = segs[-1]["end"]
     for n, q in enumerate(QUESTIONS, 1):
         qa, k1 = synth(f"第{n}問")
         aa, k2 = synth(f"正解は、{q['yomi']}！")
-        q_end = 0.15 + len(qa) / SR
-        cd = q_end + 0.15                         # カウントダウン開始
+        q_end = 0.05 + len(qa) / SR
+        cd = q_end + 0.05                         # カウントダウン開始 (無音を作らないよう、すぐに)
         rev = cd + COUNT                          # 答えを出す瞬間
-        end = round((rev + 0.3 + len(aa) / SR + 0.9) * FPS) / FPS
+        end = round((rev + 0.25 + len(aa) / SR + 0.15) * FPS) / FPS
         segs.append(dict(kind="q", q=q, n=n, start=t, end=t + end, cd=cd, rev=rev,
-                         voices=[(0.15, qa), (rev + 0.3, aa)],
-                         sfx=[(cd + i, "tick") for i in range(COUNT)] + [(rev, "correct1.mp3")], kana=[k1, k2]))
+                         voices=[(0.05, qa), (rev + 0.25, aa)],
+                         sfx=[(cd, "timer"), (rev, "correct1.mp3")], kana=[k1, k2]))
         t += end
     a, kana = synth(ENDING["voice"])
-    segs.append(dict(kind="end", start=t, end=t + round((0.2 + len(a) / SR + 1.0) * FPS) / FPS,
-                     voices=[(0.2, a)], sfx=[(0.0, "decision52.mp3")], kana=[kana]))
+    segs.append(dict(kind="end", start=t, end=t + round((0.05 + len(a) / SR + 0.4) * FPS) / FPS,
+                     voices=[(0.05, a)], sfx=[(0.0, "decision52.mp3")], kana=[kana]))
     return segs
 
 
@@ -165,11 +165,13 @@ def ease_back(x):
     return 1 + (c + 1) * (x - 1) ** 3 + c * (x - 1) ** 2
 
 
-def place(frame, el, cx, cy, scale=1.0, alpha=1.0):
+def place(frame, el, cx, cy, scale=1.0, alpha=1.0, angle=0.0):
     if scale <= 0.01 or alpha <= 0.01:
         return
     if scale != 1.0:
         el = el.resize((max(1, round(el.width * scale)), max(1, round(el.height * scale))), Image.BICUBIC)
+    if angle:
+        el = el.rotate(angle, resample=Image.BICUBIC, expand=True)
     if alpha < 1.0:
         el = el.copy()
         el.putalpha(el.getchannel("A").point(lambda v: int(v * alpha)))
@@ -259,8 +261,17 @@ def draw(seg, lt):
             p = im.resize((W, ph), Image.BICUBIC, box=((im.width - cw) / 2, (im.height - chh) / 2,
                                                        (im.width + cw) / 2, (im.height + chh) / 2))
             frame.paste(p, (0, top + k * (ph + 12)))
-        place(frame, band(TITLE["telop"], 104, color=(150, 20, 20), alpha=225), W / 2, H / 2,
+        place(frame, band(TITLE["telop"], 104, color=(150, 20, 20), alpha=225), W / 2, H / 2 - 120,
               scale=0.7 + 0.3 * ease_back(lt / 0.3), alpha=min(1, lt * 5))
+        # 問題のチラ見せ: 傾けた漢字カード＋「この漢字、読める？」の札
+        tq = next(q for q in QUESTIONS if q["kanji"] == TITLE["teaser"])
+        tp = ease_back((lt - 0.15) / 0.3)
+        place(frame, kanji_card(tq, 0), SAFE_RIGHT / 2 + 30, 1330, scale=(0.3 + 0.3 * tp), angle=-6,
+              alpha=min(1, tp * 2))
+        tag = outlined("この漢字、読める？", 58)
+        pill = Image.new("RGBA", (tag.width + 40, tag.height + 10), RED + (255,))
+        pill.alpha_composite(tag, (20, 5))
+        place(frame, pill, SAFE_RIGHT / 2 + 30, 1155, scale=tp, angle=4)
         return frame.convert("RGB")
 
     if seg["kind"] == "end":
@@ -307,9 +318,11 @@ def render_frame(t, segs, total):
 
 # ---- 音声 -------------------------------------------------------------------
 def load_sfx(name):
-    if name == "tick":                        # カウントダウンの「カチッ」は自前で合成
-        t = np.arange(int(SR * 0.06)) / SR
-        return (np.sin(2 * np.pi * 1500 * t) * np.exp(-t * 70)) * 0.8
+    if name == "timer":                       # 効果音ラボ「制限時間タイマー」をカウントダウンの長さに切る
+        a = load_sfx("quiz-timer1.mp3")[: int(SR * COUNT)]
+        fade = int(SR * 0.15)
+        a[-fade:] *= np.linspace(1, 0, fade)
+        return a
     raw = subprocess.run([FFMPEG, "-loglevel", "error", "-i", str(SFX_DIR / name), "-f", "s16le", "-ac", "1",
                           "-ar", str(SR), "-"], capture_output=True, check=True).stdout
     a = np.frombuffer(raw, "<i2").astype(np.float64) / 32768
@@ -335,7 +348,7 @@ def make_audio(segs, total):
     for s in segs:
         for off, name in s["sfx"]:
             clip = load_sfx(name)
-            clip = clip * target / active_rms(clip) * (0.8 if name == "tick" else 1.0)
+            clip = clip * target / active_rms(clip) * (0.7 if name == "timer" else 1.0)
             a = int((s["start"] + off) * SR)
             buf[a:a + len(clip)] += clip[: len(buf) - a]
     path = OUT / "_quiz_mix.f32"

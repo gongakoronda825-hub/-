@@ -17,6 +17,5 @@
   © 2001 Hayao Miyazaki/Studio Ghibli, NDDTM
 
 ■ ナレーション：VOICEVOX:四国めたん（ノーマル、話速 1.25） 規約 https://zunko.jp/con_ongen_kiyaku.html
-■ 効果音：効果音ラボ https://soundeffect-lab.info/ （クイズ出題1「デデン」、クイズ正解1「ピンポン」、決定ボタンを押す52「ポン」）
-          カウントダウンの「カチッ」はプログラムで合成
+■ 効果音：効果音ラボ https://soundeffect-lab.info/ （クイズ出題1「デデン」、制限時間タイマー、クイズ正解1「ピンポン」、決定ボタンを押す52「ポン」）
 ■ フォント：Noto Sans JP ／ Noto Color Emoji（SIL Open Font License）
