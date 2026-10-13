@@ -18,7 +18,7 @@ from pathlib import Path
 
 import imageio_ffmpeg
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import course  # noqa: E402
@@ -32,10 +32,14 @@ FONT = ROOT / "ghibli-video" / "fonts" / "NotoSansJP.ttf"
 EMOJI_FONT = "/usr/share/fonts/truetype/noto/NotoColorEmoji.ttf"
 
 W, H, FPS, SR = 1080, 1920, 30, 44100
-SEED = 30                   # 先頭の入れ替わり 19 回・1 位と 2 位の差 0.23 秒の回
+SEED = 92                   # 1 位と 2 位の差 0.008 秒の写真判定になる回
 ENGINE = "http://localhost:50021"
 SPEAKER = 2
 PODIUM = 3.6                # 表彰台を見せる秒数
+SLOW = 0.25                 # 写真判定のスローの速さ (0.25 = 4 倍スロー)
+SLOW_BEFORE = 0.8           # 1 位がゴールする何秒前からスローにするか (物理演算の時間)
+SLOW_AFTER = 0.25           # 2 位がゴールして何秒後に通常の速さに戻すか
+BG_PARALLAX = 0.25          # 背景はカメラの 1/4 の速さで動く
 
 # (作品名, ボールの名前, 画像, 顔の中心 x, y, 切り抜く大きさ, 色)
 RACERS = [
@@ -179,12 +183,39 @@ def course_image(segs):
 
 
 def background():
-    bg = Image.new("RGB", (W, H))
+    """背の高い空の絵: 上は昼の青空、コースを下るにつれて夕焼けに。雲を浮かべる。
+    カメラの 1/4 の速さで動かして (パララックス) 奥行きを出す"""
+    bh = H + int((COURSE_H + 400) * BG_PARALLAX) + 200
+    bg = Image.new("RGB", (W, bh))
     d = ImageDraw.Draw(bg)
-    for y in range(H):
-        t = y / H
-        d.line([(0, y), (W, y)], fill=(int(205 + 40 * t), int(232 + 15 * t), int(245 - 20 * t)))
-    return bg.convert("RGBA")
+    stops = [(0.0, (120, 190, 240)), (0.45, (170, 215, 245)), (0.75, (250, 205, 160)), (1.0, (240, 150, 160))]
+    for y in range(bh):
+        t = y / bh
+        for (t0, c0), (t1, c1) in zip(stops, stops[1:]):
+            if t0 <= t <= t1:
+                u = (t - t0) / (t1 - t0)
+                col = tuple(int(c0[k] + (c1[k] - c0[k]) * u) for k in range(3))
+                break
+        d.line([(0, y), (W, y)], fill=col)
+    # 夕日
+    sun = Image.new("RGBA", (700, 700), (0, 0, 0, 0))
+    ImageDraw.Draw(sun).ellipse((150, 150, 550, 550), fill=(255, 225, 150, 200))
+    bg.paste(sun.filter(ImageFilter.GaussianBlur(60)), (W // 2 - 350, bh - 1100), sun.filter(ImageFilter.GaussianBlur(60)))
+    # 雲 (ふわっとした楕円を重ねてぼかす)
+    rng = random.Random(11)
+    clouds = Image.new("RGBA", (W, bh), (0, 0, 0, 0))
+    cd = ImageDraw.Draw(clouds)
+    for _ in range(int(bh / 260)):
+        cx, cy = rng.uniform(-100, W + 100), rng.uniform(0, bh)
+        sc = rng.uniform(0.6, 1.4)
+        a = rng.randint(120, 200)
+        for _ in range(6):
+            w, h = rng.uniform(120, 260) * sc, rng.uniform(60, 120) * sc
+            ox, oy = rng.uniform(-150, 150) * sc, rng.uniform(-30, 30) * sc
+            cd.ellipse((cx + ox - w, cy + oy - h, cx + ox + w, cy + oy + h), fill=(255, 255, 255, a))
+    bg = bg.convert("RGBA")
+    bg.alpha_composite(clouds.filter(ImageFilter.GaussianBlur(18)))
+    return bg
 
 
 # ---- 1 フレーム ----------------------------------------------------------------
@@ -228,19 +259,40 @@ def confetti(frame, t0, t):
 
 
 class Renderer:
+    """sim 時間 (物理演算の時間) と video 時間 (動画の時間) を分ける。ゴール前後だけスローにする"""
+
     def __init__(self, res, voices):
         self.res = res
         self.frames = res["frames"]
         self.finish = res["finish"]
         self.order_final = sorted(self.finish, key=lambda i: self.finish[i])
         self.t_win = self.finish[self.order_final[0]]
+        self.t_2nd = self.finish[self.order_final[1]]
         self.t_third = self.finish[self.order_final[2]]
-        self.race_end = self.t_third + 1.2
+        self.gap = self.t_2nd - self.t_win
+        self.s0 = self.t_win - SLOW_BEFORE          # スロー開始 (sim)
+        self.s1 = self.t_2nd + SLOW_AFTER           # スロー終了 (sim)
+        self.race_end_s = self.t_third + 1.2
+        self.race_end = self.v_of(self.race_end_s)  # レース映像の終わり (video)
         self.total = self.race_end + PODIUM
         self.bg = background()
         self.course = course_image(res["segs"])
         self.cams = self._camera()
         self.voices = voices
+
+    # --- 時間の変換 ---
+    def v_of(self, s):
+        s = np.asarray(s, dtype=float)
+        v = np.where(s < self.s0, s, self.s0 + (np.minimum(s, self.s1) - self.s0) / SLOW)
+        v = np.where(s > self.s1, self.s0 + (self.s1 - self.s0) / SLOW + (s - self.s1), v)
+        return v if v.ndim else float(v)
+
+    def s_of(self, v):
+        v = np.asarray(v, dtype=float)
+        v1 = self.s0 + (self.s1 - self.s0) / SLOW
+        s = np.where(v < self.s0, v, self.s0 + (np.minimum(v, v1) - self.s0) * SLOW)
+        s = np.where(v > v1, self.s1 + (v - v1), s)
+        return s if s.ndim else float(s)
 
     def _camera(self):
         cams, cam = [], -260.0
@@ -256,11 +308,22 @@ class Renderer:
             cams.append(cam)
         return cams
 
-    def race_frame(self, t):
-        f = min(int(round(t * FPS)), len(self.frames) - 1)
-        fr = self.frames[f]
-        cam = self.cams[f]
-        frame = self.bg.copy()
+    def state(self, s):
+        """sim 時間 s の様子を、前後のフレームから補間して返す (スローでもなめらかに)"""
+        x = min(max(s * FPS, 0), len(self.frames) - 1.001)
+        f = int(x)
+        a = x - f
+        f0, f1 = self.frames[f], self.frames[f + 1]
+        lerp = lambda p, q: p + (q - p) * a  # noqa: E731
+        balls = [(lerp(b0[0], b1[0]), lerp(b0[1], b1[1]), lerp(b0[2], b1[2])) for b0, b1 in zip(f0["balls"], f1["balls"])]
+        movers = [(m0[0], m0[1], lerp(m0[2], m1[2])) for m0, m1 in zip(f0["movers"], f1["movers"])]
+        return dict(t=s, balls=balls, movers=movers), lerp(self.cams[f], self.cams[f + 1])
+
+    def race_frame(self, v):
+        s = self.s_of(v)
+        fr, cam = self.state(s)
+        bo = int((cam - TOP) * BG_PARALLAX)
+        frame = self.bg.crop((0, bo, W, bo + H))
         y0 = int(cam - TOP)
         frame.alpha_composite(self.course.crop((0, y0, W, y0 + H)))
         d = ImageDraw.Draw(frame)
@@ -270,47 +333,60 @@ class Renderer:
             d.line([p1, p2], fill=(120, 40, 40, 255), width=r * 2 + 8)
             d.line([p1, p2], fill=(240, 120, 90, 255), width=r * 2 - 2)
             d.ellipse((mx - 18, my - cam - 18, mx + 18, my - cam + 18), fill=(80, 30, 30, 255))
-        if t < course.GATE_OPEN:                                             # スタートの仕切り
+        if s < course.GATE_OPEN:                                             # スタートの仕切り
             d.line([(300, 360 - cam), (780, 360 - cam)], fill=(200, 60, 60, 255), width=20)
         for i, (x, y, ang) in enumerate(fr["balls"]):
             sy = y - cam
             if -100 < sy < H + 100:
                 place(frame, ball_icon(i, course.R * 2), x, sy, angle=-math.degrees(ang))
                 place(frame, name_tag(i), x, sy - course.R - 26)
-        order = standings(fr, self.finish, t)
-        frame.alpha_composite(board(order), (24, 170))
+        frame.alpha_composite(board(standings(fr, self.finish, s)), (24, 170))
 
         # 冒頭: 予想を呼びかけ → 3・2・1・スタート
-        if t < course.GATE_OPEN + 0.8:
-            a = min(1, t * 4)
+        if s < course.GATE_OPEN + 0.8:
+            a = min(1, v * 4)
             place(frame, pill(outlined("1位になるのはどれ？", 68), (150, 20, 20)), W / 2, 1020, alpha=a,
-                  scale=0.7 + 0.3 * ease_back(t / 0.3))
+                  scale=0.7 + 0.3 * ease_back(v / 0.3))
             place(frame, outlined("コメントで予想してね👇", 54), W / 2, 1130, alpha=a)
             for k, lab in enumerate(["3", "2", "1", "スタート！"]):
                 tk = course.GATE_OPEN - 1.8 + 0.6 * k
-                if tk <= t < tk + 0.6 or (k == 3 and tk <= t < tk + 0.8):
+                if tk <= s < tk + 0.6 or (k == 3 and tk <= s < tk + 0.8):
                     size = 220 if k < 3 else 130
                     place(frame, outlined(lab, size, fill=(255, 214, 0)), W / 2, 1380,
-                          scale=1.4 - 0.4 * ease_back((t - tk) / 0.2))
-        # 1 位のゴール
-        if t >= self.t_win:
+                          scale=1.4 - 0.4 * ease_back((s - tk) / 0.2))
+        # スロー中: 写真判定
+        if self.s0 <= s < self.s1:
+            el = v - self.s0
+            vg = Image.new("RGBA", (W, H), (0, 0, 0, 0))   # 周りを少し暗くして集中させる
+            ImageDraw.Draw(vg).rectangle((0, 0, W, H), outline=(0, 0, 0, 110), width=90)
+            frame.alpha_composite(vg.filter(ImageFilter.GaussianBlur(50)))
+            place(frame, pill(outlined("写真判定…📸", 70), (30, 30, 30), alpha=220), W / 2, 700,
+                  scale=0.7 + 0.3 * ease_back(el / 0.25))
+            if int(el * 2) % 2 == 0:
+                place(frame, outlined("スロー再生", 44, fill=(255, 80, 80)), W - 230, 120)
+        # 1 位の発表 (2 位もゴールして、スローが終わった瞬間)
+        if s >= self.s1:
             w = self.order_final[0]
-            el = t - self.t_win
-            confetti(frame, self.t_win, t)
-            if el < 3.0:
+            vw = self.v_of(self.s1)
+            el = v - vw
+            confetti(frame, vw, v)
+            if el < 3.2:
                 p = ease_back(el / 0.3)
-                banner = pill(outlined(f"1位は『{RACERS[w][0]}』！", 60), (200, 150, 0), alpha=240)
-                place(frame, banner, W / 2, 760, scale=0.6 + 0.4 * p)
-                place(frame, ball_icon(w, 200), W / 2, 560, scale=p)
+                place(frame, ball_icon(w, 200), W / 2, 520, scale=p)
+                place(frame, pill(outlined(f"1位は『{RACERS[w][0]}』！", 60), (200, 150, 0), alpha=240), W / 2, 720,
+                      scale=0.6 + 0.4 * p)
+                place(frame, pill(outlined(f"その差 {self.gap:.3f}秒！", 56, fill=(255, 214, 0)), (150, 20, 20), alpha=235),
+                      W / 2, 840, scale=ease_back((el - 0.3) / 0.3))
         return frame
 
-    def podium_frame(self, t):
-        frame = self.bg.copy()
-        el = t - self.race_end
+    def podium_frame(self, v):
+        frame = self.bg.crop((0, self.bg.height - H, W, self.bg.height))
+        el = v - self.race_end
         d = ImageDraw.Draw(frame)
         place(frame, outlined("レース結果", 96), W / 2, 330)
+        place(frame, outlined(f"1位と2位の差は {self.gap:.3f}秒", 50, fill=(255, 214, 0)), W / 2, 450, alpha=min(1, el * 3))
         spots = [(1, W / 2, 1050, 300), (2, W / 2 - 300, 1180, 240), (3, W / 2 + 300 - 50, 1260, 220)]
-        for k, (rank, x, y, size) in enumerate(spots):
+        for rank, x, y, size in spots:
             i = self.order_final[rank - 1]
             p = ease_back((el - 0.15 * (3 - rank)) / 0.35)
             col = {1: (255, 200, 0), 2: (200, 205, 215), 3: (205, 130, 70)}[rank]
@@ -322,10 +398,10 @@ class Renderer:
         place(frame, outlined("予想は当たった？コメントで教えてね💬", 52), W / 2, 1700, alpha=min(1, el * 3))
         return frame
 
-    def frame(self, t):
-        fr = self.race_frame(t) if t < self.race_end else self.podium_frame(t)
-        if self.race_end - 0.25 < t < self.race_end + 0.25:      # 表彰台へは白くフェード
-            a = 1 - abs(t - self.race_end) / 0.25
+    def frame(self, v):
+        fr = self.race_frame(v) if v < self.race_end else self.podium_frame(v)
+        if self.race_end - 0.25 < v < self.race_end + 0.25:      # 表彰台へは白くフェード
+            a = 1 - abs(v - self.race_end) / 0.25
             fr.alpha_composite(Image.new("RGBA", (W, H), (255, 255, 255, int(255 * a))))
         return fr.convert("RGB")
 
@@ -389,14 +465,14 @@ def make_audio(r, total):
     # ぶつかる音: ボールごとに音の高さを変える (ペンタトニック)。画面の外は小さく
     notes = [523, 587, 659, 784, 880, 1047]
     last = {}
-    for t, i, imp in r.res["hits"]:
-        if t >= r.race_end or t - last.get(i, -1) < 0.07:
+    for t, i, imp in r.res["hits"]:          # t は物理演算の時間。動画の時間に直して置く
+        if t >= r.race_end_s or t - last.get(i, -1) < 0.07:
             continue
         last[i] = t
         f = min(int(t * FPS), len(r.frames) - 1)
         sy = r.frames[f]["balls"][i][1] - r.cams[f]
         g = min(1.0, imp / 1500) * (1.0 if 0 < sy < H else 0.25)
-        add(tone(notes[i], 0.12, 35), t, ref * 0.5 * g)
+        add(tone(notes[i], 0.12, 35), r.v_of(t), ref * 0.5 * g)
     # 転がる「ゴロゴロ」: 画面に映っているボールの速さに合わせた低いノイズ。レース中の無音をなくす
     speeds = np.zeros(len(r.frames))
     for f in range(1, len(r.frames)):
@@ -417,8 +493,9 @@ def make_audio(r, total):
         rumble[j] = acc
     rumble /= np.max(np.abs(rumble)) + 1e-9
     t_axis = np.arange(len(buf)) / SR
-    e = np.interp(t_axis, np.arange(len(env)) / FPS, env)
-    e[(t_axis < course.GATE_OPEN) | (t_axis > r.race_end)] = 0
+    s_axis = r.s_of(t_axis)                       # 動画の各時刻が、物理演算のどの時刻か
+    e = np.interp(s_axis, np.arange(len(env)) / FPS, env)
+    e[(s_axis < course.GATE_OPEN) | (t_axis > r.race_end)] = 0
     buf += rumble * e * ref * 0.6
 
     # カウントダウン
@@ -426,7 +503,11 @@ def make_audio(r, total):
         add(tone(880, 0.15, 18), course.GATE_OPEN - 1.8 + 0.6 * k, ref * 0.9)
     add(tone(1760, 0.4, 8), course.GATE_OPEN, ref * 0.9)
     target = ref * 10 ** (-12 / 20)
-    for t, name in ((r.t_win, "jean1.mp3"), (r.race_end, "decision52.mp3")):
+    # スローに入る瞬間の「ヒューン」(下がっていく音)
+    tt = np.arange(int(SR * 0.7)) / SR
+    sweep = np.sin(2 * np.pi * np.cumsum(1400 * np.exp(-tt * 3.5) + 150) / SR) * np.exp(-tt * 3)
+    add(sweep, r.v_of(r.s0), ref * 0.7)
+    for t, name in ((r.v_of(r.s1), "jean1.mp3"), (r.race_end, "decision52.mp3")):
         c = load_sfx(name)
         add(c * target / active_rms(c), t)
     path = OUT / "_race_mix.f32"
@@ -440,10 +521,11 @@ def main():
     order = sorted(res["finish"], key=lambda i: res["finish"][i])
     win = order[0]
     v1, k1 = synth("1位になるのは、どの作品？", 1.3)
-    v2, k2 = synth(f"1位は、{RACERS[win][0]}！", 1.3)
+    gap = res["finish"][order[1]] - res["finish"][win]
+    v2, k2 = synth(f"1位は、{RACERS[win][0]}！その差、{gap:.3f}秒！", 1.3)
     v3, k3 = synth("予想は当たった？コメントで教えてね！", 1.3)
     r = Renderer(res, [])
-    r.voices = [(0.05, v1), (r.t_win + 0.25, v2), (r.race_end + 0.3, v3)]
+    r.voices = [(0.05, v1), (r.v_of(r.s1) + 0.15, v2), (r.race_end + 0.3, v3)]
     r.total = r.race_end + 0.3 + len(v3) / 44100 + 0.5     # 表彰台は締めのナレーションが終わったらすぐ終わる
     total = r.total
     wav = make_audio(r, total)
@@ -461,7 +543,7 @@ def main():
     proc.wait()
     wav.unlink()
     info = dict(seed=SEED, total=round(total, 2), winner=RACERS[win][0],
-                order=[(RACERS[i][0], round(res["finish"][i], 2)) for i in order],
+                order=[(RACERS[i][0], round(res["finish"][i], 3)) for i in order], gap=round(gap, 3),
                 leader_changes=course.leader_changes(res), kana=[k1, k2, k3])
     (OUT / "ghibli_marble_race_info.json").write_text(json.dumps(info, ensure_ascii=False, indent=1))
     print(json.dumps(info, ensure_ascii=False, indent=1))

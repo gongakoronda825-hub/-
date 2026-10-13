@@ -74,11 +74,15 @@ def build(space, rng):
     # D: バンパー (よく跳ねる大きい丸)
     for (x, yy) in ((260, 4200), (540, 4380), (820, 4200), (400, 4620), (680, 4620)):
         peg(x + rng.randint(-20, 20), yy, r=48, kind="bumper", bounce=1.05)
-    # E: 最後の坂とゴールへのじょうご
-    wall((0, 4850), (720, 5060))
-    wall((W, 5180), (360, 5390))
-    wall((0, 5450), (420, 5560))
-    wall((W, 5450), (660, 5560))
+    # E: ゴール前は横に広いピンのエリア。一列にならず、横に並んだままゴールに飛び込める
+    wall((0, 4820), (300, 4900))
+    wall((W, 4820), (780, 4900))
+    for row in range(4):
+        off = 0 if row % 2 == 0 else 95
+        for col in range(5):
+            x = 170 + off + col * 190 + rng.randint(-12, 12)
+            if 150 < x < W - 150:
+                peg(x, 5030 + row * 140, r=16)
     # ゴール後に受け止める床
     wall((0, FINISH_Y + 700), (W, FINISH_Y + 700), 14)
     return segs, movers
@@ -134,9 +138,10 @@ def simulate(seed, n_balls=6, max_time=60.0):
         for _ in range(SUB):
             t_now[0] += dt
             space.step(dt)
+            for idx, b in balls:      # ゴールの瞬間は 1/240 秒単位で記録する (写真判定用)
+                if idx not in finish and b.position.y > FINISH_Y:
+                    finish[idx] = t_now[0]
         for idx, b in balls:
-            if idx not in finish and b.position.y > FINISH_Y:
-                finish[idx] = t + 1.0 / FPS
             # 万一引っかかって止まったら、少しだけ押す
             if b.velocity.length < 3 and b.position.y < FINISH_Y and t > GATE_OPEN + 1:
                 b.apply_impulse_at_local_point((rng.uniform(-40, 40), -60))
