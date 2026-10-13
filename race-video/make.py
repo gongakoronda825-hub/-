@@ -473,30 +473,6 @@ def make_audio(r, total):
         sy = r.frames[f]["balls"][i][1] - r.cams[f]
         g = min(1.0, imp / 1500) * (1.0 if 0 < sy < H else 0.25)
         add(tone(notes[i], 0.12, 35), r.v_of(t), ref * 0.5 * g)
-    # 転がる「ゴロゴロ」: 画面に映っているボールの速さに合わせた低いノイズ。レース中の無音をなくす
-    speeds = np.zeros(len(r.frames))
-    for f in range(1, len(r.frames)):
-        sp = 0.0
-        for i in range(len(RACERS)):
-            x0, y0, _ = r.frames[f - 1]["balls"][i]
-            x1, y1, _ = r.frames[f]["balls"][i]
-            if 0 < y1 - r.cams[f] < H and r.finish.get(i, 1e9) > r.frames[f]["t"]:
-                sp += math.hypot(x1 - x0, y1 - y0) * FPS
-        speeds[f] = sp
-    env = np.clip(speeds / 2500, 0, 1) ** 0.7
-    rng = np.random.default_rng(3)
-    noise = rng.normal(0, 1, len(buf))
-    rumble = np.zeros_like(noise)
-    acc, k = 0.0, 0.035                           # 1 次のローパスで低い音だけにする
-    for j in range(len(noise)):
-        acc += k * (noise[j] - acc)
-        rumble[j] = acc
-    rumble /= np.max(np.abs(rumble)) + 1e-9
-    t_axis = np.arange(len(buf)) / SR
-    s_axis = r.s_of(t_axis)                       # 動画の各時刻が、物理演算のどの時刻か
-    e = np.interp(s_axis, np.arange(len(env)) / FPS, env)
-    e[(s_axis < course.GATE_OPEN) | (t_axis > r.race_end)] = 0
-    buf += rumble * e * ref * 0.6
 
     # カウントダウン
     for k in range(3):
