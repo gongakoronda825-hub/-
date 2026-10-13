@@ -57,24 +57,24 @@ CUTS = [
          voice="千尋は、湯婆婆との契約書に、自分の名前を書き間違えていたんです",
          sfx=[("start", "question1.mp3")]),
     dict(name="② 契約書", img="chihiro017",
-         telop=["油屋で働くため", "湯婆婆と結んだ契約書"],
-         voice="油屋で働くために、湯婆婆と結んだ契約書",
+         telop_top=["油屋で働くため"], telop=["湯婆婆と結んだ契約書"],
+         voice="油屋で働くために、|湯婆婆と結んだ契約書",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
     dict(name="③ 書き間違い", img="chihiro016", compare=True,
-         telop=["荻野の「荻」の字", "右下の「火」が", "「犬」になっている"],
-         voice="よく見ると、荻野の、荻の字。右下の、火の部分が、犬になっているんです",
+         telop_top=["荻野の「荻」の字"], telop=[],
+         voice="よく見ると、荻野の、荻の字。|右下の、火の部分が、犬になっているんです",
          sfx=[("start", "decision22.mp3")]),
     dict(name="④ 名前を奪う", img="chihiro026",
-         telop=["「贅沢な名だねぇ」", "名前を奪い「千」に"],
-         voice="湯婆婆は、贅沢な名だねえ、と言って名前を奪い、千と名付けます",
+         telop_top=["「贅沢な名だねぇ」"], telop=["名前を奪い「千」に"],
+         voice="湯婆婆は、贅沢な名だねえ、と言って|名前を奪い、千と名付けます",
          sfx=[("cut_in", "highspeed-movement1.mp3")]),
     dict(name="⑤ 解釈", img="chihiro021",
-         telop=["本当の名前じゃないから", "完全には奪われなかった", "…とも言われている"],
-         voice="正しい名前を書かなかったから、千尋は完全には名前を奪われなかった、とも言われています",
+         telop_top=["本当の名前じゃないから"], telop=["完全には奪われなかった", "…とも言われている"],
+         voice="正しい名前を書かなかったから、|千尋は完全には名前を奪われなかった、とも言われています",
          sfx=[("start", "eye-shine1.mp3")]),
     dict(name="⑥ 締め", img="chihiro050",
-         telop=["次に観るときは", "契約書の“名前”に注目👀"],
-         voice="次に観るときは、契約書の名前に注目してみてください",
+         telop_top=["次に観るときは"], telop=["契約書の“名前”に注目👀"],
+         voice="次に観るときは、|契約書の名前に注目してみてください",
          sfx=[("start", "decision52.mp3")]),
 ]
 for _c in CUTS:              # 全カット: ぼかし背景＋元の写真を画面の上下中央に (①だけ 3 枚を縦に 3 分割)
@@ -108,8 +108,11 @@ def synth(text):
 def build_timeline():
     t = 0.0
     for c in CUTS:
-        c["audio"], c["kana"] = synth(c["voice"])
+        c["audio"], c["kana"] = synth(c["voice"].replace("|", ""))
         dur = len(c["audio"]) / SR
+        head = c["voice"].split("|")[0] if "|" in c["voice"] else ""
+        # 写真の下の字幕は、ナレーションが後半に入る少し前に出す (文字数の比で位置を見積もる)
+        c["bottom_at"] = max(0.0, LEAD + dur * len(head) / len(c["voice"].replace("|", "")) - 0.15)
         c["start"] = t
         c["voice_start"] = t + LEAD
         c["end"] = round((c["voice_start"] + dur + TAIL) * FPS) / FPS
@@ -237,7 +240,8 @@ def fit_size():
     """全カットで同じ文字サイズ。一番長い行が幅に収まる大きさにする"""
     size = 80
     while size > 30:
-        if all(telop_image(c["telop"], size).width <= TELOP_MAX_W for c in CUTS if not c.get("title")):
+        if all(telop_image(lines, size).width <= TELOP_MAX_W
+               for c in CUTS if not c.get("title") for lines in (c["telop"], c.get("telop_top", [])) if lines):
             return size
         size -= 2
     return size
@@ -302,16 +306,25 @@ def cut_frame(k, t):
         label = c["badge2"] if (c.get("badge2") and a >= 0.5) else c["badge"]
         b = BADGES[label]
         frame.alpha_composite(b, (32, PIC_TOP - b.height - 20))
-    a = min(max(lt / 0.12, 0), 1)  # テロップはカット頭 (ナレーションの 0.2 秒前) に出す
-    if a > 0:
-        tl = c["telop_img"]
-        if a < 1:
-            tl = tl.copy()
-            tl.putalpha(tl.getchannel("A").point(lambda v: int(v * a)))
-        if c.get("title"):
-            frame.alpha_composite(tl, (W // 2 - tl.width // 2, H // 2 - tl.height // 2))
-        else:
-            frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_TOP))
+    def fade(el, a):
+        if a >= 1:
+            return el
+        el = el.copy()
+        el.putalpha(el.getchannel("A").point(lambda v: int(v * a)))
+        return el
+
+    a = min(max(lt / 0.12, 0), 1)  # 写真の上の字幕 (と題名) はカット頭 (ナレーションの 0.2 秒前) に出す
+    if a > 0 and c.get("title"):
+        tl = fade(c["telop_img"], a)
+        frame.alpha_composite(tl, (W // 2 - tl.width // 2, H // 2 - tl.height // 2))
+    elif a > 0 and c.get("top_img"):
+        tl = fade(c["top_img"], a)
+        frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, PIC_TOP - 24 - tl.height))
+    if not c.get("title") and c.get("telop_img"):
+        b = min(max((lt - c.get("bottom_at", 0)) / 0.15, 0), 1)  # 写真の下の字幕は、ナレーションの後半で出す
+        if b > 0:
+            tl = fade(c["telop_img"], b)
+            frame.alpha_composite(tl, (TELOP_CX - tl.width // 2, TELOP_TOP + round(24 * (1 - b))))
     return frame.convert("RGB")
 
 
@@ -382,7 +395,8 @@ def main():
     total = build_timeline()
     size = fit_size()
     for c in CUTS:
-        c["telop_img"] = telop_image(c["telop"], title_size() if c.get("title") else size)
+        c["telop_img"] = telop_image(c["telop"], title_size() if c.get("title") else size) if c["telop"] else None
+        c["top_img"] = telop_image(c["telop_top"], size) if c.get("telop_top") else None
         if c.get("title"):   # 画面中央に置くので、読みやすいよう半透明の黒い帯を敷く
             t = c["telop_img"]
             band = Image.new("RGBA", (W, t.height + 60), (0, 0, 0, 165))
