@@ -1,0 +1,22 @@
+ジブリ漢字クイズ「読めたら真のジブリファン」（output/ghibli_kanji_quiz.mp4） クレジット
+
+■ 出題と読みの確認
+  第1問 油屋（あぶらや）       千と千尋の神隠し  … Wikipedia「千と千尋の神隠し」の記述
+  第2問 腐海（ふかい）         風の谷のナウシカ  … 作中のセリフでの読み
+  第3問 王蟲（オーム）         風の谷のナウシカ  … Wikipedia「風の谷のナウシカ」の表記（王蟲（オーム））
+  第4問 乙事主（おっことぬし） もののけ姫        … Wikipedia「もののけ姫」の記述
+  第5問 猩々（しょうじょう）   もののけ姫        … Wikipedia「もののけ姫」の記述
+
+■ 場面写真（スタジオジブリ公式サイト 各作品ページ「常識の範囲でご自由にお使いください。」）
+  題名（3分割） nausicaa009 / mononoke024 / chihiro011
+  第1問 chihiro011  第2問 nausicaa002  第3問 nausicaa009  第4問 mononoke037  第5問 mononoke026  締め mononoke024
+  （URL は https://www.ghibli.jp/gallery/<名前>.jpg）
+著作権表示（https://www.ghibli.jp/copyright/）：
+  © 1984 Hayao Miyazaki/Studio Ghibli, H
+  © 1997 Hayao Miyazaki/Studio Ghibli, ND
+  © 2001 Hayao Miyazaki/Studio Ghibli, NDDTM
+
+■ ナレーション：VOICEVOX:四国めたん（ノーマル、話速 1.25） 規約 https://zunko.jp/con_ongen_kiyaku.html
+■ 効果音：効果音ラボ https://soundeffect-lab.info/ （クイズ出題1「デデン」、クイズ正解1「ピンポン」、決定ボタンを押す52「ポン」）
+          カウントダウンの「カチッ」はプログラムで合成
+■ フォント：Noto Sans JP ／ Noto Color Emoji（SIL Open Font License）
