@@ -8,6 +8,7 @@ import io
 import json
 import math
 import subprocess
+import sys
 import urllib.parse
 import urllib.request
 import wave
@@ -37,18 +38,42 @@ RED = (225, 45, 45)
 YELLOW = (255, 214, 0)
 
 # 読みは Wikipedia (作品記事のふりがな) と作中のセリフで確認したもの
-TITLE = dict(imgs=["nausicaa/009", "mononoke/024", "chihiro/011"], teaser="乙事主",
-             telop=["読めたら真の", "ジブリファン", "漢字クイズ"],
-             voice="読めたら真のジブリファン！ジブリ漢字クイズ！")
-QUESTIONS = [
-    dict(kanji="油屋", yomi="あぶらや", stars=1, work="千と千尋の神隠し", img="chihiro/011"),
-    dict(kanji="腐海", yomi="ふかい", stars=2, work="風の谷のナウシカ", img="nausicaa/002"),
-    dict(kanji="王蟲", yomi="オーム", stars=3, work="風の谷のナウシカ", img="nausicaa/009"),
-    dict(kanji="乙事主", yomi="おっことぬし", stars=4, work="もののけ姫", img="mononoke/037"),
-    dict(kanji="猩々", yomi="しょうじょう", stars=5, work="もののけ姫", img="mononoke/026"),
-]
-ENDING = dict(img="mononoke/024", telop=["何問読めた？", "コメントで教えてね💬"],
-              voice="何問読めた？コメントで教えてね！")
+# python3 quiz-video/make.py 2 で第 2 弾を作る
+EPISODES = {
+    1: dict(
+        out="ghibli_kanji_quiz",
+        title=dict(imgs=["nausicaa/009", "mononoke/024", "chihiro/011"], teaser="乙事主",
+                   telop=["読めたら真の", "ジブリファン", "漢字クイズ"],
+                   voice="読めたら真のジブリファン！ジブリ漢字クイズ！"),
+        questions=[
+            dict(kanji="油屋", yomi="あぶらや", stars=1, work="千と千尋の神隠し", img="chihiro/011"),
+            dict(kanji="腐海", yomi="ふかい", stars=2, work="風の谷のナウシカ", img="nausicaa/002"),
+            dict(kanji="王蟲", yomi="オーム", stars=3, work="風の谷のナウシカ", img="nausicaa/009"),
+            dict(kanji="乙事主", yomi="おっことぬし", stars=4, work="もののけ姫", img="mononoke/037"),
+            dict(kanji="猩々", yomi="しょうじょう", stars=5, work="もののけ姫", img="mononoke/026"),
+        ],
+        ending=dict(img="mononoke/024", telop=["何問読めた？", "コメントで教えてね💬"],
+                    voice="何問読めた？コメントで教えてね！"),
+    ),
+    2: dict(
+        out="ghibli_kanji_quiz2",
+        title=dict(imgs=["chihiro/045", "mononoke/023", "nausicaa/005"], teaser="饒速水小白主",
+                   telop=["読めたら真の", "ジブリファン", "漢字クイズ第2弾"],
+                   voice="読めたら真のジブリファン！ジブリ漢字クイズ、第2弾！"),
+        questions=[
+            dict(kanji="釜爺", yomi="かまじい", stars=1, work="千と千尋の神隠し", img="chihiro/013"),
+            dict(kanji="木霊", yomi="こだま", stars=2, work="もののけ姫", img="mononoke/023"),
+            dict(kanji="瘴気", yomi="しょうき", stars=3, work="風の谷のナウシカ", img="nausicaa/005"),
+            dict(kanji="七国山", yomi="しちこくやま", say="シチコクヤマ", stars=4, work="となりのトトロ", img="totoro/012"),
+            dict(kanji="饒速水小白主", yomi="にぎはやみこはくぬし", say="ニギハヤミコハクヌシ", stars=5, work="千と千尋の神隠し",
+                 img="chihiro/045"),
+        ],
+        ending=dict(img="chihiro/046", telop=["何問読めた？", "コメントで教えてね💬"],
+                    voice="何問読めた？コメントで教えてね！"),
+    ),
+}
+EP = EPISODES[int(sys.argv[1]) if len(sys.argv) > 1 else 1]
+TITLE, QUESTIONS, ENDING = EP["title"], EP["questions"], EP["ending"]
 
 
 # ---- ナレーション -------------------------------------------------------------
@@ -82,7 +107,7 @@ def build_timeline():
     t = segs[-1]["end"]
     for n, q in enumerate(QUESTIONS, 1):
         qa, k1 = synth(f"第{n}問")
-        aa, k2 = synth(f"正解は、{q['yomi']}！")
+        aa, k2 = synth(f"正解は、{q.get('say', q['yomi'])}！")     # say: 読み上げが崩れる読みはカタカナで
         q_end = 0.05 + len(qa) / SR
         cd = q_end + 0.05                         # カウントダウン開始 (無音を作らないよう、すぐに)
         rev = cd + COUNT                          # 答えを出す瞬間
@@ -207,12 +232,13 @@ def kanji_card(q, revealed_a):
     d = ImageDraw.Draw(im)
     d.rounded_rectangle((10, 14, cw + 10, ch + 14), radius=44, fill=(0, 0, 0, 90))
     d.rounded_rectangle((0, 0, cw, ch), radius=44, fill=(255, 253, 245, 255), outline=(40, 40, 40, 255), width=8)
-    size = 250 if len(q["kanji"]) <= 2 else 210
+    size = min(250 if len(q["kanji"]) <= 2 else 210, 820 // len(q["kanji"]))
     ky = 205 if revealed_a > 0 else 235
     d.text((cw // 2, ky), q["kanji"], font=font(size), fill=(25, 25, 25), anchor="mm")
     if revealed_a > 0:
         yomi = Image.new("RGBA", (cw, 120), (0, 0, 0, 0))
-        ImageDraw.Draw(yomi).text((cw // 2, 60), q["yomi"], font=font(92), fill=RED, anchor="mm")
+        ImageDraw.Draw(yomi).text((cw // 2, 60), q["yomi"], font=font(min(92, 840 // len(q["yomi"]))), fill=RED,
+                                  anchor="mm")
         place(im, yomi, cw // 2, 395, scale=0.6 + 0.4 * ease_back(revealed_a), alpha=min(1, revealed_a * 2))
     return im
 
@@ -367,7 +393,7 @@ def main():
            "-map", "0:v", "-map", "1:a", "-af", "alimiter=limit=0.89:level=false",
            "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
            "-c:a", "aac", "-b:a", "192k", "-ac", "2", "-t", f"{total:.3f}", "-movflags", "+faststart",
-           str(OUT / "ghibli_kanji_quiz.mp4")]
+           str(OUT / f"{EP['out']}.mp4")]
     proc = subprocess.Popen(cmd, stdin=subprocess.PIPE)
     for i in range(round(total * FPS)):
         proc.stdin.write(render_frame(i / FPS, segs, total).tobytes())
@@ -378,7 +404,7 @@ def main():
                 segs=[dict(kind=s["kind"], start=round(s["start"], 3), end=round(s["end"], 3),
                            rev=round(s["start"] + s["rev"], 3) if "rev" in s else None, kana=s["kana"])
                       for s in segs])
-    (OUT / "ghibli_kanji_quiz_timeline.json").write_text(json.dumps(info, ensure_ascii=False, indent=1))
+    (OUT / f"{EP['out']}_timeline.json").write_text(json.dumps(info, ensure_ascii=False, indent=1))
     print(json.dumps(info, ensure_ascii=False, indent=1))
 
 

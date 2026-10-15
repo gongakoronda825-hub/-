@@ -1,0 +1,24 @@
+ジブリ漢字クイズ第2弾「読めたら真のジブリファン」（output/ghibli_kanji_quiz2.mp4） クレジット
+作り方: python3 quiz-video/make.py 2
+
+■ 出題（すべて作中に出てくる言葉）
+  第1問 釜爺（かまじい）                 千と千尋の神隠し  … ボイラー室のおじいさん
+  第2問 木霊（こだま）                   もののけ姫        … シシ神の森の精霊
+  第3問 瘴気（しょうき）                 風の谷のナウシカ  … 腐海の毒。ナウシカたちはマスクを付ける
+  第4問 七国山（しちこくやま）           となりのトトロ    … お母さんが入院している七国山病院
+  第5問 饒速水小白主（にぎはやみこはくぬし） 千と千尋の神隠し … ハクの本当の名前
+  ※ 読み上げが崩れる第4・5問は、ナレーションだけカタカナ（シチコクヤマ／ニギハヤミコハクヌシ）で読ませている
+
+■ 場面写真（スタジオジブリ公式サイト 各作品ページ「常識の範囲でご自由にお使いください。」）
+  題名（3分割） chihiro045 / mononoke023 / nausicaa005
+  第1問 chihiro013  第2問 mononoke023  第3問 nausicaa005  第4問 totoro012  第5問 chihiro045  締め chihiro046
+  （URL は https://www.ghibli.jp/gallery/<名前>.jpg）
+著作権表示（https://www.ghibli.jp/copyright/）：
+  © 1984 Hayao Miyazaki/Studio Ghibli, H
+  © 1988 Hayao Miyazaki/Studio Ghibli
+  © 1997 Hayao Miyazaki/Studio Ghibli, ND
+  © 2001 Hayao Miyazaki/Studio Ghibli, NDDTM
+
+■ ナレーション：VOICEVOX:四国めたん（ノーマル、話速 1.25） 規約 https://zunko.jp/con_ongen_kiyaku.html
+■ 効果音：効果音ラボ https://soundeffect-lab.info/ （クイズ出題1「デデン」、制限時間タイマー、クイズ正解1「ピンポン」、決定ボタンを押す52「ポン」）
+■ フォント：Noto Sans JP ／ Noto Color Emoji（SIL Open Font License）
