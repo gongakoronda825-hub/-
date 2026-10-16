@@ -3,7 +3,7 @@ from PIL import Image,ImageDraw,ImageFilter
 src=open('otona.py').read()
 exec(src.split('# ---- build static layers ----')[0])
 exec(src[src.index('def ease(x)'):src.index('def render(t)')])
-G='gb/'; OUT='/home/user/-/ghibli-kanji/'
+G='gb/'; S_='/tmp/claude-0/-home-user--/e2f1f029-242f-578c-b26c-0ea9dd511990/scratchpad/'; OUT='/home/user/-/ghibli-kanji/'
 DX=40
 LV=[(1,'ジブリ初心者レベル',(46,125,62)),(2,'ジブリ好きレベル',(32,128,140)),(3,'ジブリ通レベル',(56,96,180)),
     (4,'ジブリオタクレベル',(118,78,170)),(5,'ジブリ博士レベル',(206,100,36)),(6,'宮崎駿レベル',(180,36,52))]
@@ -15,8 +15,13 @@ Q=[('湯婆婆','ゆばーば','千と千尋の神隠し','chihiro016',.5,None),
    ('乙事主','おっことぬし','もののけ姫','mononoke034',.5,None),
    ('蝦夷','えみし','もののけ姫','mononoke001',.5,'アシタカの一族'),
    ('饒速水小白主','にぎはやみこはくぬし','千と千尋の神隠し','chihiro045',.5,'ハクの本当の名前')]
-QD=[6,6,6,6,6.5,7]
-HOOK=2.5; CTA=3.5
+import wave as _wv
+def wdur(p):
+    with _wv.open(p) as w: return w.getnframes()/w.getframerate()
+NQ=[wdur(f'narr/q{i}.wav') for i in range(1,7)]; NA=[wdur(f'narr/a{i}.wav') for i in range(1,7)]
+CS=[0.35+q+0.1 for q in NQ]; RV=[c+3.0 for c in CS]
+QD=[r+0.25+a+0.8 for r,a in zip(RV,NA)]
+HOOK=0.4+wdur('narr/hook.wav')+0.3; CTA=0.3+wdur('narr/cta.wav')+1.2
 starts=[]; t0=HOOK
 for d in QD: starts.append(t0); t0+=d
 DUR=t0+CTA
@@ -79,6 +84,7 @@ d.rounded_rectangle((cx-62,cy-46,cx+62,cy+40),30,fill=acc); d.polygon([(cx-22,cy
 for k in (-30,0,30): d.ellipse((cx+k-9,cy-9,cx+k+9,cy+9),fill=WHITE)
 pill(C2,W/2+60,1115,'コメントで教えてね',52,acc,WHITE,44)
 C3=layer(); d=ImageDraw.Draw(C3)
+tdraw(d,W/2,1520,'© Studio Ghibli ／ VOICEVOX:青山龍星',fonts(800,26),(120,112,104))
 for k,(n,name,c) in enumerate(LV):
     y=1270+(k//2)*64; x=W/2+((k%2)-0.5)*420
     tdraw(d,x,y,f'{n}問 → {name}',fonts(900,34),c,8)
@@ -88,20 +94,20 @@ def render(t):
     if t<HOOK:
         z=1.0+0.05*t/HOOK
         bg=cover(hookimg,W,H,0.45,0.5,z).convert('RGBA'); bg.alpha_composite(Image.new('RGBA',(W,H),(0,0,0,120)))
-        C=layer(); put(C,H1,0.0,t,dur=0.35,out=HOOK-0.25); put(C,H2,0.5,t,dur=0.35,out=HOOK-0.25)
+        C=layer(); put(C,H1,0.3,t,dur=0.35,out=HOOK-0.25); put(C,H2,1.7,t,dur=0.35,out=HOOK-0.25)
         return compose(bg,C)
     for k,s in enumerate(starts):
         if t<s+QD[k]:
             ts=t-s; key=f'lv{k+1}'; prev='lv1' if k==0 else f'lv{k}'
             bgi=background(t,prev if ts<0.4 else key,key if ts<0.4 else None,ease(ts/0.4) if ts<0.4 else 0).convert('RGBA')
             if k==0 and ts<0.4: bgi=background(t,'lv1').convert('RGBA')
-            head,K,ask,ans,P,acc,note=QL[k]; o=QD[k]-0.3; rv=3.6
+            head,K,ask,ans,P,acc,note=QL[k]; o=QD[k]-0.3; rv=RV[k]; cs=CS[k]
             C=layer()
             put(C,head,0.05,ts,out=o); put(C,K,0.2,ts,dur=0.35,out=o)
             put(C,ask,0.4,ts,dur=0.3,out=rv-0.05)
-            if 0.5<=ts<rv:
-                L=layer(); e=ts-0.5; num=3-int(e); countdown(L,W/2,1230,1-(e%1),max(1,num),acc)
-                put(C,L,0.5,ts,dur=0.2,out=rv-0.15)
+            if cs<=ts<rv:
+                L=layer(); e=ts-cs; num=3-int(e); countdown(L,W/2,1230,1-(e%1),max(1,num),acc)
+                put(C,L,cs,ts,dur=0.2,out=rv-0.15)
             put(C,ans,rv,ts,dur=0.3,dy=-30,out=o); put(C,P,rv+0.15,ts,dur=0.4,out=o)
             if note: put(C,note,rv+0.4,ts,out=o)
             put(C,credit,rv,ts,out=o)
@@ -110,11 +116,34 @@ def render(t):
     bgi=background(t,'lv6' if ts<0.4 else 'cta','cta' if ts<0.4 else None,ease(ts/0.4) if ts<0.4 else 0).convert('RGBA')
     C=layer(); put(C,C1,0.1,ts); put(C,C2,0.6,ts); put(C,C3,1.0,ts)
     return compose(bgi,C)
+def build_audio():
+    import numpy as np
+    SR=44100; tot=np.zeros(int(SR*(DUR+0.5)))
+    def rd(p):
+        with _wv.open(p) as w:
+            sr=w.getframerate(); ch=w.getnchannels(); x=np.frombuffer(w.readframes(w.getnframes()),dtype=np.int16).astype(float)/32768
+        if ch==2: x=x.reshape(-1,2).mean(1)
+        if sr!=SR: x=np.interp(np.arange(0,len(x),sr/SR),np.arange(len(x)),x)
+        return x
+    def add(p,t,g):
+        x=rd(p)*g; i=int(t*SR); n=min(len(x),len(tot)-i); tot[i:i+n]+=x[:n]
+    add('sfx/fanfare.wav',0.0,0.45); add('narr/hook.wav',0.4,1.0)
+    for k,st in enumerate(starts):
+        if k>0: add('sfx/whoosh.wav',st-0.15,0.35)
+        add('sfx/deden.wav',st+0.02,0.5); add(f'narr/q{k+1}.wav',st+0.35,1.0)
+        for j in range(3): add('sfx/tick.wav',st+CS[k]+j,0.35)
+        if k==5: add('sfx/drumroll.wav',st+CS[k]+0.2,0.25)
+        add('sfx/pinpon.wav',st+RV[k],0.5); add(f'narr/a{k+1}.wav',st+RV[k]+0.25,1.0)
+    ce=starts[-1]+QD[-1]; add('sfx/sparkle.wav',ce,0.4); add('narr/cta.wav',ce+0.3,1.0)
+    tot=tot/max(1e-9,np.abs(tot).max())*0.92
+    with _wv.open(S_+'quiz_audio.wav','wb') as w:
+        w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((tot*32767).astype(np.int16).tobytes())
+if len(sys.argv)>1 and sys.argv[1]=='audio': build_audio(); print('audio',DUR); sys.exit()
 if len(sys.argv)>1 and sys.argv[1]=='stills':
     ts=[1.5]+[s+1.8 for s in starts]+[s+5.2 for s in starts]+[DUR-0.5]
     for t in ts: render(t).save(OUT+f'still_{t:05.1f}.png')
     sys.exit()
 p=subprocess.Popen(['ffmpeg','-y','-loglevel','error','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-',
-  '-c:v','libx264','-pix_fmt','yuv420p','-crf','18','-preset','medium','-movflags','+faststart',OUT+'ghibli_kanji_quiz.mp4'],stdin=subprocess.PIPE)
+  '-c:v','libx264','-pix_fmt','yuv420p','-crf','18','-preset','medium','-movflags','+faststart',S_+'quiz_video_noaudio.mp4'],stdin=subprocess.PIPE)
 for n in range(int(FPS*DUR)): p.stdin.write(render(n/FPS).tobytes())
 p.stdin.close(); p.wait(); print('done',p.returncode,DUR)
