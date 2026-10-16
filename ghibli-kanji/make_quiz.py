@@ -100,7 +100,7 @@ def render(t):
     if t<HOOK:
         z=1.0+0.05*t/HOOK
         bg=cover(hookimg,W,H,0.45,0.5,z).convert('RGBA'); bg.alpha_composite(Image.new('RGBA',(W,H),(0,0,0,120)))
-        C=layer(); put(C,H1,0.0,t); put(C,H2,1.35,t)
+        C=layer(); put(C,H1,0.0,t); put(C,H2,0.0,t)
         return compose(bg,C)
     for k,s in enumerate(starts):
         if t<s+QD[k]:
