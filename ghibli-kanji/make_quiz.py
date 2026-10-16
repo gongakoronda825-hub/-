@@ -95,6 +95,25 @@ for k,(n,name,c) in enumerate(LV):
     y=1270+(k//2)*64; x=W/2+((k%2)-0.5)*420
     tdraw(d,x,y,f'{n}問 → {name}',fonts(900,34),c,8)
 
+exec(open('chars.py').read())
+CHARS={0:[('chihiro021','L',False),('chihiro049','R',False)],1:[('mononoke049','L',False),('mononoke029','R',True)],
+ 2:[('nausicaa025','L',False),('nausicaa050','R',False)],3:[('mononoke014','L',False),('mononoke041','R',True)],
+ 4:[('mononoke030','L',False),('mononoke047','R',False)],5:[('chihiro022','L',False),('chihiro050','R',True)],
+ 'cta':[('totoro019','L',False),('totoro044','R',False)]}
+CH_IMG={}
+for k,lst in CHARS.items():
+    CH_IMG[k]=[]
+    for n,side,fl in lst:
+        st=sticker(n,520,side,fl)
+        if st.width>560: st=st.resize((560,int(st.height*560/st.width)),Image.LANCZOS)
+        CH_IMG[k].append((st,side))
+def draw_chars(bgi,key,ts):
+    for j,(st,side) in enumerate(CH_IMG[key]):
+        p=min(1,max(0,(ts-0.0-0.05*j)/0.15)); p=1-(1-p)**3
+        bob=6*math.sin((ts+j)*2.2)
+        x=0 if side=='L' else W-st.width
+        y=int(H-st.height+ (1-p)*st.height*0.6 + bob+8)
+        bgi.alpha_composite(st,(x,max(0,y)) if y>=0 else (x,0))
 def compose(bgi,C): bgi.alpha_composite(C.crop((DX,0,W,H)),(0,0)); return bgi.convert('RGB')
 def render(t):
     if t<HOOK:
@@ -108,6 +127,7 @@ def render(t):
             bgi=background(t,prev if ts<0 else key,key if ts<0 else None,ease(ts/0.4) if ts<0 else 0).convert('RGBA')
             if k==0 and ts<0.4: bgi=background(t,'lv1').convert('RGBA')
             head,K,ask,ans,P,acc,note=QL[k]; o=QD[k]-0.3; rv=RV[k]; cs=CS[k]
+            draw_chars(bgi,k,ts)
             C=layer()
             put(C,head,0,ts); put(C,K,0,ts)
             (put(C,ask,0,ts) if ts<rv else None)
@@ -120,6 +140,7 @@ def render(t):
             return compose(bgi,C)
     ts=t-starts[-1]-QD[-1]
     bgi=background(t,'lv6' if ts<0 else 'cta','cta' if ts<0 else None,ease(ts/0.4) if ts<0 else 0).convert('RGBA')
+    draw_chars(bgi,'cta',ts)
     C=layer(); put(C,C1,0,ts); put(C,C2,0,ts); put(C,C3,0,ts)
     return compose(bgi,C)
 def build_audio():
