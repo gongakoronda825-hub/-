@@ -24,7 +24,9 @@ QD=[r+0.12+a+0.3 for r,a in zip(RV,NA)]
 HOOK=wdur('narr_trim/hook.wav')+0.15; CTA=wdur('narr_trim/cta.wav')+0.7
 starts=[]; t0=HOOK
 for d in QD: starts.append(t0); t0+=d
-DUR=t0+CTA
+CTA_END=t0+CTA
+FOL=wdur('narr_trim/follow.wav')+1.0
+DUR=CTA_END+FOL
 def load(n): return Image.open(G+n+'.jpg').convert('RGB')
 def cover(im,w,h,fx=0.5,fy=0.5,zoom=1.0):
     s=max(w/im.width,h/im.height)*zoom; nw,nh=int(im.width*s),int(im.height*s)
@@ -115,7 +117,30 @@ def draw_chars(bgi,key,ts):
         y=int(H-st.height+ (1-p)*st.height*0.6 + bob+8)
         bgi.alpha_composite(st,(x,max(0,y)) if y>=0 else (x,0))
 def compose(bgi,C): bgi.alpha_composite(C.crop((DX,0,W,H)),(0,0)); return bgi.convert('RGB')
+U='/root/.claude/uploads/e2f1f029-242f-578c-b26c-0ea9dd511990/'
+POSTS=['/home/user/-/donguri-odekake/00_thumbnail.png','/home/user/-/thumbnail_vertical.png',U+'fc7817dd-image.jpg',U+'e3a41747-image.jpg',U+'307eb6ca-image.jpg',U+'b4ce95c0-image.jpg']
+FW,FH=270,360
+FG=layer()
+lines(FG,330,['こんな投稿も','してるよ'],84,DARK,stroke=14,gap=1.2)
+for k,p in enumerate(POSTS):
+    c=cover(Image.open(p).convert('RGB'),FW,FH,0.5,0.45).convert('RGBA'); c.putalpha(rmask(FW,FH,22))
+    x=int(W/2+((k%3)-1)*(FW+26)-FW/2); y=520+(k//3)*(FH+26)
+    fd=ImageDraw.Draw(FG); fd.rounded_rectangle((x-8,y-8,x+FW+8,y+FH+8),28,fill=WHITE)
+    FG.alpha_composite(c,(x,y))
+FB=layer(); d=ImageDraw.Draw(FB); acc=(46,125,62); fp=fonts(900,64); tx='フォローしてね'
+w_=tlen(tx,fp)+190; x0=W/2-w_/2; y0=1385
+d.rounded_rectangle((x0,y0-62,x0+w_,y0+62),62,fill=acc,outline=WHITE,width=8)
+cx=x0+70; d.ellipse((cx-34,y0-34,cx+34,y0+34),fill=WHITE); d.rectangle((cx-18,y0-5,cx+18,y0+5),fill=acc); d.rectangle((cx-5,y0-18,cx+5,y0+18),fill=acc)
+tdraw(d,x0+w_/2+40,y0,tx,fp,WHITE)
+def follow_frame(t,ts):
+    bgi=background(t,'cta').convert('RGBA'); draw_chars(bgi,'cta',ts+5)
+    C=layer(); put(C,FG,0,ts)
+    sc=1+0.06*max(0,math.sin(ts*5)) if ts>1.2 else 1
+    L=FB if sc==1 else FB.resize((int(W*sc),int(H*sc)),Image.BILINEAR).crop((int((W*sc-W)/2),int((1385*sc-1385)),int((W*sc-W)/2)+W,int((1385*sc-1385))+H))
+    put(C,L,1.2,ts)
+    return compose(bgi,C)
 def render(t):
+    if t>=CTA_END: return follow_frame(t,t-CTA_END)
     if t<HOOK:
         z=1.0+0.05*t/HOOK
         bg=cover(hookimg,W,H,0.45,0.5,z).convert('RGBA'); bg.alpha_composite(Image.new('RGBA',(W,H),(0,0,0,120)))
@@ -159,7 +184,7 @@ def build_audio():
         add(f'narr_trim/q{k+1}.wav',st,1.0)
         for j in range(3): add('sfx/tick.wav',st+CS[k]+j,0.4)
         add('sfx/pinpon.wav',st+RV[k],0.5); add(f'narr_trim/a{k+1}.wav',st+RV[k]+0.12,1.0)
-    ce=starts[-1]+QD[-1]; add('narr_trim/cta.wav',ce,1.0)
+    ce=starts[-1]+QD[-1]; add('narr_trim/cta.wav',ce,1.0); add('narr_trim/follow.wav',CTA_END,1.0)
     tot=tot/max(1e-9,np.abs(tot).max())*0.92
     with _wv.open(S_+'quiz_audio.wav','wb') as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((tot*32767).astype(np.int16).tobytes())
