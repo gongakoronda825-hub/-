@@ -118,25 +118,31 @@ def draw_chars(bgi,key,ts):
         bgi.alpha_composite(st,(x,max(0,y)) if y>=0 else (x,0))
 def compose(bgi,C): bgi.alpha_composite(C.crop((DX,0,W,H)),(0,0)); return bgi.convert('RGB')
 U='/root/.claude/uploads/e2f1f029-242f-578c-b26c-0ea9dd511990/'
-POSTS=['/home/user/-/donguri-odekake/00_thumbnail.png','/home/user/-/thumbnail_vertical.png',U+'fc7817dd-image.jpg',U+'e3a41747-image.jpg',U+'307eb6ca-image.jpg',U+'b4ce95c0-image.jpg']
-FW,FH=270,360
+POSTS=[U+'b4ce95c0-image.jpg',U+'fc7817dd-image.jpg']
+FW,FH=400,520
 FG=layer()
-lines(FG,330,['こんな投稿も','してるよ'],84,DARK,stroke=14,gap=1.2)
+lines(FG,360,['こんな投稿も','してるよ'],84,DARK,stroke=14,gap=1.2)
 for k,p in enumerate(POSTS):
-    c=cover(Image.open(p).convert('RGB'),FW,FH,0.5,0.45).convert('RGBA'); c.putalpha(rmask(FW,FH,22))
-    x=int(W/2+((k%3)-1)*(FW+26)-FW/2); y=520+(k//3)*(FH+26)
-    fd=ImageDraw.Draw(FG); fd.rounded_rectangle((x-8,y-8,x+FW+8,y+FH+8),28,fill=WHITE)
-    FG.alpha_composite(c,(x,y))
+    c=cover(Image.open(p).convert('RGB'),FW,FH,0.5,0.4).convert('RGBA'); c.putalpha(rmask(FW,FH,26))
+    x=int(W/2+(k-0.5)*(FW+40)-FW/2); y=560
+    tmp=layer(); fd=ImageDraw.Draw(tmp); fd.rounded_rectangle((x-10,y-10,x+FW+10,y+FH+10),32,fill=WHITE); tmp.alpha_composite(c,(x,y))
+    FG.alpha_composite(tmp.rotate([-3,3][k],resample=Image.BICUBIC,center=(x+FW/2,y+FH/2)))
+DECO=[]
+for n,side,fl,h,y in [('majo001','L',False,230,120),('howl048','R',True,300,110),('mononoke049','L',False,300,1130),('nausicaa050','R',False,280,1150)]:
+    st=sticker(n,h,side,fl)
+    if st.width>420: st=st.resize((420,int(st.height*420/st.width)),Image.LANCZOS)
+    DECO.append((st,0 if side=='L' else W-st.width,y))
 FB=layer(); d=ImageDraw.Draw(FB); acc=(46,125,62); fp=fonts(900,64); tx='フォローしてね'
-w_=tlen(tx,fp)+190; x0=W/2-w_/2; y0=1385
+w_=tlen(tx,fp)+190; x0=W/2-w_/2; y0=1180
 d.rounded_rectangle((x0,y0-62,x0+w_,y0+62),62,fill=acc,outline=WHITE,width=8)
 cx=x0+70; d.ellipse((cx-34,y0-34,cx+34,y0+34),fill=WHITE); d.rectangle((cx-18,y0-5,cx+18,y0+5),fill=acc); d.rectangle((cx-5,y0-18,cx+5,y0+18),fill=acc)
 tdraw(d,x0+w_/2+40,y0,tx,fp,WHITE)
 def follow_frame(t,ts):
     bgi=background(t,'cta').convert('RGBA'); draw_chars(bgi,'cta',ts+5)
+    for st,x,y in DECO: bgi.alpha_composite(st,(x,int(y+6*math.sin(ts*2.2+x))))
     C=layer(); put(C,FG,0,ts)
     sc=1+0.06*max(0,math.sin(ts*5)) if ts>1.2 else 1
-    L=FB if sc==1 else FB.resize((int(W*sc),int(H*sc)),Image.BILINEAR).crop((int((W*sc-W)/2),int((1385*sc-1385)),int((W*sc-W)/2)+W,int((1385*sc-1385))+H))
+    L=FB if sc==1 else FB.resize((int(W*sc),int(H*sc)),Image.BILINEAR).crop((int((W*sc-W)/2),int((1180*sc-1180)),int((W*sc-W)/2)+W,int((1180*sc-1180))+H))
     put(C,L,1.2,ts)
     return compose(bgi,C)
 def render(t):
