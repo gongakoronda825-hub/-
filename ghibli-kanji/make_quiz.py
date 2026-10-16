@@ -18,10 +18,10 @@ Q=[('湯婆婆','ゆばーば','千と千尋の神隠し','chihiro016',.5,None),
 import wave as _wv
 def wdur(p):
     with _wv.open(p) as w: return w.getnframes()/w.getframerate()
-NQ=[wdur(f'narr/q{i}.wav') for i in range(1,7)]; NA=[wdur(f'narr/a{i}.wav') for i in range(1,7)]
-CS=[0.35+q+0.1 for q in NQ]; RV=[c+3.0 for c in CS]
-QD=[r+0.25+a+0.8 for r,a in zip(RV,NA)]
-HOOK=0.4+wdur('narr/hook.wav')+0.3; CTA=0.3+wdur('narr/cta.wav')+1.2
+NQ=[wdur(f'narr_trim/q{i}.wav') for i in range(1,7)]; NA=[wdur(f'narr_trim/a{i}.wav') for i in range(1,7)]
+CS=[q+0.05 for q in NQ]; RV=[c+3.0 for c in CS]
+QD=[r+0.12+a+0.3 for r,a in zip(RV,NA)]
+HOOK=wdur('narr_trim/hook.wav')+0.15; CTA=wdur('narr_trim/cta.wav')+0.7
 starts=[]; t0=HOOK
 for d in QD: starts.append(t0); t0+=d
 DUR=t0+CTA
@@ -36,6 +36,12 @@ def fit(t,w,maxs,maxw):
     while tlen(t,fonts(w,s))>maxw: s-=4
     return s
 IW,IH=860,484
+def put(frame,L,t0,t,dur=0.06,dy=0,out=None):
+    if t<t0: return
+    a=min(1,(t-t0)/0.06)
+    l=L if a>=1 else L.copy()
+    if a<1: l.putalpha(l.getchannel('A').point(lambda v:int(v*a)))
+    frame.alpha_composite(l)
 # static per-question layers
 QL=[]
 for k,(kan,yomi,film,img,fx,hint) in enumerate(Q):
@@ -94,27 +100,27 @@ def render(t):
     if t<HOOK:
         z=1.0+0.05*t/HOOK
         bg=cover(hookimg,W,H,0.45,0.5,z).convert('RGBA'); bg.alpha_composite(Image.new('RGBA',(W,H),(0,0,0,120)))
-        C=layer(); put(C,H1,0.3,t,dur=0.35,out=HOOK-0.25); put(C,H2,1.7,t,dur=0.35,out=HOOK-0.25)
+        C=layer(); put(C,H1,0.0,t); put(C,H2,1.35,t)
         return compose(bg,C)
     for k,s in enumerate(starts):
         if t<s+QD[k]:
             ts=t-s; key=f'lv{k+1}'; prev='lv1' if k==0 else f'lv{k}'
-            bgi=background(t,prev if ts<0.4 else key,key if ts<0.4 else None,ease(ts/0.4) if ts<0.4 else 0).convert('RGBA')
+            bgi=background(t,prev if ts<0 else key,key if ts<0 else None,ease(ts/0.4) if ts<0 else 0).convert('RGBA')
             if k==0 and ts<0.4: bgi=background(t,'lv1').convert('RGBA')
             head,K,ask,ans,P,acc,note=QL[k]; o=QD[k]-0.3; rv=RV[k]; cs=CS[k]
             C=layer()
-            put(C,head,0.05,ts,out=o); put(C,K,0.2,ts,dur=0.35,out=o)
-            put(C,ask,0.4,ts,dur=0.3,out=rv-0.05)
+            put(C,head,0,ts); put(C,K,0,ts)
+            (put(C,ask,0,ts) if ts<rv else None)
             if cs<=ts<rv:
                 L=layer(); e=ts-cs; num=3-int(e); countdown(L,W/2,1230,1-(e%1),max(1,num),acc)
-                put(C,L,cs,ts,dur=0.2,out=rv-0.15)
-            put(C,ans,rv,ts,dur=0.3,dy=-30,out=o); put(C,P,rv+0.15,ts,dur=0.4,out=o)
-            if note: put(C,note,rv+0.4,ts,out=o)
-            put(C,credit,rv,ts,out=o)
+                put(C,L,cs,ts)
+            put(C,ans,rv,ts); put(C,P,rv,ts)
+            if note: put(C,note,rv,ts)
+            put(C,credit,rv,ts)
             return compose(bgi,C)
     ts=t-starts[-1]-QD[-1]
-    bgi=background(t,'lv6' if ts<0.4 else 'cta','cta' if ts<0.4 else None,ease(ts/0.4) if ts<0.4 else 0).convert('RGBA')
-    C=layer(); put(C,C1,0.1,ts); put(C,C2,0.6,ts); put(C,C3,1.0,ts)
+    bgi=background(t,'lv6' if ts<0 else 'cta','cta' if ts<0 else None,ease(ts/0.4) if ts<0 else 0).convert('RGBA')
+    C=layer(); put(C,C1,0,ts); put(C,C2,0,ts); put(C,C3,0,ts)
     return compose(bgi,C)
 def build_audio():
     import numpy as np
@@ -127,14 +133,12 @@ def build_audio():
         return x
     def add(p,t,g):
         x=rd(p)*g; i=int(t*SR); n=min(len(x),len(tot)-i); tot[i:i+n]+=x[:n]
-    add('sfx/fanfare.wav',0.0,0.45); add('narr/hook.wav',0.4,1.0)
+    add('narr_trim/hook.wav',0.0,1.0)
     for k,st in enumerate(starts):
-        if k>0: add('sfx/whoosh.wav',st-0.15,0.35)
-        add('sfx/deden.wav',st+0.02,0.5); add(f'narr/q{k+1}.wav',st+0.35,1.0)
-        for j in range(3): add('sfx/tick.wav',st+CS[k]+j,0.35)
-        if k==5: add('sfx/drumroll.wav',st+CS[k]+0.2,0.25)
-        add('sfx/pinpon.wav',st+RV[k],0.5); add(f'narr/a{k+1}.wav',st+RV[k]+0.25,1.0)
-    ce=starts[-1]+QD[-1]; add('sfx/sparkle.wav',ce,0.4); add('narr/cta.wav',ce+0.3,1.0)
+        add(f'narr_trim/q{k+1}.wav',st,1.0)
+        for j in range(3): add('sfx/tick.wav',st+CS[k]+j,0.4)
+        add('sfx/pinpon.wav',st+RV[k],0.5); add(f'narr_trim/a{k+1}.wav',st+RV[k]+0.12,1.0)
+    ce=starts[-1]+QD[-1]; add('narr_trim/cta.wav',ce,1.0)
     tot=tot/max(1e-9,np.abs(tot).max())*0.92
     with _wv.open(S_+'quiz_audio.wav','wb') as w:
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((tot*32767).astype(np.int16).tobytes())
