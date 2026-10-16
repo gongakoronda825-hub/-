@@ -82,9 +82,14 @@ def countdown(L,cx,cy,frac,num,acc):
     tdraw(d,cx,cy+4,str(num),fonts(900,130),acc)
 credit=layer(); tdraw(ImageDraw.Draw(credit),W/2,1540,'© Studio Ghibli',fonts(800,26),(120,112,104))
 hookimg=load('chihiro045')
-H1=layer(); lines(H1,780,['ジブリ','漢字クイズ'],150,WHITE,gap=1.15)
+H1=layer(); lines(H1,400,['ジブリ漢字クイズ'],100,WHITE)
+dd=ImageDraw.Draw(H1); cw,chh=820,330; cy0=560
+dd.rounded_rectangle((W/2-cw/2+10,cy0+14,W/2+cw/2+10,cy0+chh+14),48,fill=(0,0,0,90))
+dd.rounded_rectangle((W/2-cw/2,cy0,W/2+cw/2,cy0+chh),48,fill=(255,250,240,255),outline=(180,36,52),width=10)
+tdraw(dd,W/2,cy0+chh/2,'乙事主',fonts(900,230),DARK)
+lines(H1,1000,['これなんて読む？'],96,(255,226,120))
 H2=layer(); dd=ImageDraw.Draw(H2)
-pill(H2,W/2,1080,'全問読めたら宮崎駿レベル',56,(180,36,52),WHITE,46)
+pill(H2,W/2,1170,'全問読めたら宮崎駿レベル',56,(180,36,52),WHITE,46)
 C1=layer(); lines(C1,820,['あなたは','何問読めた？'],110,DARK,stroke=16,gap=1.25)
 C2=layer(); d=ImageDraw.Draw(C2); acc=(46,125,62)
 cx,cy=W/2-260,1120
@@ -166,8 +171,8 @@ def render(t):
     if t>=CTA_END: return follow_frame(t,t-CTA_END)
     if t<HOOK:
         z=1.0+0.05*t/HOOK
-        bg=cover(hookimg,W,H,0.45,0.5,z).convert('RGBA'); bg.alpha_composite(Image.new('RGBA',(W,H),(0,0,0,120)))
-        C=layer(); put(C,H1,0.0,t); put(C,H2,0.0,t)
+        bg=cover(hookimg,W,H,0.45,0.5,z).convert('RGBA'); bg.alpha_composite(Image.new('RGBA',(W,H),(0,0,0,140)))
+        C=layer(); C.alpha_composite(H1); C.alpha_composite(H2)
         return compose(bg,C)
     for k,s in enumerate(starts):
         if t<s+QD[k]:
