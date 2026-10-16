@@ -109,6 +109,23 @@ for k,lst in CHARS.items():
         st=sticker(n,520,side,fl)
         if st.width>560: st=st.resize((560,int(st.height*560/st.width)),Image.LANCZOS)
         CH_IMG[k].append((st,side))
+def csticker(name,h,ow=9,rot=0):
+    im=Image.open(f'cut/c_{name}.png').convert('RGBA'); im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS)
+    pad=ow*3; big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
+    A=big.getchannel('A').point(lambda v:255 if v>60 else 0)
+    o=A.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
+    out=Image.new('RGBA',big.size,(0,0,0,0)); sh=Image.new('RGBA',big.size,(0,0,0,0)); sh.putalpha(o.filter(ImageFilter.GaussianBlur(8)).point(lambda v:int(v*0.3)))
+    out.alpha_composite(sh,(0,0)); w=Image.new('RGBA',big.size,(255,255,255,0)); w.putalpha(o); out.alpha_composite(w); out.alpha_composite(big)
+    return out.rotate(rot,resample=Image.BICUBIC,expand=True)
+CRE={0:('susu2','haedori'),1:('susu','chibitotoro'),2:('teto','susu2'),3:('kodama2','haedori'),4:('chibitotoro','calcifer'),5:('haedori','susu')}
+CRE_IMG={k:(csticker(a,215,rot=8),csticker(b,215,rot=-8)) for k,(a,b) in CRE.items()}
+def draw_creatures(C,k,ts):
+    l,r=CRE_IMG[k]
+    for j,(st,cx) in enumerate(((l,225),(r,935))):
+        p=min(1,max(0,(ts-0.03*j)/0.12)); sc=0.6+0.4*(1-(1-p)**3)
+        img=st if sc>=1 else st.resize((max(1,int(st.width*sc)),max(1,int(st.height*sc))))
+        bob=7*math.sin(ts*3+j*1.7)
+        C.alpha_composite(img,(int(cx-img.width/2),int(400-img.height/2+bob)))
 def draw_chars(bgi,key,ts):
     for j,(st,side) in enumerate(CH_IMG[key]):
         p=min(1,max(0,(ts-0.0-0.05*j)/0.15)); p=1-(1-p)**3
@@ -160,6 +177,7 @@ def render(t):
             head,K,ask,ans,P,acc,note=QL[k]; o=QD[k]-0.3; rv=RV[k]; cs=CS[k]
             draw_chars(bgi,k,ts)
             C=layer()
+            draw_creatures(C,k,ts)
             put(C,head,0,ts); put(C,K,0,ts)
             (put(C,ask,0,ts) if ts<rv else None)
             if cs<=ts<rv:
