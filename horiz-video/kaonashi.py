@@ -233,6 +233,16 @@ def chapter_el(ch):
     return _cache[key]
 
 
+def chapter_card(s, lt):
+    """章の扉: 暗くした写真の上に「第一の手がかり」(赤・小) と章の名前 (白・大)。ノイズが走って出る"""
+    frame, _ = ken_burns(s["bg"], (0.5, 0.4, 1.1, 0.5, 0.4, 1.2), min(lt / 4, 1))
+    frame = Image.alpha_composite(frame, Image.new("RGBA", (W, H), (0, 0, 0, 185)))
+    place(frame, text_el(s["chapter"][0], 70, fill=(235, 30, 40), glow=(90, 0, 0)), W / 2, H / 2 - 110,
+          alpha=min(1, lt * 4))
+    place(frame, text_el(f"「{s['chapter'][1]}」", 140), W / 2, H / 2 + 50, alpha=min(1, max(0, lt - 0.3) * 4))
+    return frame
+
+
 def title_card(lt, line):
     frame, _ = ken_burns("chihiro/042", (0.76, 0.35, 1.25, 0.76, 0.35, 1.4), min(lt / 5, 1))
     frame = Image.alpha_composite(frame, Image.new("RGBA", (W, H), (0, 0, 0, 175)))
@@ -250,6 +260,8 @@ def draw(seg, lt, f):
     s = SCRIPT[seg["i"]]
     if s["img"] == "title":
         frame = title_card(lt, 0 if s["sub"] == "それが…" else 1)
+    elif s["img"] == "chapter":
+        frame = chapter_card(s, lt)
     else:
         u = min(lt / max(seg["dur"], 0.1), 1)
         frame, (x0, y0, sc) = ken_burns(s["img"], s["zoom"], u)
@@ -261,10 +273,6 @@ def draw(seg, lt, f):
             d = ImageDraw.Draw(frame)
             if p > 0:
                 d.arc((px - pr, py - pr, px + pr, py + pr), -90, -90 + 360 * p, fill=RED + (255,), width=12)
-            if p >= 1:
-                ax = px - pr - 30
-                d.polygon([(ax, py), (ax - 70, py - 40), (ax - 70, py + 40)], fill=RED + (255,))
-                d.rectangle((ax - 200, py - 15, ax - 68, py + 15), fill=RED + (255,))
     frame.alpha_composite(vignette())
     if "key" in s:                              # キーワード: 赤い明朝がにじんで出る
         p = min(1, max(0, lt - 0.5) / 0.4)
@@ -273,12 +281,12 @@ def draw(seg, lt, f):
     if s.get("end") and lt > 1.0:
         place(frame, text_el("続きは本編で", 64, fill=(235, 30, 40), glow=(90, 0, 0)), W - 300, 110,
               alpha=min(1, (lt - 1.0) / 0.5))
-    if seg["chapter"]:                          # 左上の章 (変わったら左から滑り込む)
+    if seg["chapter"] and s["img"] not in ("title", "chapter"):   # 左上の章 (変わったら左から滑り込む)
         el = seg["t"] - seg["chapter_t"]
         ce = chapter_el(seg["chapter"])
         dx = 0 if el > 0.4 else -ce.width * (1 - ease_back(el / 0.4))
         place(frame, ce, ce.width / 2 + dx, 40 + ce.height / 2)
-    if s["img"] != "title":
+    if s["img"] not in ("title", "chapter"):
         sub = subtitle(s["sub"])
         frame.alpha_composite(sub, (0, H - 50 - sub.height))
     frame.alpha_composite(grain(f))
@@ -437,15 +445,20 @@ def thumbnail(path):
 
 
 # ---- 組み立て ---------------------------------------------------------------
-def main():
+def main(script=None, out_name="kaonashi_sample.mp4", make_thumb=True):
+    """script を渡すと、その台本で作る (本編は kaonashi_full.py から呼ぶ)"""
+    global SCRIPT
+    if script is not None:
+        SCRIPT = script
     OUT.mkdir(exist_ok=True)
-    thumbnail(OUT / "kaonashi_thumbnail.jpg")
+    if make_thumb:
+        thumbnail(OUT / "kaonashi_thumbnail.jpg")
     segs, t, chapter, chapter_t = [], 0.4, None, 0.0
     for i, s in enumerate(SCRIPT):
         a, kana = synth(s.get("say", s["sub"].replace("|", "")))
         if "chapter" in s:
             chapter, chapter_t = s["chapter"], t
-        dur = len(a) / SR + (0.5 if s["img"] == "title" else GAP)
+        dur = len(a) / SR + (0.5 if s["img"] in ("title", "chapter") else GAP)
         segs.append(dict(i=i, start=t, dur=dur, voice=a, kana=kana, chapter=chapter, chapter_t=chapter_t))
         t += dur
     total = t + 1.2
@@ -468,7 +481,7 @@ def main():
             buf[a0:a0 + len(c)] += (c * gain)[: len(buf) - a0]
     wav = OUT / "_kaonashi_mix.f32"
     buf[: int(SR * total)].astype("<f4").tofile(wav)
-    out = OUT / "kaonashi_sample.mp4"
+    out = OUT / out_name
     cmd = [FFMPEG, "-y", "-loglevel", "error",
            "-f", "rawvideo", "-pix_fmt", "rgb24", "-s", f"{W}x{H}", "-r", str(FPS), "-i", "-",
            "-f", "f32le", "-ar", str(SR), "-ac", "1", "-i", str(wav),
