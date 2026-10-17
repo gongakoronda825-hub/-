@@ -337,40 +337,68 @@ def drone(total):
 
 # ---- サムネイル (1280x720) -------------------------------------------------------
 def thumbnail(path):
+    """都市伝説風: 巨大化して襲いかかるカオナシ。赤黒い色に、白い仮面だけが浮かぶ。文字は赤い明朝にノイズのずれ"""
     TW, TH = 1280, 720
-    im = load("chihiro/025")                    # 千尋に手を差し出すカオナシ
-    s = TH / im.height * 1.12
+    rng = random.Random(4)
+    im = load("chihiro/033")
+    s = TH / im.height * 1.25                   # 仮面を大きく、右に怯える千尋たちが入るくらい
     big = im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
-    x0 = int(big.width * 0.62 - TW * 0.55)
-    th = big.crop((x0, 0, x0 + TW, TH))
-    th = ImageEnhance.Brightness(ImageEnhance.Color(th).enhance(0.35)).enhance(0.6)
-    th = Image.blend(th, Image.new("RGB", th.size, (60, 0, 0)), 0.18).convert("RGBA")   # 赤黒く
+    x0, y0 = int(big.width * 0.56 - TW * 0.38), int(big.height * 0.36 - TH * 0.4)
+    src = big.crop((x0, y0, x0 + TW, y0 + TH))
+    # 白黒にして、暗いところは赤黒く、明るいところ (仮面) だけ白く残す
+    g = ImageEnhance.Contrast(ImageEnhance.Brightness(src.convert("L")).enhance(0.85)).enhance(1.5)
+    lut_r = [int(255 * (v / 255) ** 1.1) for v in range(256)]
+    lut_gb = [int(255 * (v / 255) ** 3.0) for v in range(256)]
+    th = Image.merge("RGB", (g.point(lut_r), g.point(lut_gb), g.point(lut_gb))).convert("RGBA")
+    # 仮面のまわりを赤く光らせる
+    halo = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
+    mx, my = big.width * 0.56 - x0, big.height * 0.36 - y0
+    ImageDraw.Draw(halo).ellipse((mx - 170, my - 230, mx + 170, my + 230), fill=(200, 0, 0, 110))
+    th.alpha_composite(halo.filter(ImageFilter.GaussianBlur(80)))
+    # 周りと下を真っ暗に
     v = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
     vd = ImageDraw.Draw(v)
-    vd.rectangle((0, 0, TW, TH), outline=(0, 0, 0, 220), width=110)
-    vd.rectangle((0, TH - 270, TW, TH), fill=(0, 0, 0, 170))
-    th.alpha_composite(v.filter(ImageFilter.GaussianBlur(55)))
-    # 「都市伝説」の赤い札 ＋ 小見出し
-    tag = text_el("都市伝説", 52, sw=0)
-    t2 = Image.new("RGBA", (tag.width - 20, tag.height - 10), RED + (255,))
-    t2.alpha_composite(tag, (-10, -8))
-    th.alpha_composite(t2, (34, 34))
-    th.alpha_composite(text_el("カオナシの正体", 78), (34 + t2.width, 12))
-    # 下の大見出し
-    row = text_el("現代人だった", 210, fill=(235, 25, 35), stroke="white", sw=12, glow=(40, 0, 0))
-    k = min(1.0, (TW - 40) / row.width)
-    row = row.resize((round(row.width * k), round(row.height * k)), Image.LANCZOS)
-    th.alpha_composite(row, ((TW - row.width) // 2, TH - row.height + 10))
-    # 吹き出し (縦書き)
-    bx, by, bw, bh = 1050, 140, 175, 290
-    bub = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
-    bd = ImageDraw.Draw(bub)
-    bd.polygon([(bx + 40, by + bh - 80), (bx - 50, by + bh + 20), (bx + 80, by + bh - 30)], fill=(255, 255, 255, 255))
-    bd.ellipse((bx, by, bx + bw, by + bh), fill=(255, 255, 255, 255), outline=(0, 0, 0, 255), width=5)
-    for k2, ch in enumerate(["あ", "︙", "あ", "︙"]):
-        bd.text((bx + bw / 2, by + 58 + k2 * 60), ch, font=font(SERIF, 62), fill=(20, 20, 20), anchor="mm")
-    th.alpha_composite(bub)
-    ImageDraw.Draw(th).rectangle((0, 0, TW - 1, TH - 1), outline=RED + (255,), width=14)   # 赤い枠
+    vd.rectangle((0, 0, TW, TH), outline=(0, 0, 0, 240), width=150)
+    vd.rectangle((0, TH - 250, TW, TH), fill=(0, 0, 0, 200))
+    th.alpha_composite(v.filter(ImageFilter.GaussianBlur(70)))
+    # 引っかき傷とざらつき
+    scr = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
+    sc = ImageDraw.Draw(scr)
+    for _ in range(25):
+        x = rng.uniform(0, TW)
+        sc.line([(x, 0), (x + rng.uniform(-30, 30), TH)], fill=(255, 255, 255, rng.randint(10, 35)), width=1)
+    th.alpha_composite(scr)
+    n = np.random.default_rng(5).normal(128, 45, (TH, TW)).clip(0, 255).astype(np.uint8)
+    gr = Image.new("RGBA", (TW, TH), (255, 255, 255, 0))
+    gr.putalpha(Image.eval(Image.fromarray(n, "L"), lambda p: abs(p - 128) // 4))
+    th.alpha_composite(gr)
+    # 上: 【都市伝説】カオナシの正体
+    th.alpha_composite(text_el("【都市伝説】", 50, fill=(235, 30, 40), sw=6), (14, 18))
+    th.alpha_composite(text_el("カオナシの正体", 80, sw=8), (300, 4))
+    # 右: 縦書きのささやき
+    f = font(SERIF_B, 46)
+    d = ImageDraw.Draw(th)
+    for k, ch in enumerate("あなたの中にもいる"):
+        cy = 130 + k * 48
+        if ch == "、":
+            d.text((TW - 70 + 14, cy - 14), ch, font=f, fill=(230, 230, 230), anchor="mm")
+        else:
+            d.text((TW - 70, cy), ch, font=f, fill=(230, 230, 230), anchor="mm", stroke_width=4, stroke_fill="black")
+    # 下の大見出し: 赤い明朝。色ずれ (シアン/赤) と横に裂けたずれを入れる
+    main_el = text_el("現代人だった", 205, fill=(225, 20, 30), stroke=(0, 0, 0), sw=10, glow=(110, 0, 0))
+    k = min(1.0, (TW - 60) / main_el.width)
+    main_el = main_el.resize((round(main_el.width * k), round(main_el.height * k)), Image.LANCZOS)
+    mxp, myp = (TW - main_el.width) // 2, TH - main_el.height + 8
+    for col, dx in (((0, 255, 255, 120), -9), ((255, 0, 0, 120), 9)):
+        ghost = Image.new("RGBA", main_el.size, col)
+        ghost.putalpha(main_el.getchannel("A").point(lambda p: p * col[3] // 255))
+        th.alpha_composite(ghost, (mxp + dx, myp))
+    th.alpha_composite(main_el, (mxp, myp))
+    for _ in range(5):                          # 横に裂けたずれ
+        yy, hh = rng.randint(myp + 30, TH - 30), rng.randint(6, 18)
+        strip = th.crop((0, yy, TW, yy + hh))
+        th.paste(strip, (rng.randint(-25, 25), yy))
+    ImageDraw.Draw(th).rectangle((0, 0, TW - 1, TH - 1), outline=(150, 0, 0, 255), width=10)
     th.convert("RGB").save(path, quality=95)
 
 
