@@ -45,7 +45,8 @@ d.rounded_rectangle((x0,y0-60,x0+w_,y0+60),60,fill=GREEN,outline=WHITE,width=8)
 cx=x0+70; d.ellipse((cx-33,y0-33,cx+33,y0+33),fill=WHITE); d.rectangle((cx-18,y0-5,cx+18,y0+5),fill=GREEN); d.rectangle((cx-5,y0-18,cx+5,y0+18),fill=GREEN)
 text(C,tx,62,900,y0,WHITE,cx=x0+w_/2+40)
 CHS=[sticker('totoro019',360,'L'),sticker('totoro044',330,'R')]
-CTAF=compose(mini,C)
+CSW=[(cut_sticker(n,210,300,0),[215,445,675,905][k],960+(20 if k%2 else 0),[-5,4,-4,5][k],k*0.9) for k,n in enumerate([1,5,6,7])]
+CTAF=compose(C)
 for j,st in enumerate(CHS):
     if st.width>520: CHS[j]=st.resize((520,int(st.height*520/st.width)),Image.LANCZOS)
 for j,st in enumerate(CHS): CTAF.alpha_composite(st,(0 if j==0 else W-st.width,H-st.height+8))
@@ -61,7 +62,12 @@ def render(t):
             for t0,k,it in its:
                 if t>=t0: L.alpha_composite(pop(ILS[(p,k)],min(1,(t-t0)/0.12)))
             f.alpha_composite(shifted(L)); return f
-    return CTAF
+    tt=t-CTA_T; f=CTAF.copy(); L=layer()
+    for st,cx,cy,base,ph in CSW:
+        ang=base+6*math.sin(2*math.pi*tt/1.5+ph)
+        c=Image.new('RGBA',(st.width,st.height*2),(0,0,0,0)); c.alpha_composite(st,(0,st.height))
+        r=c.rotate(ang,resample=Image.BICUBIC,expand=True); L.alpha_composite(r,(int(cx-r.width/2),int(cy-st.height/2-r.height/2)))
+    f.alpha_composite(shifted(L)); return f
 SR=44100
 def build_audio():
     tot=np.zeros(int(SR*(DUR+0.5)))
