@@ -362,56 +362,61 @@ def side_panel(name, scale, cx, cy, pw, side):
 
 
 def thumbnail(path):
-    """都市伝説風: 黒地の左右に赤黒いカオナシ 2 体 (どちらも中央を向く)。真ん中に明朝の見出し"""
+    """都市伝説チャンネル風: 真ん中に赤黒いカオナシ、左右に赤い巨大な 2 文字「正」「体」、
+    上下に横幅いっぱいの太い明朝 (黄色＋黒フチ)。「現代人」だけ赤"""
     TW, TH = 1280, 720
     rng = random.Random(4)
-    th = Image.new("RGBA", (TW, TH), (8, 0, 0, 255))
-    # 左: 巨大化して襲いかかるカオナシの仮面 / 右: 線路に立つカオナシ (左を向いている)
-    th.alpha_composite(side_panel("chihiro/033", 1.35, 0.56, 0.42, 560, "left"), (0, 0))
-    right = side_panel("chihiro/041", 1.2, 0.51, 0.45, 560, "right")
-    th.alpha_composite(right, (TW - right.width, 0))
-    # 仮面のまわりを赤く光らせる
-    halo = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
-    hd = ImageDraw.Draw(halo)
-    hd.ellipse((180, 60, 480, 480), fill=(200, 0, 0, 90))
-    hd.ellipse((TW - 440, 20, TW - 140, 400), fill=(200, 0, 0, 80))
+    YEL = (255, 222, 0)
+    im = load("chihiro/033")                    # 巨大化して襲いかかるカオナシ
+    s = TH / im.height * 1.3
+    big = im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
+    x0, y0 = int(big.width * 0.56 - TW * 0.5), int(big.height * 0.37 - TH * 0.45)
+    th = duotone(big.crop((x0, y0, x0 + TW, y0 + TH)))
+    halo = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))   # 仮面のまわりを赤く光らせる
+    ImageDraw.Draw(halo).ellipse((TW / 2 - 200, 60, TW / 2 + 200, 560), fill=(200, 0, 0, 100))
     th.alpha_composite(halo.filter(ImageFilter.GaussianBlur(80)))
-    # 周りと下を暗く
-    v = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
+    v = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))      # 周りと上下を暗く (文字を読みやすく)
     vd = ImageDraw.Draw(v)
-    vd.rectangle((0, 0, TW, TH), outline=(0, 0, 0, 230), width=110)
-    vd.rectangle((0, TH - 240, TW, TH), fill=(0, 0, 0, 190))
-    th.alpha_composite(v.filter(ImageFilter.GaussianBlur(60)))
-    # 引っかき傷とざらつき
-    scr = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
-    sc = ImageDraw.Draw(scr)
-    for _ in range(25):
-        x = rng.uniform(0, TW)
-        sc.line([(x, 0), (x + rng.uniform(-30, 30), TH)], fill=(255, 255, 255, rng.randint(10, 35)), width=1)
-    th.alpha_composite(scr)
-    n = np.random.default_rng(5).normal(128, 45, (TH, TW)).clip(0, 255).astype(np.uint8)
+    vd.rectangle((0, 0, TW, TH), outline=(0, 0, 0, 220), width=120)
+    vd.rectangle((0, 0, TW, 130), fill=(0, 0, 0, 170))
+    vd.rectangle((0, TH - 200, TW, TH), fill=(0, 0, 0, 190))
+    th.alpha_composite(v.filter(ImageFilter.GaussianBlur(45)))
+    n = np.random.default_rng(5).normal(128, 45, (TH, TW)).clip(0, 255).astype(np.uint8)   # ざらつき
     gr = Image.new("RGBA", (TW, TH), (255, 255, 255, 0))
-    gr.putalpha(Image.eval(Image.fromarray(n, "L"), lambda p: abs(p - 128) // 4))
+    gr.putalpha(Image.eval(Image.fromarray(n, "L"), lambda p: abs(p - 128) // 5))
     th.alpha_composite(gr)
-    # 中央: 【都市伝説】 / カオナシの / 正体は…
-    place(th, text_el("【都市伝説】", 54, fill=(235, 30, 40), sw=6), TW / 2, 80)
-    place(th, text_el("カオナシの", 104, sw=9), TW / 2, 210)
-    place(th, text_el("正体は…", 104, sw=9), TW / 2, 340)
-    # 下の大見出し: 赤い明朝。色ずれ (シアン/赤) と横に裂けたずれを入れる
-    main_el = text_el("現代人だった", 205, fill=(225, 20, 30), stroke=(0, 0, 0), sw=10, glow=(110, 0, 0))
-    k = min(1.0, (TW - 60) / main_el.width)
-    main_el = main_el.resize((round(main_el.width * k), round(main_el.height * k)), Image.LANCZOS)
-    mxp, myp = (TW - main_el.width) // 2, TH - main_el.height + 8
-    for col, dx in (((0, 255, 255, 120), -9), ((255, 0, 0, 120), 9)):
-        ghost = Image.new("RGBA", main_el.size, col)
-        ghost.putalpha(main_el.getchannel("A").point(lambda p: p * col[3] // 255))
-        th.alpha_composite(ghost, (mxp + dx, myp))
-    th.alpha_composite(main_el, (mxp, myp))
-    for _ in range(5):                          # 横に裂けたずれ
-        yy, hh = rng.randint(myp + 30, TH - 30), rng.randint(6, 18)
-        strip = th.crop((0, yy, TW, yy + hh))
-        th.paste(strip, (rng.randint(-25, 25), yy))
-    ImageDraw.Draw(th).rectangle((0, 0, TW - 1, TH - 1), outline=(150, 0, 0, 255), width=10)
+
+    def fit(el, width):
+        k = min(1.0, width / el.width)
+        return el.resize((round(el.width * k), round(el.height * k)), Image.LANCZOS)
+
+    def double(text, size, fill, inner, outer, sw_in, sw_out):
+        """二重フチの文字 (内側のフチ＋外側の太い黒フチ)"""
+        o = text_el(text, size, fill=outer, stroke=outer, sw=sw_out)
+        i = text_el(text, size, fill=fill, stroke=inner, sw=sw_in)
+        el = Image.new("RGBA", o.size, (0, 0, 0, 0))
+        el.alpha_composite(o)
+        el.alpha_composite(i, (sw_out - sw_in, sw_out - sw_in))
+        return el
+
+    # 左右の巨大な赤い 2 文字
+    for ch, cx in (("正", 205), ("体", TW - 205)):
+        el = double(ch, 330, (225, 20, 30), (255, 255, 255), (0, 0, 0), 6, 16)
+        place(th, el, cx, TH / 2 + 10)
+    # 上: 千と千尋に隠された真実 (黄色、横幅いっぱい)
+    top = fit(double("千と千尋に隠された恐怖の真実", 90, YEL, (0, 0, 0), (0, 0, 0), 8, 8), TW - 40)
+    th.alpha_composite(top, ((TW - top.width) // 2, -6))
+    # 下: カオナシは現代人だった (「現代人」だけ赤に白フチ)
+    parts = [double("カオナシは", 120, YEL, (0, 0, 0), (0, 0, 0), 10, 10),
+             double("現代人", 140, (225, 20, 30), (255, 255, 255), (0, 0, 0), 6, 16),
+             double("だった", 120, YEL, (0, 0, 0), (0, 0, 0), 10, 10)]
+    row = Image.new("RGBA", (sum(p.width for p in parts) - 80 * 2, max(p.height for p in parts)), (0, 0, 0, 0))
+    x = 0
+    for p in parts:
+        row.alpha_composite(p, (x, row.height - p.height - (8 if p is not parts[1] else 0)))
+        x += p.width - 80
+    row = fit(row, TW - 30)
+    th.alpha_composite(row, ((TW - row.width) // 2, TH - row.height + 12))
     th.convert("RGB").save(path, quality=95)
 
 
