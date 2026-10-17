@@ -313,7 +313,7 @@ def draw(seg, lt, f):
     flicker = seg["t"] < FLICKER_UNTIL          # チカチカする演出はオープニングだけ
     if flicker and s.get("sfx") == "glitch" and lt < 0.35:  # 章の切り替わり: ノイズが走る
         frame = glitch(frame, 1 - lt / 0.35, f)
-    if s["img"] in ("title", "chapter"):        # 大見出し・章の扉: 赤いフラッシュ・揺れ・ノイズ
+    if s["img"] in ("title", "chapter") or s.get("emph"):   # 大見出し・章の扉・決め台詞: 赤いフラッシュ・揺れ・ノイズ
         frame = emphasis(frame, s, lt, f)
     rng = random.Random(f * 7)                  # ちらつき (明るさがわずかに揺れる)
     if flicker and rng.random() < 0.08:
@@ -549,13 +549,13 @@ def main(script=None, out_name="kaonashi_sample.mp4", make_thumb=True):
         thumbnail(OUT / "kaonashi_thumbnail.jpg")
     segs, t, chapter, chapter_t = [], 0.4, None, 0.0
     for i, s in enumerate(SCRIPT):
-        emph = s["img"] in ("title", "chapter")   # 大見出し・章の扉: ゆっくり読んで、声にエコー
+        emph = s["img"] in ("title", "chapter") or s.get("emph")   # 大見出し・章の扉・決め台詞: ゆっくり＋エコー
         a, kana = synth(s.get("say", s["sub"].replace("|", "")), EMPH_SPEED if emph else None)
         if emph:
             a = echo(a)
         if "chapter" in s:
             chapter, chapter_t = s["chapter"], t
-        dur = len(a) / SR + (CARD_GAP if s["img"] in ("title", "chapter") else GAP)
+        dur = len(a) / SR + (CARD_GAP if emph else GAP)
         segs.append(dict(i=i, start=t, dur=dur, voice=a, kana=kana, chapter=chapter, chapter_t=chapter_t))
         t += dur
     total = t + 1.2
