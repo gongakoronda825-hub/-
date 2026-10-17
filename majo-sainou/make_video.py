@@ -66,7 +66,7 @@ def hsticker(h,ow=12):
     A=big.getchannel('A').point(lambda v:255 if v>90 else 0); o=A.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
     out=Image.new('RGBA',big.size,(0,0,0,0)); w=Image.new('RGBA',big.size,(255,255,255,0)); w.putalpha(o); out.alpha_composite(w); out.alpha_composite(big)
     return out.crop((0,0,out.width-pad,out.height-pad))
-HST=hsticker(600)
+HST=hsticker(800)
 OPBG.alpha_composite(HST,(W-HST.width,H-HST.height))
 credit_op=layer(); text(credit_op,'© Studio Ghibli　Photo: Natasha Baucas (CC BY 2.0) 加工',20,800,1500,(235,235,235),cx=430)
 ENDBG=fullbg('majo001',90,0.5)
