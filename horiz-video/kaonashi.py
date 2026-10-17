@@ -375,15 +375,6 @@ def thumbnail(path):
     # 上: 【都市伝説】カオナシの正体
     th.alpha_composite(text_el("【都市伝説】", 50, fill=(235, 30, 40), sw=6), (14, 18))
     th.alpha_composite(text_el("カオナシの正体", 80, sw=8), (300, 4))
-    # 右: 縦書きのささやき
-    f = font(SERIF_B, 46)
-    d = ImageDraw.Draw(th)
-    for k, ch in enumerate("あなたの中にもいる"):
-        cy = 130 + k * 48
-        if ch == "、":
-            d.text((TW - 70 + 14, cy - 14), ch, font=f, fill=(230, 230, 230), anchor="mm")
-        else:
-            d.text((TW - 70, cy), ch, font=f, fill=(230, 230, 230), anchor="mm", stroke_width=4, stroke_fill="black")
     # 下の大見出し: 赤い明朝。色ずれ (シアン/赤) と横に裂けたずれを入れる
     main_el = text_el("現代人だった", 205, fill=(225, 20, 30), stroke=(0, 0, 0), sw=10, glow=(110, 0, 0))
     k = min(1.0, (TW - 60) / main_el.width)
