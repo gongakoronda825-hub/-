@@ -233,38 +233,6 @@ def chapter_el(ch):
     return _cache[key]
 
 
-def summary_card(lines, shown=None):
-    """章の最後のまとめ: 黒い帯に赤い縦線。1 行目は白い明朝、「→」で続く行は矢印を赤く、最後の行は赤く強調。
-    shown: 何行目まで出すか (行ごとに順に出す)"""
-    shown = len(lines) if shown is None else shown
-    rows = []
-    for k, t in enumerate(lines[:shown]):
-        last = k == len(lines) - 1
-        if t.startswith("→"):
-            arrow = text_el("→", 60, fill=RED, sw=0, path=SERIF)
-            body = text_el(t[1:].strip(), 64 if not last else 72, fill=(235, 30, 40) if last else "white", sw=0,
-                           path=SERIF, glow=(90, 0, 0) if last else None)
-            r = Image.new("RGBA", (arrow.width + body.width - 30, max(arrow.height, body.height)), (0, 0, 0, 0))
-            r.alpha_composite(arrow, (0, (r.height - arrow.height) // 2))
-            r.alpha_composite(body, (arrow.width - 30, (r.height - body.height) // 2))
-        else:
-            r = text_el(t, 64, sw=0, path=SERIF)
-        rows.append(r)
-    if not rows:
-        return None
-    w = max(r.width for r in rows) + 80
-    h = sum(r.height for r in rows) - 12 * (len(rows) - 1) + 50
-    im = Image.new("RGBA", (w, h), (0, 0, 0, 0))
-    d = ImageDraw.Draw(im)
-    d.rectangle((0, 0, w, h), fill=(0, 0, 0, 185))
-    d.rectangle((0, 0, 10, h), fill=RED + (255,))
-    y = 25
-    for r in rows:
-        im.alpha_composite(r, (50, y))
-        y += r.height - 12
-    return im
-
-
 def title_card(lt, line):
     frame, _ = ken_burns("chihiro/042", (0.76, 0.35, 1.25, 0.76, 0.35, 1.4), min(lt / 5, 1))
     frame = Image.alpha_composite(frame, Image.new("RGBA", (W, H), (0, 0, 0, 175)))
