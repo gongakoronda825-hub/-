@@ -38,6 +38,7 @@ SERIF_B = ROOT / "ghibli-video" / "fonts" / "NotoSerifJP-Bold.ttf"
 SANS = ROOT / "ghibli-video" / "fonts" / "NotoSansJP.ttf"
 ANTIQUE = ROOT / "ghibli-video" / "fonts" / "ZenAntique.ttf"   # 古い印刷物のような明朝 (サムネの見出し)
 BRUSH = ROOT / "ghibli-video" / "fonts" / "YujiBoku.ttf"       # かすれた筆文字 (サムネの左右の 2 文字)
+CARD_FONT = ROOT / "ghibli-video" / "fonts" / "YujiSyuku.ttf"  # まとめカードの文字 (筆で書いた明朝)
 
 # 1 文ずつ: 字幕 (| で改行), 読み (字幕と違うときだけ), 写真,
 # ズーム (中心 x, y は写真上の 0〜1, 倍率) の始め→終わり。同じ写真が続くときは前の終わりから始めて途切れさせない,
@@ -231,6 +232,27 @@ def chapter_el(ch):
         im.alpha_composite(b, (12, 50))
         _cache[key] = im
     return _cache[key]
+
+
+def summary_card(lines, shown=None):
+    """章の最後のまとめカード: 1 行ずつ白い箱に黒い筆文字 (TikTok の投稿と同じ見せ方)。
+    shown: 何行目まで出すか (行ごとに順に出す)"""
+    shown = len(lines) if shown is None else shown
+    f = font(CARD_FONT, 76)
+    boxes = []
+    for t in lines[:shown]:
+        w = int(f.getlength(t)) + 70
+        b = Image.new("RGBA", (w, 116), (0, 0, 0, 0))
+        d = ImageDraw.Draw(b)
+        d.rounded_rectangle((0, 0, w - 1, 115), radius=16, fill=(255, 255, 255, 245))
+        d.text((w / 2, 58), t, font=f, fill=(20, 20, 20), anchor="mm")
+        boxes.append(b)
+    if not boxes:
+        return None
+    im = Image.new("RGBA", (max(b.width for b in boxes), 116 * len(boxes) - 8 * (len(boxes) - 1)), (0, 0, 0, 0))
+    for k, b in enumerate(boxes):
+        im.alpha_composite(b, ((im.width - b.width) // 2, k * 108))
+    return im
 
 
 def title_card(lt, line):
