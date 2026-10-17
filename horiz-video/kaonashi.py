@@ -36,6 +36,8 @@ COPY = "©2001 Studio Ghibli・NDDTM"
 SERIF = ROOT / "ghibli-video" / "fonts" / "NotoSerifJP-Black.ttf"
 SERIF_B = ROOT / "ghibli-video" / "fonts" / "NotoSerifJP-Bold.ttf"
 SANS = ROOT / "ghibli-video" / "fonts" / "NotoSansJP.ttf"
+ANTIQUE = ROOT / "ghibli-video" / "fonts" / "ZenAntique.ttf"   # 古い印刷物のような明朝 (サムネの見出し)
+BRUSH = ROOT / "ghibli-video" / "fonts" / "YujiBoku.ttf"       # かすれた筆文字 (サムネの左右の 2 文字)
 
 # 1 文ずつ: 字幕 (| で改行), 読み (字幕と違うときだけ), 写真,
 # ズーム (中心 x, y は写真上の 0〜1, 倍率) の始め→終わり。同じ写真が続くときは前の終わりから始めて途切れさせない,
@@ -390,10 +392,23 @@ def thumbnail(path):
         k = min(1.0, width / el.width)
         return el.resize((round(el.width * k), round(el.height * k)), Image.LANCZOS)
 
-    def double(text, size, fill, inner, outer, sw_in, sw_out):
-        """二重フチの文字 (内側のフチ＋外側の太い黒フチ)"""
-        o = text_el(text, size, fill=outer, stroke=outer, sw=sw_out)
-        i = text_el(text, size, fill=fill, stroke=inner, sw=sw_in)
+    def worn(el, seed, amount):
+        """インクのかすれ: ぼかしたノイズで、文字の中にまだらな薄い抜けを作る"""
+        rng2 = np.random.default_rng(seed)
+        coarse = Image.fromarray((rng2.random((el.height // 6 + 2, el.width // 6 + 2)) * 255).astype(np.uint8))
+        coarse = np.array(coarse.resize(el.size, Image.BICUBIC).filter(ImageFilter.GaussianBlur(2)), np.float32) / 255
+        fine = rng2.random((el.height, el.width))
+        a = np.array(el.getchannel("A"), dtype=np.float32)
+        hole = (coarse < amount * 2.2) & (fine < 0.75)
+        a *= np.where(hole, 0.35, 1.0)
+        out = el.copy()
+        out.putalpha(Image.fromarray(a.astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.6)))
+        return out
+
+    def double(text, size, fill, inner, outer, sw_in, sw_out, path=ANTIQUE, glow=None, seed=0, wear=0.06):
+        """二重フチの文字 (内側のフチ＋外側の太い黒フチ)。中身はかすれさせ、後ろを赤くにじませる"""
+        o = text_el(text, size, fill=outer, stroke=outer, sw=sw_out, path=path, glow=glow)
+        i = worn(text_el(text, size, fill=fill, stroke=inner, sw=sw_in, path=path), seed, wear)
         el = Image.new("RGBA", o.size, (0, 0, 0, 0))
         el.alpha_composite(o)
         el.alpha_composite(i, (sw_out - sw_in, sw_out - sw_in))
@@ -401,15 +416,16 @@ def thumbnail(path):
 
     # 左右の巨大な赤い 2 文字
     for ch, cx in (("正", 205), ("体", TW - 205)):
-        el = double(ch, 330, (225, 20, 30), (255, 255, 255), (0, 0, 0), 6, 16)
+        el = double(ch, 360, (215, 15, 25), (255, 255, 255), (0, 0, 0), 5, 16, path=BRUSH, glow=(150, 0, 0),
+                    seed=ord(ch), wear=0.08)
         place(th, el, cx, TH / 2 + 10)
     # 上: 千と千尋に隠された真実 (黄色、横幅いっぱい)
-    top = fit(double("千と千尋に隠された恐怖の真実", 90, YEL, (0, 0, 0), (0, 0, 0), 8, 8), TW - 40)
+    top = fit(double("千と千尋に隠された恐怖の真実", 92, YEL, (0, 0, 0), (0, 0, 0), 9, 9, seed=1), TW - 40)
     th.alpha_composite(top, ((TW - top.width) // 2, -6))
     # 下: カオナシは現代人だった (「現代人」だけ赤に白フチ)
-    parts = [double("カオナシは", 120, YEL, (0, 0, 0), (0, 0, 0), 10, 10),
-             double("現代人", 140, (225, 20, 30), (255, 255, 255), (0, 0, 0), 6, 16),
-             double("だった", 120, YEL, (0, 0, 0), (0, 0, 0), 10, 10)]
+    parts = [double("カオナシは", 124, YEL, (0, 0, 0), (0, 0, 0), 11, 11, seed=2),
+             double("現代人", 150, (225, 20, 30), (255, 255, 255), (0, 0, 0), 6, 17, glow=(150, 0, 0), seed=3),
+             double("だった", 124, YEL, (0, 0, 0), (0, 0, 0), 11, 11, seed=4)]
     row = Image.new("RGBA", (sum(p.width for p in parts) - 80 * 2, max(p.height for p in parts)), (0, 0, 0, 0))
     x = 0
     for p in parts:
