@@ -495,9 +495,8 @@ def thumbnail(path):
     # 下: カオナシは現代人だった (「現代人」だけ赤に白フチ)
     parts = [double("カオナシは", 124, YEL, (0, 0, 0), (0, 0, 0), 11, 11, seed=2),
              double("〇〇人", 150, (225, 20, 30), (255, 255, 255), (0, 0, 0), 6, 17, glow=(150, 0, 0), seed=3),
-             double("だった", 124, YEL, (0, 0, 0), (0, 0, 0), 11, 11, seed=4),
-             double("説", 64, YEL, (0, 0, 0), (0, 0, 0), 7, 7, seed=5)]       # 最後に小さく「説」
-    row = Image.new("RGBA", (sum(p.width for p in parts) - 58 * 3, max(p.height for p in parts)), (0, 0, 0, 0))
+             double("だった", 124, YEL, (0, 0, 0), (0, 0, 0), 11, 11, seed=4)]
+    row = Image.new("RGBA", (sum(p.width for p in parts) - 58 * 2, max(p.height for p in parts)), (0, 0, 0, 0))
     x = 0
     for p in parts:
         row.alpha_composite(p, (x, row.height - p.height - (8 if p is not parts[1] else 0)))
