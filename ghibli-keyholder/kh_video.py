@@ -1,7 +1,7 @@
 exec(open('kh.py').read())
 def wdur(p):
     with wave.open(p) as w: return w.getnframes()/w.getframerate()
-HOOK=wdur('khn/hook.wav')+0.35
+HOOK=wdur('khn/hook.wav')+0.1
 P0,T0=thumb_layers()
 def grid_bg(t):
     im=Image.new('RGB',(W,H),(244,242,236)); d=ImageDraw.Draw(im); ph=t*1.4; ln=(46,125,62)
@@ -29,9 +29,9 @@ TL=[]; t=HOOK
 for p,pg in enumerate(PAGES):
     st=t; its=[]
     for k,it in enumerate(pg):
-        its.append((t,k,it)); t+=wdur(f'khn/{it[0]}.wav')+0.3
-    t+=0.3; TL.append((st,t,p,its))
-CTA_T=t; CTA=wdur('khn/cta.wav')+0.9; DUR=CTA_T+CTA
+        its.append((t,k,it)); t+=wdur(f'khn/{it[0]}.wav')+0.08
+    t+=0.1; TL.append((st,t,p,its))
+CTA_T=t; CTA=wdur('khn/cta.wav')+0.5; DUR=CTA_T+CTA
 HEAD=[head_layer(p) for p in range(len(PAGES))]
 ILS={(p,k):item_layer(k,it) for p,pg in enumerate(PAGES) for k,it in enumerate(pg)}
 # CTA layers
@@ -71,8 +71,8 @@ def build_audio():
         i=int(t*SR); n=min(len(x),len(tot)-i); tot[i:i+n]+=g*x[:n]
     add('khn/hook.wav',0.0,1.0)
     for st,en,p,its in TL:
-        for t0,k,it in its: add('sfx/pop.wav',t0,0.35); add(f'khn/{it[0]}.wav',t0+0.08,1.0)
-    add('sfx/pinpon.wav',CTA_T,0.3); add('khn/cta.wav',CTA_T+0.1,1.0)
+        for t0,k,it in its: add('sfx/pop.wav',t0,0.35); add(f'khn/{it[0]}.wav',t0+0.02,1.0)
+    add('sfx/pinpon.wav',CTA_T,0.3); add('khn/cta.wav',CTA_T+0.03,1.0)
     x=tot/np.abs(tot).max()*0.92
     with wave.open(S_+'kh_audio.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((x*32767).astype(np.int16).tobytes())
 build_audio()
