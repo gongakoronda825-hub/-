@@ -26,11 +26,11 @@ def kf(L,t,size,cy,fill,inner=(20,20,20),outer=WHITE,si=14,so=26,cx=540,rot=0,ma
     if rot: T=T.rotate(rot,resample=Image.BICUBIC,expand=True)
     L.alpha_composite(T,(int(cx-T.width/2),int(cy-T.height/2)))
 CX=540; CW=880
-STEPS=['機械に頼る','飛べなくなる','助言','自分の魔法']
+STEPS=['機械に頼る','飛べなくなる','助言','信じ続ける']
 SEC=[dict(k='majo010',kt='魔法ではなく、汽車に乗る',ks='自分で飛ばずに、機械に頼ってしまう',h='便利な機械に頼りたくなる',hs=None),
 dict(k='majo039',kt='突然、飛べなくなる',ks='好きだったことが、できなくなる',h='名作なのにヒットしない時期',hs=['laputa041','totoro044']),
 dict(k='majo041',kt='ウルスラに救われる',ks='「描けなくなったら休めばいい」',h='ウルスラ＝作り手の本音？',hs=['majo042']),
-dict(k='majo047',kt='自分の魔法で、もう一度空へ',ks='汽車ではなく、自分の力を信じて飛ぶ',h='自分の手で描き、大ヒット！',hs=['majo050'])]
+dict(k='majo047',kt='魔法を信じ続けて、また飛べた',ks='成功の理由：自分の魔法を信じ続けた',h='筆を動かし続けて、大ヒット！',hs=['majo050'])]
 def header(i,phase):
     L=layer(); d=ImageDraw.Draw(L)
     d.rounded_rectangle((CX-CW/2,215,CX+CW/2,285),35,fill=RED); text(L,'魔女宅 × 宮崎駿の「才能論」',38,900,250,WHITE,cx=CX)
@@ -91,12 +91,12 @@ def both(i):
                 pill(L,CX-CW//2+30+k*(iw+gap)+iw/2,iy+ih-30,lab,26,(0,0,0),WHITE,18)
             pill(L,CX,iy+40,'公開当時は伸び悩み…',30,RED,WHITE,24)
         if i==3:
-            pill(L,CX,iy+50,'1989年 邦画1位',40,RED,WHITE,32)
-            d.rounded_rectangle((CX-CW/2+30,iy+ih-80,CX+CW/2-30,iy+ih),0,fill=(0,0,0,170))
-            text(L,'今もAIのCGに「生命に対する侮辱」(2016年 NHKスペシャル)',26,800,iy+ih-40,WHITE,cx=CX,maxw=CW-80)
+            pill(L,CX,iy+50,'1989年 邦画1位・ジブリ初の大ヒット',34,RED,WHITE,28)
+            d.rounded_rectangle((CX-CW/2+30,iy+ih-86,CX+CW/2-30,iy+ih),0,fill=(0,0,0,175))
+            text(L,'成功の理由：自分の手で、筆を動かし続けた',32,900,iy+ih-43,YEL,cx=CX,maxw=CW-80)
     return L
 # summary
-ROWS=[('汽車に頼る','機械に頼る誘惑'),('飛べなくなる','ヒットしない時期'),('ウルスラの言葉','作り手の本音'),('自分の魔法で飛ぶ','自分の手で大ヒット')]
+ROWS=[('汽車に頼る','機械に頼る誘惑'),('飛べなくなる','ヒットしない時期'),('ウルスラの言葉','作り手の本音'),('魔法を信じ続けた','筆を動かし続けた')]
 def summary(nrows):
     L=layer(); d=ImageDraw.Draw(L)
     d.rounded_rectangle((CX-CW/2,215,CX+CW/2,285),35,fill=RED); text(L,'まとめ',40,900,250,WHITE,cx=CX)
@@ -108,6 +108,8 @@ def summary(nrows):
         d.rounded_rectangle((CX+10,y,CX+CW/2,y+190),28,fill=(255,253,246,245),outline=NAVY,width=4)
         text(L,a,40,900,y+95,RED,cx=CX-cw2/2-10,maxw=cw2-30); text(L,b,40,900,y+95,NAVY,cx=CX+cw2/2+10,maxw=cw2-30)
         d.ellipse((CX-30,y+65,CX+30,y+125),fill=YEL,outline=WHITE,width=4); text(L,'＝',34,900,y+95,DARK,cx=CX)
+    if nrows>=4:
+        d.rounded_rectangle((CX-CW/2,1380,CX+CW/2,1450),35,fill=GREEN); text(L,'成功の理由は「信じて、続けること」',38,900,1415,WHITE,cx=CX)
     return L
 # opening (thumbnail)
 OPBG=fullbg('majo011',110,0.45)
@@ -146,8 +148,8 @@ SUB={'1k':['旅立ってすぐ、キキは自分の魔法で飛ばずに','汽�
 '2h':['宮崎駿にも、そんな時期がありました','ラピュタもトトロも、公開当時は','思ったほどヒットしなかったんです'],
 '3k':['落ち込むキキに、絵描きのウルスラは言います','描けなくなったら','無理せず休めばいい、と'],
 '3h':['絵を描く人の言葉','それは、作り手である宮崎駿自身の','本音のようにも聞こえます'],
-'4k':['そしてキキは、汽車ではなく','自分の魔法を信じて、もう一度、空へ'],
-'4h':['宮崎駿も、自分の手で描くことを貫きました','そして魔女の宅急便は、その年の邦画1位','ジブリ初の大ヒットに','今でも、AIのCGを「生命に対する侮辱」と言うほど','手で描く力を信じている人なんです'],
+'4k':['それでもキキは、汽車ではなく','自分の魔法を、信じ続けました','そして、もう一度、空へ'],
+'4h':['宮崎駿も同じ','どんなときも、自分の手で','筆を動かし続けました','そして魔女の宅急便は、その年の邦画1位','ジブリ初の大ヒットに','キキと一緒に、宮崎駿も飛べたんです'],
 'sum':['キキに起きた4つの出来事は','宮崎駿自身の歩みと','ぴったり重なっていたんです']}
 SUBT=[]
 for key,chunks in SUB.items():
@@ -186,9 +188,9 @@ def build_audio():
         i=int(t*SR); n=min(len(x),len(tot)-i); tot[i:i+n]+=g*x[:n]
     add('labsfx/text-impact1.wav',0,0.45)
     for k,t0 in TL: add(f'mjn/{k}.wav',t0,1.0)
-    add('labsfx/jean1.wav',ST['1k'],0.4); add('labsfx/shock1.wav',ST['2k'],0.4); add('labsfx/jean1.wav',ST['3k'],0.4); add('labsfx/shakin2.wav',ST['4k'],0.4)
+    add('labsfx/shock1.wav',ST['2k'],0.4); add('labsfx/shakin2.wav',ST['4k'],0.4)
     for i in range(4): add('labsfx/flash2.wav' if i<3 else 'labsfx/correct2.wav',ST[f'{i+1}h'],0.35)
-    add('labsfx/kira1.wav',ST['sum'],0.35); add('labsfx/jean1.wav',ST['end'],0.35)
+    add('labsfx/kira1.wav',ST['sum'],0.35)
     x=tot/np.abs(tot).max()*0.92
     with wave.open(S_+'majo_audio.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((x*32767).astype(np.int16).tobytes())
 if 'render' in sys.argv[0:1] or True:
