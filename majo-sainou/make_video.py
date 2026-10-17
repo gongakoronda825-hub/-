@@ -68,7 +68,7 @@ def hsticker(h,ow=12):
     return out.crop((0,0,out.width-pad,out.height-pad))
 HST=hsticker(800)
 OPBG.alpha_composite(HST,(W-HST.width,H-HST.height))
-credit_op=layer(); text(credit_op,'© Studio Ghibli　Photo: Natasha Baucas (CC BY 2.0) 加工',20,800,1500,(235,235,235),cx=430)
+credit_op=layer(); text(credit_op,'© Studio Ghibli',20,800,1440,(235,235,235),cx=280); text(credit_op,'Photo: Natasha Baucas (CC BY 2.0) 加工',20,800,1470,(235,235,235),cx=280)
 ENDBG=fullbg('majo001',90,0.5)
 E1=layer(); text(E1,'あなたにとっての',70,900,780,WHITE); text(E1,'「魔法」は？',120,900,920,(255,226,120))
 pill(E1,CX,1110,'コメントで教えてね',54,GREEN,WHITE,46)
