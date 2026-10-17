@@ -24,7 +24,7 @@ def swing_layer(t):
         L.alpha_composite(r,(int(cx-r.width/2),int(top-r.height/2)))
     return L
 def hook_frame(t):
-    f=grid_bg(t); f.alpha_composite(shifted(swing_layer(t))); f.alpha_composite(shifted(T0)); return f
+    f=BG.copy(); f.alpha_composite(shifted(swing_layer(t))); f.alpha_composite(shifted(T0)); return f
 TL=[]; t=HOOK
 for p,pg in enumerate(PAGES):
     st=t; its=[]
