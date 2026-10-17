@@ -140,8 +140,10 @@ for k in ['h1','h2']: TL.append((k,t)); t+=wdur(f'mjn/{k}.wav')+G
 for i in range(4):
     for s in 'kh': TL.append((f'{i+1}{s}',t)); t+=wdur(f'mjn/{i+1}{s}.wav')+G
 TL.append(('sum',t)); t+=wdur('mjn/sum.wav')+0.4
-TL.append(('end',t)); t+=wdur('mjn/end.wav')+0.6; DUR=t
+TL.append(('end',t)); t+=wdur('mjn/end.wav')+0.3
+TL.append(('follow',t)); t+=wdur('narr_trim/follow.wav')+1.0; DUR=t
 ST={k:v for k,v in TL}
+FOL=Image.open('/root/.claude/uploads/e2f1f029-242f-578c-b26c-0ea9dd511990/6a98b9bb-image.jpg').convert('RGBA').resize((W,H),Image.LANCZOS)
 SUB={'1k':['旅立ってすぐ、キキは自分の魔法で飛ばずに','汽車という機械に乗って、眠ってしまいます'],
 '1h':['作り手も同じです','便利な機械や技術があると','つい自分の手より','そっちに頼りたくなってしまう'],
 '2k':['ある日キキは、突然、飛べなくなります'],
@@ -178,6 +180,7 @@ def render(t):
     if t<ST['end']:
         dd=wdur('mjn/sum.wav'); n=min(4,1+int((t-ST['sum'])/(dd/4.5)))
         return compose(SM[n],*subs(t))
+    if t>=ST['follow']: return FOL
     f=ENDBG.copy(); f.alpha_composite(shifted(E1)); f.alpha_composite(shifted(cend)); return f
 SR=44100
 def build_audio():
@@ -187,10 +190,10 @@ def build_audio():
         if sr!=SR: x=np.interp(np.arange(0,len(x),sr/SR),np.arange(len(x)),x)
         i=int(t*SR); n=min(len(x),len(tot)-i); tot[i:i+n]+=g*x[:n]
     add('labsfx/text-impact1.wav',0,0.45)
-    for k,t0 in TL: add(f'mjn/{k}.wav',t0,1.0)
+    for k,t0 in TL: add('narr_trim/follow.wav' if k=='follow' else f'mjn/{k}.wav',t0,1.0)
     add('labsfx/shock1.wav',ST['2k'],0.4); add('labsfx/shakin2.wav',ST['4k'],0.4)
     for i in range(4): add('labsfx/flash2.wav' if i<3 else 'labsfx/correct2.wav',ST[f'{i+1}h'],0.35)
-    add('labsfx/kira1.wav',ST['sum'],0.35)
+    add('labsfx/kira1.wav',ST['sum'],0.35); add('labsfx/kira1.wav',ST['follow'],0.3)
     x=tot/np.abs(tot).max()*0.92
     with wave.open(S_+'majo_audio.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((x*32767).astype(np.int16).tobytes())
 if 'render' in sys.argv[0:1] or True:
