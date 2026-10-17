@@ -63,18 +63,18 @@ def thumb_layers():
     pill(T,W/2,1065,f'vol.{VOL}',58,ORANGE,WHITE,60)
     return P,T
 # ---------- page ----------
-CELL=[(285,600),(795,600),(285,1180),(795,1180)]
+CELL=[(290,640),(760,640),(290,1180),(760,1180)]
 def item_layer(k,item):
     n,work,name,price=item; L=layer(); cx,cy=CELL[k]
-    paste(L,photo(n,300,[-3,3,3,-3][k]),cx,cy-55)
-    d=ImageDraw.Draw(L); top=cy+135; lw=470
+    paste(L,photo(n,270,[-3,3,3,-3][k]),cx,cy-60)
+    d=ImageDraw.Draw(L); top=cy+110; lw=430
     d.rounded_rectangle((cx-lw/2,top,cx+lw/2,top+150),30,fill=(255,255,255,245),outline=GREEN,width=4)
     text(L,work,24,800,top+30,(110,100,92),cx=cx)
     text(L,name,32,900,top+74,GREEN,cx=cx,maxw=lw-30)
     text(L,f'¥{price}（税込）',30,900,top+118,DARK,cx=cx)
     return L
 def head_layer(p):
-    L=layer(); pill(L,W/2,290,f'キーホルダーまとめ vol.{VOL}　{p+1}/{len(PAGES)}',36,GREEN,WHITE,40)
+    L=layer(); pill(L,W/2,330,f'キーホルダーまとめ vol.{VOL}　{p+1}/{len(PAGES)}',36,GREEN,WHITE,40)
     text(L,'どんぐり共和国 そらのうえ店',24,800,1515,(110,100,92),6); return L
 def compose(*Ls):
     f=BG.copy()
