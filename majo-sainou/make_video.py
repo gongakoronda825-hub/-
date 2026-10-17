@@ -17,9 +17,11 @@ def kf(L,t,size,cy,fill,inner=(20,20,20),outer=WHITE,si=14,so=26,cx=540,rot=0,ma
     while maxw and f.getlength(t)>maxw: size-=4; f=ImageFont.truetype(KF,size)
     tw=int(f.getlength(t))+so*2+40; th=int(size*1.5)+so*2
     T=Image.new('RGBA',(tw,th),(0,0,0,0)); d=ImageDraw.Draw(T); x=so+20; y=th/2
-    d.text((x+8,y+10),t,font=f,fill=(0,0,0,140),anchor='lm',stroke_width=so,stroke_fill=(0,0,0,140))
-    d.text((x,y),t,font=f,fill=outer,anchor='lm',stroke_width=so,stroke_fill=outer)
-    d.text((x,y),t,font=f,fill=inner,anchor='lm',stroke_width=si,stroke_fill=inner)
+    def solid(ox,oy,sw,col):
+        m=Image.new('L',T.size,0); ImageDraw.Draw(m).text((x+ox,y+oy),t,font=f,fill=255,anchor='lm',stroke_width=sw,stroke_fill=255)
+        m=m.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(5))
+        c=Image.new('RGBA',T.size,col); c.putalpha(m.point(lambda v:int(v*(col[3] if len(col)>3 else 255)/255))); T.alpha_composite(c)
+    solid(8,10,so,(0,0,0,140)); solid(0,0,so,outer); solid(0,0,si,inner)
     d.text((x,y),t,font=f,fill=fill,anchor='lm')
     if rot: T=T.rotate(rot,resample=Image.BICUBIC,expand=True)
     L.alpha_composite(T,(int(cx-T.width/2),int(cy-T.height/2)))
