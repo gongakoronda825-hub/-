@@ -373,8 +373,10 @@ def thumbnail(path):
     gr.putalpha(Image.eval(Image.fromarray(n, "L"), lambda p: abs(p - 128) // 4))
     th.alpha_composite(gr)
     # 上: 【都市伝説】カオナシの正体
-    th.alpha_composite(text_el("【都市伝説】", 50, fill=(235, 30, 40), sw=6), (14, 18))
-    th.alpha_composite(text_el("カオナシの正体", 80, sw=8), (300, 4))
+    a_el, b_el = text_el("【都市伝説】", 50, fill=(235, 30, 40), sw=6), text_el("カオナシの正体", 80, sw=8)
+    left = (TW - (a_el.width + b_el.width - 75)) // 2          # 下の大見出しと同じく中央にそろえる
+    th.alpha_composite(a_el, (left, 18))
+    th.alpha_composite(b_el, (left + a_el.width - 75, 4))
     # 下の大見出し: 赤い明朝。色ずれ (シアン/赤) と横に裂けたずれを入れる
     main_el = text_el("現代人だった", 205, fill=(225, 20, 30), stroke=(0, 0, 0), sw=10, glow=(110, 0, 0))
     k = min(1.0, (TW - 60) / main_el.width)
