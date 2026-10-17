@@ -23,6 +23,7 @@ RED = k.RED
 # 本編の序盤と同じ流れ。答え (現代人) は言い切り、「なぜ？」で本編へ誘導する
 # img: 場面写真 / "title": 大見出し / "end": 続きは関連動画で。zoom は縦に切り出す中心 (x, y) と倍率の始め→終わり
 SCRIPT = [
+    dict(sub="", img="teaser", silent=1.3),     # 最序盤: 答えを伏せた「〇〇人だった」を一瞬だけ見せる (声なし)
     dict(sub="千と千尋の神隠しに登場する|謎の存在、カオナシ。", say="千と千尋の神隠しに登場する、謎の存在、カオナシ。",
          img="chihiro/020", zoom=(0.47, 0.4, 1.0, 0.47, 0.38, 1.1), sfx="boom"),
     dict(sub="顔もなく、声もなく|どこから来たのかも分からない。", say="顔もなく、声もなく、どこから来たのかも分からない。",
@@ -109,6 +110,18 @@ def title_frame(s, lt):
     return v
 
 
+def teaser_frame(lt):
+    """最序盤の一瞬: 赤黒い画面に「カオナシの正体は」/「〇〇人だった」。ノイズが走って、最後は暗転"""
+    v = ken_burns_v("chihiro/033", (0.56, 0.4, 1.2, 0.56, 0.4, 1.3), min(lt / 1.3, 1))
+    v = Image.alpha_composite(v, Image.new("RGBA", (VW, VH), (60, 0, 0, 170)))
+    k.place(v, k.text_el("カオナシの正体は", 110), VW / 2, VH / 2 - 260)
+    k.place(v, k.text_el("〇〇人", 280, fill=(235, 30, 40), stroke="white", sw=12, glow=(120, 0, 0)), VW / 2,
+            VH / 2 - 20, scale=1.1 - 0.1 * min(1, lt / 0.3))
+    k.place(v, k.text_el("だった", 150, fill=(235, 30, 40), stroke=(10, 10, 10), sw=9, glow=(120, 0, 0)), VW / 2,
+            VH / 2 + 230)
+    return v
+
+
 def end_frame(lt):
     v = ken_burns_v("chihiro/041", (0.51, 0.35, 1.2, 0.51, 0.3, 1.35), min(lt / 3, 1))
     v = Image.alpha_composite(v, Image.new("RGBA", (VW, VH), (0, 0, 0, 120)))
@@ -119,6 +132,14 @@ def end_frame(lt):
 
 def draw(seg, lt, f):
     s = SCRIPT[seg["i"]]
+    if s["img"] == "teaser":
+        v = teaser_frame(lt)
+        v.alpha_composite(grain(f))
+        if lt < 0.25 or 0.75 < lt < 0.95:       # ノイズが走る
+            v = glitch_v(v, 1.0, f)
+        if lt > 1.05:                           # 暗転して本編の流れへ
+            v = Image.blend(v, Image.new("RGBA", (VW, VH), (0, 0, 0, 255)), min(1, (lt - 1.05) / 0.25))
+        return v.convert("RGB")
     if s["img"] == "title":
         v = title_frame(s, lt)
     elif s["img"] == "end":
@@ -144,8 +165,8 @@ def draw(seg, lt, f):
     rng = random.Random(f * 7)                  # ちらつき (本編の序盤と同じ)
     if rng.random() < 0.08:
         v.alpha_composite(Image.new("RGBA", (VW, VH), (0, 0, 0, rng.randint(20, 50))))
-    if f < 15:                                  # 暗闇から始まる
-        v = Image.blend(Image.new("RGBA", (VW, VH), (0, 0, 0, 255)), v, f / 15)
+    if seg["i"] == 1 and lt < 0.4:               # 暗闇から始まる
+        v = Image.blend(Image.new("RGBA", (VW, VH), (0, 0, 0, 255)), v, lt / 0.4)
     ImageDraw.Draw(v).text((VW - 16, VH - 12), k.COPY, font=k.font(k.SANS, 22), fill=(255, 255, 255, 150), anchor="rd")
     return v.convert("RGB")
 
@@ -166,8 +187,12 @@ def glitch_v(frame, amount, seed):
 def main():
     k.SPEED = 1.1
     k.PAUSE = 0.35
-    segs, t = [], 0.15
+    segs, t = [], 0.0
     for i, s in enumerate(SCRIPT):
+        if s.get("silent"):                     # 声なしの場面 (最序盤のチラ見せ)
+            segs.append(dict(i=i, start=t, dur=s["silent"], voice=np.zeros(1), kana=""))
+            t += s["silent"]
+            continue
         a, kana = k.synth(s["say"], k.EMPH_SPEED if s.get("emph") else None)
         if s.get("emph"):
             a = k.echo(a)
@@ -192,6 +217,11 @@ def main():
     buf[:n] += bgm * 10 ** ((k.BGM_DB + k.DUCK_DB * on) / 20) * fade * ref
     for sg in segs:
         s = SCRIPT[sg["i"]]
+        if s["img"] == "teaser":                # チラ見せ: ザザッ＋ドーン
+            for c, at, db in ((k.glitch_sfx(), 0.0, -10), (k.boom(), 0.0, -6), (k.glitch_sfx(), 0.75, -12)):
+                a0 = int((sg["start"] + at) * SR)
+                buf[a0:a0 + len(c)] += (c / k.active_rms(c) * ref * 10 ** (db / 20))[: len(buf) - a0]
+            continue
         if s.get("sfx") == "boom":
             c = k.boom()
             hit = 0.55 if s["img"] == "title" else 0.0
