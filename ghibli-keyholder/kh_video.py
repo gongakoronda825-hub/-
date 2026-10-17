@@ -2,7 +2,29 @@ exec(open('kh.py').read())
 def wdur(p):
     with wave.open(p) as w: return w.getnframes()/w.getframerate()
 HOOK=wdur('khn/hook.wav')+0.35
-P0,T0=thumb_layers(); HOOKF=compose(P0,T0)
+P0,T0=thumb_layers()
+def grid_bg(t):
+    im=Image.new('RGB',(W,H),(244,242,236)); d=ImageDraw.Draw(im); ph=t*1.4; ln=(46,125,62)
+    for i in range(-1,11):
+        x0=i*118+20; d.line([(x0+30*math.sin(y/260+i*1.7+ph)+14*math.sin(y/97+i+ph*0.7),y) for y in range(-20,H+40,40)],fill=ln,width=6,joint='curve')
+    for j in range(-1,18):
+        y0=j*118+30; d.line([(x,y0+28*math.sin(x/230+j*1.3+ph*0.8)+10*math.sin(x/83+j+ph*0.6)) for x in range(-20,W+40,40)],fill=ln,width=6,joint='curve')
+    return im.convert('RGBA')
+SW=[]
+xs=[200,435,670,900]
+for k,(n,r) in enumerate([(1,-7),(5,5),(6,-5),(7,7)]): SW.append((cut_sticker(n,250,400,0),xs[k],505+(30 if k%2 else 0),r,k*0.9))
+for k,(n,r) in enumerate([(9,6),(10,-5),(14,5),(15,-7)]): SW.append((cut_sticker(n,260,400,0),xs[k],1345-(30 if k%2 else 0),r,k*0.9+0.5))
+def swing_layer(t):
+    L=layer()
+    for st,cx,cy,base,ph in SW:
+        ang=base+6*math.sin(2*math.pi*t/1.5+ph)
+        c=Image.new('RGBA',(st.width,st.height*2),(0,0,0,0)); c.alpha_composite(st,(0,st.height))
+        r=c.rotate(ang,resample=Image.BICUBIC,expand=True)
+        top=cy-st.height/2  # pivot = top center of sticker
+        L.alpha_composite(r,(int(cx-r.width/2),int(top-r.height/2)))
+    return L
+def hook_frame(t):
+    f=grid_bg(t); f.alpha_composite(shifted(swing_layer(t))); f.alpha_composite(shifted(T0)); return f
 TL=[]; t=HOOK
 for p,pg in enumerate(PAGES):
     st=t; its=[]
@@ -32,7 +54,7 @@ def pop(L,a):
     s=0.75+0.25*a; bb=L.getbbox(); cx=(bb[0]+bb[2])/2; cy=(bb[1]+bb[3])/2
     c=L.crop(bb); c=c.resize((max(1,int(c.width*s)),max(1,int(c.height*s)))); o=layer(); o.alpha_composite(c,(int(cx-c.width/2),int(cy-c.height/2))); return o
 def render(t):
-    if t<HOOK: return HOOKF
+    if t<HOOK: return hook_frame(t)
     for st,en,p,its in TL:
         if t<en:
             f=BG.copy(); L=layer(); L.alpha_composite(HEAD[p])
