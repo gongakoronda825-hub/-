@@ -336,10 +336,10 @@ def glitch_sfx():
     return n * gate * np.linspace(1, 0.2, len(n)) * 0.6
 
 
-BGM_DIR = HERE / "bgm"          # 魔王魂の BGM (再配布不可なので git には入れない。README の手順で取ってくる)
-BGM_DEFAULT = "maou_bgm_acoustic31.mp3"    # 不気味・寂しい (タグ: ホラー / 不気味 / 寂しい / 怖い)
-BGM_DB = -21                    # 声に対する BGM の大きさ
-DUCK_DB = -6                    # 声が出ている間はさらに下げる
+BGM_DIR = HERE / "bgm"          # 魔王魂の BGM (再配布しないので git には入れない。各曲ページ https://maou.audio/ から取ってくる)
+BGM_DEFAULT = "maou_bgm_cyber45.mp3"      # 魔王魂「サイバー45」不気味・不安・奇妙な都市伝説らしいシンセ
+BGM_DB = -14                    # 声に対する BGM の大きさ (声の無い所)
+DUCK_DB = -4                    # 声が出ている間はさらに下げる (ナレーションが聞こえる程度)
 
 
 def load_audio(path):
