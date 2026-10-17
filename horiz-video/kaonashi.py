@@ -336,31 +336,52 @@ def drone(total):
 
 
 # ---- サムネイル (1280x720) -------------------------------------------------------
+def duotone(im, gamma_r=1.1, gamma_gb=3.0):
+    """白黒にしてから赤黒く染める。暗いところは赤黒く、明るいところ (仮面) だけ白く残る"""
+    g = ImageEnhance.Contrast(ImageEnhance.Brightness(im.convert("L")).enhance(0.85)).enhance(1.5)
+    lut_r = [int(255 * (v / 255) ** gamma_r) for v in range(256)]
+    lut_gb = [int(255 * (v / 255) ** gamma_gb) for v in range(256)]
+    return Image.merge("RGB", (g.point(lut_r), g.point(lut_gb), g.point(lut_gb))).convert("RGBA")
+
+
+def side_panel(name, scale, cx, cy, pw, side):
+    """写真の (cx, cy) を中心に、幅 pw・高さ 720 を切り出して赤黒くし、内側 (中央側) へ闇に溶かす"""
+    TH = 720
+    im = load(name)
+    s = TH / im.height * scale
+    big = im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
+    x0 = int(min(max(big.width * cx - pw / 2, 0), big.width - pw))
+    y0 = int(min(max(big.height * cy - TH / 2, 0), big.height - TH))
+    p = duotone(big.crop((x0, y0, x0 + pw, y0 + TH)))
+    fade = Image.linear_gradient("L").rotate(90, expand=True).resize((pw, TH))   # 左が黒 → 右が白
+    if side == "left":
+        fade = fade.transpose(Image.FLIP_LEFT_RIGHT)                         # 左パネルは右 (中央側) を消す
+    fade = fade.point(lambda v: min(255, int(v * 1.6)))
+    p.putalpha(fade)
+    return p
+
+
 def thumbnail(path):
-    """都市伝説風: 巨大化して襲いかかるカオナシ。赤黒い色に、白い仮面だけが浮かぶ。文字は赤い明朝にノイズのずれ"""
+    """都市伝説風: 黒地の左右に赤黒いカオナシ 2 体 (どちらも中央を向く)。真ん中に明朝の見出し"""
     TW, TH = 1280, 720
     rng = random.Random(4)
-    im = load("chihiro/033")
-    s = TH / im.height * 1.25                   # 仮面を大きく、右に怯える千尋たちが入るくらい
-    big = im.resize((round(im.width * s), round(im.height * s)), Image.LANCZOS)
-    x0, y0 = int(big.width * 0.56 - TW * 0.38), int(big.height * 0.36 - TH * 0.4)
-    src = big.crop((x0, y0, x0 + TW, y0 + TH))
-    # 白黒にして、暗いところは赤黒く、明るいところ (仮面) だけ白く残す
-    g = ImageEnhance.Contrast(ImageEnhance.Brightness(src.convert("L")).enhance(0.85)).enhance(1.5)
-    lut_r = [int(255 * (v / 255) ** 1.1) for v in range(256)]
-    lut_gb = [int(255 * (v / 255) ** 3.0) for v in range(256)]
-    th = Image.merge("RGB", (g.point(lut_r), g.point(lut_gb), g.point(lut_gb))).convert("RGBA")
+    th = Image.new("RGBA", (TW, TH), (8, 0, 0, 255))
+    # 左: 巨大化して襲いかかるカオナシの仮面 / 右: 線路に立つカオナシ (左を向いている)
+    th.alpha_composite(side_panel("chihiro/033", 1.35, 0.56, 0.42, 560, "left"), (0, 0))
+    right = side_panel("chihiro/041", 1.2, 0.51, 0.45, 560, "right")
+    th.alpha_composite(right, (TW - right.width, 0))
     # 仮面のまわりを赤く光らせる
     halo = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
-    mx, my = big.width * 0.56 - x0, big.height * 0.36 - y0
-    ImageDraw.Draw(halo).ellipse((mx - 170, my - 230, mx + 170, my + 230), fill=(200, 0, 0, 110))
+    hd = ImageDraw.Draw(halo)
+    hd.ellipse((180, 60, 480, 480), fill=(200, 0, 0, 90))
+    hd.ellipse((TW - 440, 20, TW - 140, 400), fill=(200, 0, 0, 80))
     th.alpha_composite(halo.filter(ImageFilter.GaussianBlur(80)))
-    # 周りと下を真っ暗に
+    # 周りと下を暗く
     v = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
     vd = ImageDraw.Draw(v)
-    vd.rectangle((0, 0, TW, TH), outline=(0, 0, 0, 240), width=150)
-    vd.rectangle((0, TH - 250, TW, TH), fill=(0, 0, 0, 200))
-    th.alpha_composite(v.filter(ImageFilter.GaussianBlur(70)))
+    vd.rectangle((0, 0, TW, TH), outline=(0, 0, 0, 230), width=110)
+    vd.rectangle((0, TH - 240, TW, TH), fill=(0, 0, 0, 190))
+    th.alpha_composite(v.filter(ImageFilter.GaussianBlur(60)))
     # 引っかき傷とざらつき
     scr = Image.new("RGBA", (TW, TH), (0, 0, 0, 0))
     sc = ImageDraw.Draw(scr)
@@ -372,11 +393,10 @@ def thumbnail(path):
     gr = Image.new("RGBA", (TW, TH), (255, 255, 255, 0))
     gr.putalpha(Image.eval(Image.fromarray(n, "L"), lambda p: abs(p - 128) // 4))
     th.alpha_composite(gr)
-    # 上: 【都市伝説】カオナシの正体
-    a_el, b_el = text_el("【都市伝説】", 50, fill=(235, 30, 40), sw=6), text_el("カオナシの正体", 80, sw=8)
-    left = (TW - (a_el.width + b_el.width - 75)) // 2          # 下の大見出しと同じく中央にそろえる
-    th.alpha_composite(a_el, (left, 18))
-    th.alpha_composite(b_el, (left + a_el.width - 75, 4))
+    # 中央: 【都市伝説】 / カオナシの / 正体は…
+    place(th, text_el("【都市伝説】", 54, fill=(235, 30, 40), sw=6), TW / 2, 80)
+    place(th, text_el("カオナシの", 104, sw=9), TW / 2, 210)
+    place(th, text_el("正体は…", 104, sw=9), TW / 2, 340)
     # 下の大見出し: 赤い明朝。色ずれ (シアン/赤) と横に裂けたずれを入れる
     main_el = text_el("現代人だった", 205, fill=(225, 20, 30), stroke=(0, 0, 0), sw=10, glow=(110, 0, 0))
     k = min(1.0, (TW - 60) / main_el.width)
