@@ -1,0 +1,23 @@
+ジブリ作品マーブルレース（output/ghibli_marble_race.mp4） クレジット
+
+■ レースについて
+物理演算（pymunk）で毎回シミュレーションした結果をそのまま映像にしている（演出で順位を操作していない）。
+SEED=92（先頭の入れ替わり 17 回）。結果：1位 もののけ姫、2位 風の谷のナウシカ（差 0.008秒）、3位 千と千尋の神隠し
+ゴール直前は 1/4 のスロー再生で写真判定の演出（ゴールの時刻は 1/240 秒単位で記録）。背景の空は夕焼けのグラデーションをプログラムで描画
+
+■ 場面写真（スタジオジブリ公式サイト 各作品ページ「常識の範囲でご自由にお使いください。」）
+  千と千尋の神隠し chihiro050 ／ となりのトトロ totoro030 ／ 天空の城ラピュタ laputa005
+  風の谷のナウシカ nausicaa010 ／ 魔女の宅急便 majo013 ／ もののけ姫 mononoke049
+  （URL は https://www.ghibli.jp/gallery/<名前>.jpg 。顔の部分を丸く切り抜いて使用）
+著作権表示（https://www.ghibli.jp/copyright/）：
+  © 1984 Hayao Miyazaki/Studio Ghibli, H
+  © 1986 Hayao Miyazaki/Studio Ghibli
+  © 1988 Hayao Miyazaki/Studio Ghibli
+  © 1989 Eiko Kadono/Hayao Miyazaki/Studio Ghibli, N
+  © 1997 Hayao Miyazaki/Studio Ghibli, ND
+  © 2001 Hayao Miyazaki/Studio Ghibli, NDDTM
+
+■ ナレーション：VOICEVOX:四国めたん（ノーマル） 規約 https://zunko.jp/con_ongen_kiyaku.html
+■ 効果音：効果音ラボ https://soundeffect-lab.info/ （ジャン！、決定ボタンを押す52「ポン」）
+          ぶつかる音・転がる音・カウントダウンの音はプログラムで合成
+■ フォント：Noto Sans JP ／ Noto Color Emoji（SIL Open Font License）

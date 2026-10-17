@@ -1,0 +1,23 @@
+【都市伝説】カオナシの正体は現代人だった（YouTube 横動画） クレジット・概要欄用
+
+■ 概要欄（そのまま貼れる形）
+千と千尋の神隠しに登場する謎の存在「カオナシ」。
+作中に残された五つの手がかりから「カオナシ＝現代人説」を検証します。
+※作中の描写をもとにした考察（説）です。
+
+音楽：魔王魂
+VOICEVOX:青山龍星
+場面写真：©2001 Studio Ghibli・NDDTM（スタジオジブリ公式サイト）
+
+#ジブリ #千と千尋の神隠し #カオナシ #都市伝説 #考察
+
+■ 内訳
+・BGM：魔王魂「アコースティック31」「ファンタジー09」 https://maou.audio/
+    規約 https://maou.audio/rule/ （商用・YouTube収益化OK、報告不要。『音楽：魔王魂』の表記をお願いされている）
+    ※音源ファイルは再配布しないので git には入れていない（horiz-video/bgm/ に各曲ページから取得）
+・ナレーション：VOICEVOX:青山龍星（しっとり、話速 1.05） 規約 https://voicevox.hiroshiba.jp/ （クレジット表記が必要）
+・場面写真：スタジオジブリ公式サイト「常識の範囲でご自由にお使いください。」
+    chihiro 007 008 009 011 016 017 018 019 020 022 025 028 030 031 033 039 041 042 043 044
+    著作権表示（https://www.ghibli.jp/copyright/）：© 2001 Hayao Miyazaki/Studio Ghibli, NDDTM
+・フォント：Noto Serif JP ／ Noto Sans JP ／ Zen Antique ／ Yuji Boku（すべて SIL Open Font License）
+・効果音（ドーン・ノイズ）はプログラムで合成
