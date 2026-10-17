@@ -31,6 +31,8 @@ W, H, FPS = 1920, 1080, 30
 SPEAKER = 84                # 青山龍星 しっとり (落ち着いた男性)
 SPEED = 1.1
 GAP = 0.25                  # 文と文の間 (都市伝説らしく少しだけ間をとる)
+PAUSE = 0.8                 # 文の中の「、」の間の長さ (VOICEVOX の pauseLengthScale)
+CARD_GAP = 0.5              # 大見出し・章の扉のあとの間
 RED = (210, 20, 30)
 COPY = "©2001 Studio Ghibli・NDDTM"
 SERIF = ROOT / "ghibli-video" / "fonts" / "NotoSerifJP-Black.ttf"
@@ -315,7 +317,7 @@ def synth(text):
         for m in ap["moras"]:
             if m.get("consonant") and m["consonant_length"] < 0.045:
                 m["consonant_length"] = 0.045
-    q.update(speedScale=SPEED, pauseLengthScale=0.8, prePhonemeLength=0.0, postPhonemeLength=0.05,
+    q.update(speedScale=SPEED, pauseLengthScale=PAUSE, prePhonemeLength=0.0, postPhonemeLength=0.05,
              outputSamplingRate=SR, outputStereo=False)
     with wave.open(io.BytesIO(post("/synthesis", {"speaker": SPEAKER}, json.dumps(q).encode()))) as w:
         a = np.frombuffer(w.readframes(w.getnframes()), "<i2").astype(np.float64) / 32768
@@ -522,7 +524,7 @@ def main(script=None, out_name="kaonashi_sample.mp4", make_thumb=True):
         a, kana = synth(s.get("say", s["sub"].replace("|", "")))
         if "chapter" in s:
             chapter, chapter_t = s["chapter"], t
-        dur = len(a) / SR + (0.5 if s["img"] in ("title", "chapter") else GAP)
+        dur = len(a) / SR + (CARD_GAP if s["img"] in ("title", "chapter") else GAP)
         segs.append(dict(i=i, start=t, dur=dur, voice=a, kana=kana, chapter=chapter, chapter_t=chapter_t))
         t += dur
     total = t + 1.2

@@ -283,7 +283,9 @@ def part(n):
 
 
 if __name__ == "__main__":
-    k.SPEED = 1.05                          # 本編は少しゆっくり (8 分を超えるように)
-    k.GAP = 0.3
+    k.SPEED = 1.1                           # ジェットカット: 間を詰めてテンポよく
+    k.GAP = 0.06
+    k.PAUSE = 0.35
+    k.CARD_GAP = 0.3
     n = sys.argv[1] if len(sys.argv) > 1 else "1"
     k.main(script=part(n), out_name=f"kaonashi_full_{n}.mp4", make_thumb=False)
