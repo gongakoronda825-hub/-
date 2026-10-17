@@ -336,6 +336,68 @@ def glitch_sfx():
     return n * gate * np.linspace(1, 0.2, len(n)) * 0.6
 
 
+BGM_DIR = HERE / "bgm"          # 魔王魂の BGM (再配布不可なので git には入れない。README の手順で取ってくる)
+BGM_DEFAULT = "maou_bgm_acoustic31.mp3"    # 不気味・寂しい (タグ: ホラー / 不気味 / 寂しい / 怖い)
+BGM_DB = -21                    # 声に対する BGM の大きさ
+DUCK_DB = -6                    # 声が出ている間はさらに下げる
+
+
+def load_audio(path):
+    raw = subprocess.run([FFMPEG, "-loglevel", "error", "-i", str(path), "-f", "s16le", "-ac", "1", "-ar", str(SR), "-"],
+                         capture_output=True, check=True).stdout
+    return np.frombuffer(raw, "<i2").astype(np.float64) / 32768
+
+
+def looped(a, n, xf):
+    """a を n サンプルになるまで、つなぎ目を xf サンプルずつ重ねて繰り返す"""
+    out = np.zeros(n + len(a))
+    ramp = np.linspace(0, 1, xf)
+    pos = 0
+    while pos < n:
+        seg = a.copy()
+        if pos > 0:
+            seg[:xf] *= ramp
+        seg[-xf:] *= ramp[::-1]
+        out[pos:pos + len(seg)] += seg
+        pos += len(seg) - xf
+    return out[:n]
+
+
+def bgm_track(segs, total, voice):
+    """章ごとに曲を選んで (台本の bgm キー)、切り替わりはクロスフェード。声の間は下げる (ダッキング)"""
+    n = int(SR * total)
+    blocks, cur = [], (0.0, BGM_DEFAULT)
+    for sg in segs:
+        name = SCRIPT[sg["i"]].get("bgm")
+        if name and name != cur[1]:
+            blocks.append((cur[0], sg["start"], cur[1]))
+            cur = (sg["start"], name)
+    blocks.append((cur[0], total, cur[1]))
+    out = np.zeros(n)
+    xf = int(SR * 2.0)
+    cache = {}
+    for b0, b1, name in blocks:
+        if name not in cache:
+            a = load_audio(BGM_DIR / name)
+            cache[name] = a / (np.sqrt(np.mean(a[np.abs(a) > 0.01] ** 2)) + 1e-9)
+        i0, i1 = int(b0 * SR), min(n, int(b1 * SR) + xf)
+        piece = looped(cache[name], i1 - i0, int(SR * 1.5))
+        env = np.ones(len(piece))
+        if i0 > 0:
+            env[:xf] = np.linspace(0, 1, xf)
+        if i1 < n:
+            env[-xf:] = np.linspace(1, 0, xf)
+        out[i0:i1] += piece * env
+    # ダッキング: 声の大きさをなめらかにして、声がある所は BGM を下げる
+    v = np.abs(voice[:n])
+    k = int(SR * 0.3)
+    v = np.convolve(v, np.ones(k) / k, mode="same")
+    on = np.clip(v / (np.max(v) * 0.1 + 1e-9), 0, 1)
+    gain = 10 ** ((BGM_DB + DUCK_DB * on) / 20)
+    fade = np.minimum(1, np.arange(n) / (SR * 1.5)) * np.minimum(1, (n - np.arange(n)) / (SR * 2.0))
+    return out * gain * fade
+
+
 def drone(total):
     """不穏な持続音 (BGM の代わり)。低い音を 2 つ少しずらして重ね、ゆっくり揺らす。高い音がうっすら鳴る"""
     t = np.arange(int(SR * total)) / SR
@@ -470,8 +532,11 @@ def main(script=None, out_name="kaonashi_sample.mp4", make_thumb=True):
     voice *= 10 ** (-13 / 20) / active_rms(voice)
     buf += voice
     ref = active_rms(voice)
-    dr = drone(total)
-    buf[: len(dr)] += dr / np.sqrt(np.mean(dr ** 2)) * ref * 10 ** (-17 / 20)
+    if (BGM_DIR / BGM_DEFAULT).exists():        # BGM (魔王魂)。無ければ低い持続音で代わりにする
+        buf[: int(SR * total)] += bgm_track(segs, total, voice) * ref
+    else:
+        dr = drone(total)
+        buf[: len(dr)] += dr / np.sqrt(np.mean(dr ** 2)) * ref * 10 ** (-17 / 20)
     for sg in segs:
         name = SCRIPT[sg["i"]].get("sfx")
         if name:
