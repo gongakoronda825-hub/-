@@ -99,6 +99,7 @@ SCRIPT = [
 ]
 
 _cache = {}
+FLICKER_UNTIL = 1e9             # ちらつき・ノイズを出す最後の秒 (main で決める)
 
 
 def font(path, size):
@@ -290,10 +291,11 @@ def draw(seg, lt, f):
         sub = subtitle(s["sub"])
         frame.alpha_composite(sub, (0, H - 50 - sub.height))
     frame.alpha_composite(grain(f))
-    if s.get("sfx") == "glitch" and lt < 0.35:  # 章の切り替わり: ノイズが走る
+    flicker = seg["t"] < FLICKER_UNTIL          # チカチカする演出はオープニングだけ
+    if flicker and s.get("sfx") == "glitch" and lt < 0.35:  # 章の切り替わり: ノイズが走る
         frame = glitch(frame, 1 - lt / 0.35, f)
     rng = random.Random(f * 7)                  # ちらつき (明るさがわずかに揺れる)
-    if rng.random() < 0.08:
+    if flicker and rng.random() < 0.08:
         frame.alpha_composite(Image.new("RGBA", (W, H), (0, 0, 0, rng.randint(20, 50))))
     ImageDraw.Draw(frame).text((W - 20, H - 12), COPY, font=font(SANS, 22), fill=(255, 255, 255, 150), anchor="rd")
     return frame.convert("RGB")
@@ -524,6 +526,8 @@ def main(script=None, out_name="kaonashi_sample.mp4", make_thumb=True):
         segs.append(dict(i=i, start=t, dur=dur, voice=a, kana=kana, chapter=chapter, chapter_t=chapter_t))
         t += dur
     total = t + 1.2
+    global FLICKER_UNTIL                        # 最初の章の扉が始まるまで (オープニング) だけチカチカさせる
+    FLICKER_UNTIL = next((g["start"] for g in segs if SCRIPT[g["i"]]["img"] == "chapter"), total + 1)
     buf = np.zeros(int(SR * total) + SR)
     voice = np.zeros_like(buf)
     for sg in segs:
