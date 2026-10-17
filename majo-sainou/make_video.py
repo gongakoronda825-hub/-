@@ -26,11 +26,11 @@ def kf(L,t,size,cy,fill,inner=(20,20,20),outer=WHITE,si=14,so=26,cx=540,rot=0,ma
     if rot: T=T.rotate(rot,resample=Image.BICUBIC,expand=True)
     L.alpha_composite(T,(int(cx-T.width/2),int(cy-T.height/2)))
 CX=540; CW=880
-STEPS=['頼りたくなる','飛べなくなる','助言','もう一度飛ぶ']
-SEC=[dict(k='majo010',kt='最初は汽車に乗る',ks='自分で飛ばずに、乗り物に頼る',h='手で描くことにこだわり続けた',hs=None),
+STEPS=['機械に頼る','飛べなくなる','助言','自分の魔法']
+SEC=[dict(k='majo010',kt='魔法ではなく、汽車に乗る',ks='自分で飛ばずに、機械に頼ってしまう',h='便利な機械に頼りたくなる',hs=None),
 dict(k='majo039',kt='突然、飛べなくなる',ks='好きだったことが、できなくなる',h='名作なのにヒットしない時期',hs=['laputa041','totoro044']),
 dict(k='majo041',kt='ウルスラに救われる',ks='「描けなくなったら休めばいい」',h='ウルスラ＝作り手の本音？',hs=['majo042']),
-dict(k='majo047',kt='自分の力で、もう一度空へ',ks='デッキブラシで、再び飛ぶ',h='ジブリ初の大ヒット！',hs=['majo050'])]
+dict(k='majo047',kt='自分の魔法で、もう一度空へ',ks='汽車ではなく、自分の力を信じて飛ぶ',h='自分の手で描き、大ヒット！',hs=['majo050'])]
 def header(i,phase):
     L=layer(); d=ImageDraw.Draw(L)
     d.rounded_rectangle((CX-CW/2,215,CX+CW/2,285),35,fill=RED); text(L,'魔女宅 × 宮崎駿の「才能論」',38,900,250,WHITE,cx=CX)
@@ -65,18 +65,23 @@ def both(i):
     pill(L,CX-CW/2+95,y0+36,'キキ',30,RED,WHITE,26); text(L,s['kt'],46,900,y0+ph-45,WHITE,cx=CX,maxw=CW-40)
     # equals badge
     by=y0+ph+62; d.rounded_rectangle((CX-280,by-40,CX+280,by+40),40,fill=YEL,outline=WHITE,width=5)
-    text(L,'＝ 宮崎駿にも同じことが',34,900,by,DARK,cx=CX)
+    text(L,'＝ 作り手にも同じ誘惑が' if i==0 else '＝ 宮崎駿にも同じことが',34,900,by,DARK,cx=CX)
     y1=by+60; hh=1440-y1
     d.rounded_rectangle((CX-CW/2,y1,CX+CW/2,y1+hh),34,fill=(255,253,246,250),outline=NAVY,width=6)
-    L.alpha_composite(HI,(int(CX-CW/2+24),int(y1+20)))
-    text(L,'宮崎駿',30,900,y1+60,NAVY,cx=CX-CW/2+300)
+    if i==0: pill(L,CX-CW/2+110,y1+60,'作り手',34,NAVY,WHITE,30)
+    else:
+        L.alpha_composite(HI,(int(CX-CW/2+24),int(y1+20))); text(L,'宮崎駿',30,900,y1+60,NAVY,cx=CX-CW/2+300)
     text(L,s['h'],48,900,y1+118,NAVY,cx=CX+70,maxw=CW-220)
     iy=y1+190; ih=hh-215
     if s['hs'] is None:
         d.rounded_rectangle((CX-CW/2+30,iy,CX+CW/2-30,iy+ih),26,fill=(240,236,226))
-        text(L,'AIに動きを学習させたCGを見て',32,800,iy+ih*0.25,DARK,cx=CX)
-        text(L,'「生命に対する侮辱」',70,900,iy+ih*0.52,RED,cx=CX)
-        text(L,'2016年 NHKスペシャルより',26,800,iy+ih*0.8,GRAY,cx=CX)
+        bw=300; bh=170; cy=iy+ih*0.42
+        d.rounded_rectangle((CX-bw-60,cy-bh/2,CX-60,cy+bh/2),26,fill=(255,255,255),outline=(190,185,175),width=4)
+        text(L,'自分の手',46,900,cy,(170,165,155),cx=CX-60-bw/2)
+        d.rounded_rectangle((CX+60,cy-bh/2,CX+60+bw,cy+bh/2),26,fill=NAVY)
+        text(L,'機械・技術',46,900,cy,WHITE,cx=CX+60+bw/2)
+        d.polygon([(CX-40,cy-30),(CX+40,cy),(CX-40,cy+30)],fill=RED)
+        text(L,'つい、便利な方に頼りたくなる',36,900,iy+ih*0.82,RED,cx=CX)
     else:
         n=len(s['hs']); gap=20; iw=(CW-60-gap*(n-1))//n
         for k,nm in enumerate(s['hs']):
@@ -85,10 +90,13 @@ def both(i):
             for k,lab in enumerate(['ラピュタ(1986)','トトロ(1988)']):
                 pill(L,CX-CW//2+30+k*(iw+gap)+iw/2,iy+ih-30,lab,26,(0,0,0),WHITE,18)
             pill(L,CX,iy+40,'公開当時は伸び悩み…',30,RED,WHITE,24)
-        if i==3: pill(L,CX,iy+50,'1989年 邦画1位',40,RED,WHITE,32)
+        if i==3:
+            pill(L,CX,iy+50,'1989年 邦画1位',40,RED,WHITE,32)
+            d.rounded_rectangle((CX-CW/2+30,iy+ih-80,CX+CW/2-30,iy+ih),0,fill=(0,0,0,170))
+            text(L,'今もAIのCGに「生命に対する侮辱」(2016年 NHKスペシャル)',26,800,iy+ih-40,WHITE,cx=CX,maxw=CW-80)
     return L
 # summary
-ROWS=[('汽車に頼る','手描きを貫く'),('飛べなくなる','ヒットしない時期'),('ウルスラの言葉','作り手の本音'),('もう一度飛ぶ','ジブリ初の大ヒット')]
+ROWS=[('汽車に頼る','機械に頼る誘惑'),('飛べなくなる','ヒットしない時期'),('ウルスラの言葉','作り手の本音'),('自分の魔法で飛ぶ','自分の手で大ヒット')]
 def summary(nrows):
     L=layer(); d=ImageDraw.Draw(L)
     d.rounded_rectangle((CX-CW/2,215,CX+CW/2,285),35,fill=RED); text(L,'まとめ',40,900,250,WHITE,cx=CX)
@@ -132,14 +140,14 @@ for i in range(4):
 TL.append(('sum',t)); t+=wdur('mjn/sum.wav')+0.4
 TL.append(('end',t)); t+=wdur('mjn/end.wav')+0.6; DUR=t
 ST={k:v for k,v in TL}
-SUB={'1k':['旅立ってすぐ、キキは自分で飛ばずに','汽車に乗って眠ってしまいます'],
-'1h':['宮崎駿は、便利な方法に頼らず','手で描くことにこだわり続けた人','AIに動きを学習させたCGを見せられたときは','「生命に対する侮辱」とまで語りました'],
+SUB={'1k':['旅立ってすぐ、キキは自分の魔法で飛ばずに','汽車という機械に乗って、眠ってしまいます'],
+'1h':['作り手も同じです','便利な機械や技術があると','つい自分の手より','そっちに頼りたくなってしまう'],
 '2k':['ある日キキは、突然、飛べなくなります'],
 '2h':['宮崎駿にも、そんな時期がありました','ラピュタもトトロも、公開当時は','思ったほどヒットしなかったんです'],
 '3k':['落ち込むキキに、絵描きのウルスラは言います','描けなくなったら','無理せず休めばいい、と'],
 '3h':['絵を描く人の言葉','それは、作り手である宮崎駿自身の','本音のようにも聞こえます'],
-'4k':['そしてキキは、自分の力を信じて','もう一度、空へ'],
-'4h':['魔女の宅急便は、その年の邦画1位','ジブリ初の大ヒットになりました','キキと一緒に、宮崎駿も飛べたんです'],
+'4k':['そしてキキは、汽車ではなく','自分の魔法を信じて、もう一度、空へ'],
+'4h':['宮崎駿も、自分の手で描くことを貫きました','そして魔女の宅急便は、その年の邦画1位','ジブリ初の大ヒットに','今でも、AIのCGを「生命に対する侮辱」と言うほど','手で描く力を信じている人なんです'],
 'sum':['キキに起きた4つの出来事は','宮崎駿自身の歩みと','ぴったり重なっていたんです']}
 SUBT=[]
 for key,chunks in SUB.items():
