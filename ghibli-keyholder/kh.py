@@ -40,15 +40,26 @@ def pill(L,cx,cy,t,size,bg,fg,pad=34):
     d.rounded_rectangle((cx-w/2,cy-size*0.85,cx+w/2,cy+size*0.85),size,fill=bg); text(L,t,size,900,cy,fg,cx=cx)
 def shifted(L): o=layer(); o.alpha_composite(L.crop((DX,0,W,H)),(0,0)); return o
 # ---------- thumbnail ----------
+def cut_sticker(n,bw,bh,rot,ow=10):
+    im=Image.open(f'khcut/{n}.png').convert('RGBA')
+    al=im.getchannel('A').point(lambda v:0 if v<30 else v); im.putalpha(al)
+    s=min(bw/im.width,bh/im.height); im=im.resize((int(im.width*s),int(im.height*s)),Image.LANCZOS)
+    pad=ow*3; big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
+    A=big.getchannel('A').point(lambda v:255 if v>90 else 0)
+    o=A.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
+    out=Image.new('RGBA',big.size,(0,0,0,0)); sh=Image.new('RGBA',big.size,(0,0,0,0)); sh.putalpha(o.filter(ImageFilter.GaussianBlur(10)).point(lambda v:int(v*0.35)))
+    out.alpha_composite(sh,(0,0)); w=Image.new('RGBA',big.size,(255,255,255,0)); w.putalpha(o); out.alpha_composite(w); out.alpha_composite(big)
+    return out.rotate(rot,resample=Image.BICUBIC,expand=True)
 def thumb_layers():
-    P=layer(); xs=[215,445,675,905]; angs=[-6,4,-4,6]
-    for k,(n,*_) in enumerate(ITEMS[:4]): paste(P,photo(n,200,angs[k]),xs[k],470+(25 if k%2 else 0))
-    for k,(n,*_) in enumerate(ITEMS[4:8]): paste(P,photo(n,200,-angs[k]),xs[k],1330-(25 if k%2 else 0))
+    P=layer(); xs=[200,435,670,900]
+    top=[(1,-7),(5,5),(6,-5),(7,7)]; bot=[(9,6),(10,-5),(14,5),(15,-7)]
+    for k,(n,r) in enumerate(top): paste(P,cut_sticker(n,250,400,r),xs[k],505+(30 if k%2 else 0))
+    for k,(n,r) in enumerate(bot): paste(P,cut_sticker(n,260,400,r),xs[k],1345-(30 if k%2 else 0))
     T=layer()
-    x,tw=text(T,'どんぐり共和国で買える',54,900,790,DARK,10)
+    x,tw=text(T,'どんぐり共和国で買える',54,900,800,DARK,10)
     d=ImageDraw.Draw(T)
-    for sx,ex in ((x-54,x-26),(x+tw+54,x+tw+26)): d.line((sx,760,ex,820),fill=DARK,width=8)
-    text(T,'キーホルダーまとめ',108,900,915,GREEN,16,maxw=980)
+    for sx,ex in ((x-54,x-26),(x+tw+54,x+tw+26)): d.line((sx,770,ex,830),fill=DARK,width=8)
+    text(T,'キーホルダーまとめ',108,900,925,GREEN,16,maxw=980)
     pill(T,W/2,1065,f'vol.{VOL}',58,ORANGE,WHITE,60)
     return P,T
 # ---------- page ----------
