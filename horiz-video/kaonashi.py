@@ -33,6 +33,7 @@ SPEED = 1.1
 GAP = 0.25                  # 文と文の間 (都市伝説らしく少しだけ間をとる)
 PAUSE = 0.8                 # 文の中の「、」の間の長さ (VOICEVOX の pauseLengthScale)
 CARD_GAP = 0.5              # 大見出し・章の扉のあとの間
+EMPH_SPEED = 0.9            # 大見出し・章の扉は少しゆっくり読む
 RED = (210, 20, 30)
 COPY = "©2001 Studio Ghibli・NDDTM"
 SERIF = ROOT / "ghibli-video" / "fonts" / "NotoSerifJP-Black.ttf"
@@ -259,6 +260,22 @@ def title_card(lt, line):
     return frame
 
 
+def emphasis(frame, s, lt, f):
+    """大見出し・章の扉の演出。文字が出る瞬間 (hit) に赤く光り、画面が揺れ、ノイズが走る"""
+    hit = 0.55 if (s["img"] == "title" and s["sub"] != "それが…") else 0.0
+    el = lt - hit
+    if 0 <= el < 0.35:
+        frame = glitch(frame, 1 - el / 0.35, f)
+    if 0 <= el < 0.5:                           # 揺れ
+        rng = random.Random(f)
+        amp = 18 * (1 - el / 0.5)
+        dx, dy = rng.uniform(-amp, amp), rng.uniform(-amp, amp)
+        frame = frame.transform(frame.size, Image.AFFINE, (1, 0, dx, 0, 1, dy), resample=Image.BILINEAR)
+    if 0 <= el < 0.3:                           # 赤いフラッシュ
+        frame.alpha_composite(Image.new("RGBA", (W, H), (200, 0, 0, int(120 * (1 - el / 0.3)))))
+    return frame
+
+
 def draw(seg, lt, f):
     s = SCRIPT[seg["i"]]
     if s["img"] == "title":
@@ -296,6 +313,8 @@ def draw(seg, lt, f):
     flicker = seg["t"] < FLICKER_UNTIL          # チカチカする演出はオープニングだけ
     if flicker and s.get("sfx") == "glitch" and lt < 0.35:  # 章の切り替わり: ノイズが走る
         frame = glitch(frame, 1 - lt / 0.35, f)
+    if s["img"] in ("title", "chapter"):        # 大見出し・章の扉: 赤いフラッシュ・揺れ・ノイズ
+        frame = emphasis(frame, s, lt, f)
     rng = random.Random(f * 7)                  # ちらつき (明るさがわずかに揺れる)
     if flicker and rng.random() < 0.08:
         frame.alpha_composite(Image.new("RGBA", (W, H), (0, 0, 0, rng.randint(20, 50))))
@@ -311,18 +330,27 @@ def post(path, params, body=b""):
         return r.read()
 
 
-def synth(text):
+def synth(text, speed=None):
     q = json.loads(post("/audio_query", {"text": text, "speaker": SPEAKER}))
     for ap in q["accent_phrases"]:
         for m in ap["moras"]:
             if m.get("consonant") and m["consonant_length"] < 0.045:
                 m["consonant_length"] = 0.045
-    q.update(speedScale=SPEED, pauseLengthScale=PAUSE, prePhonemeLength=0.0, postPhonemeLength=0.05,
+    q.update(speedScale=speed or SPEED, pauseLengthScale=PAUSE, prePhonemeLength=0.0, postPhonemeLength=0.05,
              outputSamplingRate=SR, outputStereo=False)
     with wave.open(io.BytesIO(post("/synthesis", {"speaker": SPEAKER}, json.dumps(q).encode()))) as w:
         a = np.frombuffer(w.readframes(w.getnframes()), "<i2").astype(np.float64) / 32768
     idx = np.nonzero(np.abs(a) > 0.01)[0]
     return (a[idx[0]: idx[-1] + 1] if len(idx) else a), q["kana"]
+
+
+def echo(a):
+    """声に薄いエコー (0.18 秒・0.36 秒遅れの小さな声を重ねる)"""
+    out = np.concatenate([a, np.zeros(int(SR * 0.45))])
+    for d, g in ((0.18, 0.35), (0.36, 0.15)):
+        i = int(SR * d)
+        out[i:i + len(a)] += a * g
+    return out
 
 
 def boom():
@@ -521,7 +549,10 @@ def main(script=None, out_name="kaonashi_sample.mp4", make_thumb=True):
         thumbnail(OUT / "kaonashi_thumbnail.jpg")
     segs, t, chapter, chapter_t = [], 0.4, None, 0.0
     for i, s in enumerate(SCRIPT):
-        a, kana = synth(s.get("say", s["sub"].replace("|", "")))
+        emph = s["img"] in ("title", "chapter")   # 大見出し・章の扉: ゆっくり読んで、声にエコー
+        a, kana = synth(s.get("say", s["sub"].replace("|", "")), EMPH_SPEED if emph else None)
+        if emph:
+            a = echo(a)
         if "chapter" in s:
             chapter, chapter_t = s["chapter"], t
         dur = len(a) / SR + (CARD_GAP if s["img"] in ("title", "chapter") else GAP)
@@ -544,8 +575,10 @@ def main(script=None, out_name="kaonashi_sample.mp4", make_thumb=True):
         dr = drone(total)
         buf[: len(dr)] += dr / np.sqrt(np.mean(dr ** 2)) * ref * 10 ** (-17 / 20)
     for sg in segs:
-        name = SCRIPT[sg["i"]].get("sfx")
-        if name:
+        names = [SCRIPT[sg["i"]].get("sfx")]
+        if SCRIPT[sg["i"]]["img"] == "chapter":      # 章の扉はノイズ＋低いドーン
+            names.append("boom")
+        for name in filter(None, names):
             c = boom() if name == "boom" else glitch_sfx()
             a0 = int(sg["start"] * SR)
             gain = ref * 10 ** ((-6 if name == "boom" else -12) / 20) / active_rms(c)

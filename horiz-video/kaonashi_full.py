@@ -286,6 +286,6 @@ if __name__ == "__main__":
     k.SPEED = 1.1                           # ジェットカット: 間を詰めてテンポよく
     k.GAP = 0.06
     k.PAUSE = 0.35
-    k.CARD_GAP = 0.3
+    k.CARD_GAP = 0.4                        # 大見出し・章の扉のあとは少し間をとる
     n = sys.argv[1] if len(sys.argv) > 1 else "1"
     k.main(script=part(n), out_name=f"kaonashi_full_{n}.mp4", make_thumb=False)
