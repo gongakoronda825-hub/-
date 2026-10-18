@@ -9,7 +9,8 @@ ITEMS=[(43,'フィギュア','ポーズがいっぱい ジジセット(6個入�
 (9,'壁かけ飾り','グーチョキパン店のパンリース','6,600'),
 (31,'ぬいぐるみ','黒猫 ジジ M','4,400'),
 (3,'食器','カップ&ソーサー(ピンク)','4,400'),
-(19,'オルゴール','キキへの伝言','12,100')]
+(19,'オルゴール','キキへの伝言','12,100'),
+(17,'フォトフレーム','魔女の家','12,100')]
 PAGES=[ITEMS[i:i+4] for i in range(0,len(ITEMS),4)]
 def head_layer(p):
     L=layer(); pill(L,W/2,330,f'魔女の宅急便シリーズ　{p+1}/{len(PAGES)}',36,GREEN,WHITE,40)
@@ -30,11 +31,12 @@ import re as _re
 cs=open('imax.py').read(); exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')]); from PIL import ImageOps
 NOTE={43:'劇中のいろんなポーズのジジが6体セットに',51:'マグとビスケットを抱えたジジがゆらゆら',53:'キキへのチョコレートケーキが小物入れに',
 11:'オキノ邸とジジをゴブラン織りで表現',9:'グーチョキパン店に飾られたパンのリース',31:'赤いリボンが目印の定番ジジ',
-3:'バラとジジが描かれたピンクのカップ',19:'黒電話とジジのオルゴール'}
+3:'バラとジジが描かれたピンクのカップ',19:'黒電話とジジのオルゴール',17:'魔女の家をイメージしたフォトフレーム'}
 DECO=[('majo011',150,0,250,1450,'majo006',300,4,890,470),('majo043o',150,-6,230,1450,'majo018',200,5,880,460),
 ('majo016',230,-5,220,1440,'majo024',260,6,880,470),('majo040',240,4,250,1440,'majo013',230,-4,880,450),
 ('majo032o',150,6,230,1450,'majo017',250,5,880,470),('majo006',300,-3,210,1420,'majo011',140,0,820,420),
-('majo017',240,-4,230,1440,'majo018',190,5,880,450),('majo013',240,5,230,1440,'majo040',230,-4,870,460)]
+('majo017',240,-4,230,1440,'majo018',190,5,880,450),('majo013',240,5,230,1440,'majo040',230,-4,870,460),
+('majo024',200,-5,230,1440,'majo016',220,5,880,460)]
 def page(i,item):
     n,cat,name,price=item; L=layer(); d=ImageDraw.Draw(L)
     pill(L,W/2,300,f'魔女の宅急便シリーズ　{i+1}/{len(ITEMS)}',36,GREEN,WHITE,40)
@@ -53,5 +55,5 @@ import glob,os
 for f in glob.glob(OUT+'0[1-9]_page.png'): os.remove(f)
 for i,it in enumerate(ITEMS):
     L,C=page(i,it); compose(L,C).convert('RGB').save(OUT+f'{i+1:02d}_item.png')
-Image.open('/root/.claude/uploads/e2f1f029-242f-578c-b26c-0ea9dd511990/6a98b9bb-image.jpg').convert('RGB').resize((W,H)).save(OUT+'09_follow.png')
+Image.open('/root/.claude/uploads/e2f1f029-242f-578c-b26c-0ea9dd511990/6a98b9bb-image.jpg').convert('RGB').resize((W,H)).save(OUT+f'{len(ITEMS)+1:02d}_follow.png')
 print('ok')
