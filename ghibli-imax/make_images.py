@@ -43,8 +43,9 @@ def save(name,*Ls): compose(*Ls).convert('RGB').save(OUT+name)
 CR=layer(); text(CR,'© Studio Ghibli',20,800,1560,GRAY)
 # ---------- 00 thumbnail ----------
 P=layer()
-paste(P,framed(still('mimi046',440,300),-5),300,470)
-paste(P,framed(still('karigurashi033',440,300),5),780,500)
+for f,rot,cx in [(U+'0c729ed3-image.webp',-6,385),(U+'ae693571-image.webp',6,695)]:
+    im=Image.open(f).convert('RGBA'); h=370; im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS)
+    paste(P,framed(im,rot,10),cx,480)
 T=layer(); d=ImageDraw.Draw(T)
 pill(T,540,700,'保存版',40,RED,WHITE,40)
 kf(T,'ジブリIMAX上映',100,820,WHITE,inner=NAVY)
@@ -55,7 +56,7 @@ x0=540-(len(items)*170+(len(items)-1)*12)/2
 for k,it in enumerate(items):
     x=x0+k*182; d.rounded_rectangle((x,1195,x+170,1255),30,fill=(255,255,255,240),outline=GREEN,width=3)
     text(T,'✓ '+it if False else it,26,900,1225,GREEN,cx=x+85)
-d.rounded_rectangle((720,560,960,640),40,fill=PINK,outline=WHITE,width=5); text(T,'ポスター配布あり',28,900,600,WHITE,cx=840)
+d.rounded_rectangle((410,232,670,298),33,fill=PINK,outline=WHITE,width=5); text(T,'ポスター配布あり',28,900,265,WHITE,cx=540)
 C=layer()
 for nm,h,r,x,y in [('mimi032',320,-6,230,1430),('majo013',300,5,540,1470),('karigurashi033',330,6,880,1440)]: paste(C,chara(nm,h,r),x,y)
 CT=layer(); text(CT,'© Studio Ghibli',20,800,1650,GRAY)
