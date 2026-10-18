@@ -172,7 +172,11 @@ def render(t):
     if t<ST['1k']:
         f=OPBG.copy()
         p=min(1,max(0,(t-0.25)/0.35)); e=1-(1-p)**3; ov=1+0.06*math.sin(math.pi*min(1,max(0,(t-0.6)/0.25)))*(t<0.85)
-        if p>0: f.alpha_composite(HST,(W-HST.width,int(H-HST.height*e)))
+        if p>0:
+            sw=max(0,t-0.6); ang=3.0*math.sin(2*math.pi*sw/1.6)*min(1,sw/0.3)
+            c=Image.new('RGBA',(HST.width,HST.height*2),(0,0,0,0)); c.alpha_composite(HST,(0,0))
+            r=c.rotate(ang,resample=Image.BICUBIC,center=(HST.width/2,HST.height),expand=False)
+            f.alpha_composite(r,(W-HST.width+25,int(H-HST.height*e)+35))
         f.alpha_composite(shifted(O1))
         if t>=ST['h2']: f.alpha_composite(shifted(O2))
         f.alpha_composite(shifted(cop)); return f
