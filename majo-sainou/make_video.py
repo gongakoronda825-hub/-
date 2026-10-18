@@ -119,7 +119,7 @@ def hsticker(h,ow=12):
     A=big.getchannel('A').point(lambda v:255 if v>90 else 0); o=A.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
     out=Image.new('RGBA',big.size,(0,0,0,0)); w=Image.new('RGBA',big.size,(255,255,255,0)); w.putalpha(o); out.alpha_composite(w); out.alpha_composite(big)
     return out.crop((0,0,out.width-pad,out.height-pad))
-HST=hsticker(800); OPBG.alpha_composite(HST,(W-HST.width,H-HST.height))
+HST=hsticker(800)
 O1=layer()
 kf(O1,'魔女の宅急便は',96,520,WHITE)
 kf(O1,'宮崎駿の',130,690,WHITE,inner=(200,30,40))
@@ -170,7 +170,10 @@ def subs(t):
     return []
 def render(t):
     if t<ST['1k']:
-        f=OPBG.copy(); f.alpha_composite(shifted(O1))
+        f=OPBG.copy()
+        p=min(1,max(0,(t-0.25)/0.35)); e=1-(1-p)**3; ov=1+0.06*math.sin(math.pi*min(1,max(0,(t-0.6)/0.25)))*(t<0.85)
+        if p>0: f.alpha_composite(HST,(W-HST.width,int(H-HST.height*e)))
+        f.alpha_composite(shifted(O1))
         if t>=ST['h2']: f.alpha_composite(shifted(O2))
         f.alpha_composite(shifted(cop)); return f
     if t<ST['sum']:
@@ -203,4 +206,4 @@ p=subprocess.Popen(['ffmpeg','-y','-loglevel','error','-f','rawvideo','-pix_fmt'
  '-c:v','libx264','-pix_fmt','yuv420p','-crf','18','-preset','medium','-c:a','aac','-b:a','192k','-shortest','-movflags','+faststart',OUT+'majo_sainou.mp4'],stdin=subprocess.PIPE)
 for n in range(int(FPS*DUR)): p.stdin.write(render(n/FPS).convert('RGB').tobytes())
 p.stdin.close(); p.wait(); print('done',p.returncode,round(DUR,2))
-render(0.0).convert('RGB').save(OUT+'cover.png')
+render(1.5).convert('RGB').save(OUT+'cover.png')
