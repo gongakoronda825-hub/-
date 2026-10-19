@@ -13,7 +13,7 @@ SEG=[('0280',0,1.8,'n01','kira1'),('0285',0,2.3,'n02','pa1'),('0305',0.3,4.0,'n0
 ('0304',0,2.0,'n10','touch1'),('0300',0,1.28,'n21','peta1'),('0301',0,2.6,'n18',None),('0314',0.5,3.3,'n19',None),
 ('0309',1.0,3.3,'n11','puyon1'),('0310',0,2.2,'n12','nyu1'),('0311',0.5,1.8,'n22',None),('0312',0,1.9,'n13','pa1'),
 ('0313',0,2.1,'n14','touch1'),('0315',0,3.4,'n15',None),('0299',0,4.0,'n20','item-get1'),
-('0281',0.2,1.6,'n23','sceneswitch1'),('0302',0,1.6,None,None),('0280',0,1.9,'n24',None),('FOLLOW',0,3.3,'n16','kira1')]
+('0302',0,2.0,'n23','sceneswitch1'),('0280',0,1.9,'n24',None),('FOLLOW',0,3.3,'n16','kira1')]
 SUB={'n01':'どんぐり共和国に行ってきた！','n02':'入ってすぐ、カルシファーがお出迎え','n03':'店頭には、かわいい柄の\nブランケットが置いてあった！',
 'n04':'カーテンをくぐると…','n05':'千と千尋の神隠しのグッズがいっぱい！','n06':'湯婆婆やカオナシのぬいぐるみも、ずらり',
 'n07':'前回紹介したパンリースも！\n実物もかわいい','n08':'ゴブラントートも見つけた','n09':'魔女宅グッズも充実',
@@ -40,7 +40,7 @@ def frames(seg):
     a=np.frombuffer(p,np.uint8).reshape(-1,H,W,3); fr=list(a[:n])
     while len(fr)<n: fr.append(fr[-1])
     return fr
-enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-','-c:v','libx264','-crf','18','-preset','medium','-pix_fmt','yuv420p',V+'v.mp4'],stdin=subprocess.PIPE)
+enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-','-c:v','libx264','-crf','23','-preset','medium','-pix_fmt','yuv420p',V+'v.mp4'],stdin=subprocess.PIPE)
 POP=[0.6,0.9,1.08,1.03,1.0]
 tt=0; SUBS=[]
 for seg in SEG:
