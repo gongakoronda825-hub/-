@@ -7,12 +7,16 @@ L=[('n01','どんぐり共和国に行ってきた！'),('n02','入ってすぐ�
 ('n09','魔女宅グッズも充実。'),('n10','キキのお部屋みたいなディスプレイ。'),
 ('n11','まっくろくろすけ、ふわふわすぎる。'),('n12','ポニョのグッズも。'),
 ('n13','もののけ姫のキーホルダーも。'),('n14','トトロのバス停まで！'),
-('n15','食器までかわいくて、全部ほしくなる。'),('n16','ジブリの最新情報を発信中。フォローしてね！')]
+('n15','食器までかわいくて、全部ほしくなる。'),('n16','ジブリの最新情報を発信中。フォローしてね！'),
+('n17','ハウルのサンキャッチャーも、キラキラ。'),('n18','クリアファイルも、かわいい柄ばっかり。'),
+('n19','マスキングテープも、種類がいっぱい。'),('n20','そして、ラピュタのポスター、買っちゃいました！')]
 op=urllib.request.build_opener(urllib.request.ProxyHandler({}))
 for _ in range(60):
     try: op.open('http://127.0.0.1:50021/version').read(); break
     except Exception: time.sleep(2)
+import sys
 for k,txt in L:
+    if len(sys.argv)>1 and k not in sys.argv[1:]: continue
     q=json.loads(op.open(urllib.request.Request('http://127.0.0.1:50021/audio_query?'+urllib.parse.urlencode({'text':txt,'speaker':SP}),method='POST')).read())
     q['speedScale']=1.15; q['prePhonemeLength']=0.0; q['postPhonemeLength']=0.05; q['outputSamplingRate']=44100
     for ap in q['accent_phrases']:
