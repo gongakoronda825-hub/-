@@ -32,7 +32,7 @@ def telop(t):
     return L.crop(L.getbbox())
 TAG=layer(); pill(TAG,W/2,290,'どんぐり共和国 vlog',30,(255,255,255,215),GREEN,30)
 TAG=Image.fromarray(np.array(TAG)); 
-COV=layer(); pill(COV,510,1068,'秋冬グッズが揃っている！',36,ORANGE,WHITE,32)
+COV=layer(); kf(COV,'Vlog',96,1065,WHITE,inner=GREEN,outer=WHITE,si=12,so=22,cx=510); pill(COV,510,1180,'秋冬グッズが揃っている！',36,ORANGE,WHITE,32)
 def frames(seg):
     c,t0,d=seg[0],seg[1],seg[2]; n=int(round(d*FPS))
     if c=='FOLLOW':
