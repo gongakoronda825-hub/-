@@ -70,7 +70,7 @@ for seg,st in zip(SEG,starts):
         a=np.frombuffer(amb,np.float32).copy(); fl=int(0.03*SR)
         if len(a)>2*fl: a[:fl]*=np.linspace(0,1,fl); a[-fl:]*=np.linspace(1,0,fl)
         add(a,t,0.18)
-    if seg[3]: add(rd(f'{V}narr/{seg[3]}.wav'),t+0.08,1.0)
+    if seg[3]: add(rd(f'{V}narr/{seg[3]}.wav'),t+(0.0 if t==0 else 0.08),1.0)
     if seg[4]: add(rd(f'labsfx/{seg[4]}.wav'),t,0.32)
 mix=mix[:int(total/FPS*SR)]; mix/=max(1.0,np.abs(mix).max()/0.95)
 with wave.open(V+'a.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((mix*32767).astype(np.int16).tobytes())
