@@ -32,6 +32,7 @@ def telop(t):
     return L.crop(L.getbbox())
 TAG=layer(); pill(TAG,W/2,290,'どんぐり共和国 vlog',30,(255,255,255,215),GREEN,30)
 TAG=Image.fromarray(np.array(TAG)); 
+COV=layer(); pill(COV,510,1068,'秋冬グッズが揃っている！',36,ORANGE,WHITE,32)
 def frames(seg):
     c,t0,d=seg[0],seg[1],seg[2]; n=int(round(d*FPS))
     if c=='FOLLOW':
@@ -44,7 +45,7 @@ enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb
 POP=[0.6,0.9,1.08,1.03,1.0]
 tt=0; SUBS=[]
 for seg in SEG:
-    if seg[3] and seg[3] in SUB: SUBS.append((tt+0.05,tt+0.08+wdur(f'{V}narr/{seg[3]}.wav')+0.35,telop(SUB[seg[3]])))
+    if seg[3] and seg[3] in SUB: SUBS.append((0 if tt==0 else tt+0.05,tt+0.08+wdur(f'{V}narr/{seg[3]}.wav')+0.35,telop(SUB[seg[3]])))
     tt+=round(seg[2]*FPS)/FPS
 total=0; starts=[]
 for si,seg in enumerate(SEG):
@@ -52,6 +53,7 @@ for si,seg in enumerate(SEG):
     for k,f in enumerate(fr):
         im=Image.fromarray(f).convert('RGBA')
         if seg[0]!='FOLLOW': im.alpha_composite(TAG)
+        if si==0: im.alpha_composite(COV)
         g=(total+k)/FPS
         for (t0,t1,T) in SUBS:
             if t0<=g<t1 and seg[0]!='FOLLOW': im.alpha_composite(T,(int(510-T.width/2),int(960-T.height/2)))
