@@ -24,11 +24,10 @@ for i,(jp,yr,catch,lines,st,fx,col,age,mins) in enumerate(FILMS,1):
     top=1080; d.rounded_rectangle((90,top,990,top+400),36,fill=(255,255,255,245),outline=GREEN,width=5)
     pill(L,W/2,top,catch,40,ORANGE,WHITE,36)
     for k,l in enumerate(lines): text(L,l,36,800,top+82+k*56,DARK,cx=W/2,maxw=840)
-    for k,(lab,val) in enumerate([('おすすめ',age),('上映時間',mins)]):
-        cx=W/2-200+k*400; d.rounded_rectangle((cx-180,top+300,cx+180,top+360),30,fill=(236,244,236))
-        text(L,lab+'　'+val,30,900,top+330,GREEN,cx=cx)
+    d.rounded_rectangle((W/2-190,top+300,W/2+190,top+360),30,fill=(236,244,236))
+    text(L,'上映時間　'+mins,30,900,top+330,GREEN,cx=W/2)
     text(L,'© Studio Ghibli',22,800,1500,(110,100,92),6)
-    C=layer(); a,b=[('majo013','mimi032'),('karigurashi033','majo010'),('mimi049','karigurashi012'),('majo010','mimi013'),('karigurashi024','majo013')][i-1]
+    C=layer(); a,b=[('totoro008','totoro044'),('ponyo021','ponyo033'),('majo013','majo010'),('laputa006','laputa048'),('chihiro019','chihiro022')][i-1]
     paste(C,chara(a,170,-6),190,1610); paste(C,chara(b,160,6),830,1615)
     compose(C,L).convert('RGB').save(OUT+f'{i:02d}.png')
 # thumbnail
