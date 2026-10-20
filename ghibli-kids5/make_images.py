@@ -11,23 +11,23 @@ def wrap(t,f,maxw):
         else: cur+=c
     out.append(cur); return out
 X=500
-FILMS=[('となりのトトロ','My Neighbor Totoro','1988年・86分','自然の中で遊ぶ楽しさを','森や田んぼで駆け回る姉妹の姿に、外で遊びたくなる気持ちが芽生える','totoro018',.3,(110,150,100)),
-('崖の上のポニョ','Ponyo','2008年・101分','純粋な心が育てられる','5歳にしてお母さんにもポニョにも気遣いができる宗介。メロい男になる未来しか見えない','ponyo049',.5,(220,110,100)),
-('魔女の宅急便',"Kiki's Delivery Service",'1989年・102分','「ありがとう」が人をつなぐ','町の人に支えられて成長するキキから、感謝の気持ちの大切さが伝わる','majo038',.75,(122,150,190)),
-('天空の城ラピュタ','Castle in the Sky','1986年・124分','ワクワクが止まらない大冒険','空飛ぶ城を目指すハラハラの展開に、子どもも最後まで夢中になれる','laputa036',.5,(90,150,165)),
-('千と千尋の神隠し','Spirited Away','2001年・125分','弱虫だった子が強くなる物語','怖がりの千尋が家族を救うため頑張る姿に、子どもも勇気をもらえる','chihiro045',.5,(190,90,80))]
+FILMS=[('となりのトトロ','My Neighbor Totoro','1988年・86分','自然の中で遊ぶ楽しさを','森や田んぼで駆け回る姉妹の姿に\n外で遊びたくなる気持ちが芽生える','totoro018',.3,(110,150,100)),
+('崖の上のポニョ','Ponyo','2008年・101分','純粋な心が育てられる','5歳にしてお母さんにもポニョにも\n気遣いができる宗介。\nメロい男になる未来しか見えない','ponyo049',.5,(220,110,100)),
+('魔女の宅急便',"Kiki's Delivery Service",'1989年・102分','「ありがとう」が人をつなぐ','町の人に支えられて成長するキキから\n感謝の気持ちの大切さが伝わる','majo038',.75,(122,150,190)),
+('天空の城ラピュタ','Castle in the Sky','1986年・124分','ワクワクが止まらない大冒険','見たあと「バルス！」を叫ぶ子が続出。\n目玉焼きトーストを作ってと\nせがまれるのは確定','laputa036',.5,(90,150,165)),
+('千と千尋の神隠し','Spirited Away','2001年・125分','弱虫だった子が強くなる物語','怖がりの千尋が家族を救うため\n頑張る姿に、子どもも勇気をもらえる','chihiro045',.5,(190,90,80))]
 for i,(jp,en,meta,catch,reason,st,fx,acc) in enumerate(FILMS,1):
     L=paper(); d=ImageDraw.Draw(L)
     ctext(d,(X,250),f'No.{i}',fi(64,600),acc)
     ctext(d,(X,330),'『'+jp+'』',fm(62),INK)
-    ctext(d,(X,395),en+'　|　'+meta,fi(28,500),SUB,sp=1)
+    ctext(d,(X,398),en+'　|　'+meta,fm(26,False),SUB)
     c=rcard(Image.open(S+f'gb/{st}.jpg').convert('RGB'),860,560,fx); shadow(L,c,(int(X-c.width/2),450)); L.alpha_composite(c,(int(X-c.width/2),450))
     d=ImageDraw.Draw(L)
     f1=fm(58); tw=f1.getlength(catch); y=1140
     d.rounded_rectangle((X-tw/2-30,y-52,X+tw/2+30,y+52),52,fill=acc)
     ctext(d,(X,y),catch,f1,(255,253,249))
-    f2=fm(36,False); ls=wrap(reason,f2,780)
-    for k,l in enumerate(ls): ctext(d,(X,1260+k*62),l,f2,INK)
+    f2=fm(38,False); ls=reason.split('\n')
+    for k,l in enumerate(ls): ctext(d,(X,1265+k*66),l,f2,INK)
     ctext(d,(X,1560),'© Studio Ghibli',fi(24,500),SUB)
     L.convert('RGB').save(OUT+f'{i:02d}.png')
 # thumbnail
