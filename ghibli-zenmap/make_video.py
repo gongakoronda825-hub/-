@@ -18,23 +18,27 @@ sc=Image.open(U+'d94ab764-image.jpg').convert('RGB')
 bg=cover(sc,W,H).filter(ImageFilter.GaussianBlur(30)); bg=Image.blend(bg,Image.new('RGB',(W,H),(250,246,240)),0.35)
 fg=sc.resize((960,int(sc.height*960/sc.width)),Image.LANCZOS); bg.paste(fg,(60,(H-fg.height)//2-80)); INTRO=np.array(bg)
 # how-to card
-L=paper(); d=ImageDraw.Draw(L)
+L=paper()
+exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')].replace("f'cut/","S+f'cut/")); from PIL import ImageOps
+for nm,h,r,x,y in [('majo013',240,-8,150,200),('mimi032',230,7,940,210),('karigurashi012',190,10,560,140),
+('mimi049',200,-6,70,720),('majo010',190,8,1010,820),('karigurashi048',180,-8,60,1180),('mimi007',190,6,1020,1260),
+('mimi026',170,-5,1000,560),('karigurashi024',170,7,80,480),('majo013',150,9,60,1500),('mimi013',170,-7,1020,1520),
+('majo010',200,-6,150,1750),('mimi049',190,5,540,1790),('karigurashi033',220,8,940,1750)]:
+    c=chara(nm,h,r); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
+d=ImageDraw.Draw(L)
 ctext(d,(W/2,330),'HOW TO GET',fi(40,600),SUB,sp=8)
 ctext(d,(W/2,420),'ZEN MAPの買い方',fm(78),INK)
 steps=[('1','『禅とジブリ』公式サイトで','二次元コードを表示'),('2','セブン-イレブンの','マルチコピー機にかざす'),('3','400円を入れて','印刷すれば完成！')]
 for i,(n,a,b) in enumerate(steps):
-    y=560+i*230; d.rounded_rectangle((120,y,960,y+190),30,fill=(255,253,249),outline=ACC,width=3)
+    y=560+i*230; d.rounded_rectangle((120,y,960,y+190),30,fill=(255,253,249,255),outline=ACC,width=3)
     d.ellipse((150,y+45,250,y+145),fill=ACC); ctext(d,(200,y+95),n,fi(64,700),WHITE)
     d.text((290,y+62),a,font=fm(42,False),fill=INK,anchor='lm'); d.text((290,y+128),b,font=fm(48),fill=INK,anchor='lm')
-y=1290; d.rounded_rectangle((120,y,960,y+250),30,fill=(240,230,215))
+y=1290; d.rounded_rectangle((120,y,960,y+250),30,fill=(240,230,215,255))
 for i,t in enumerate(['💡 京都で開催中『禅とジブリ』展のオリジナルマップ','📍 全国のセブン-イレブンで販売中','🗾 禅寺をめぐる日英表記の京都観光マップ']):
     pass
 for i,t in enumerate(['京都で開催中『禅とジブリ』展のオリジナル','全国のセブン-イレブンで1枚400円','禅寺をめぐる京都観光マップ（日英表記）']):
     d.text((170,y+55+i*72),'・'+t,font=fm(36,False),fill=INK,anchor='lm')
 ctext(d,(W/2,1600),'※販売期間などは公式サイトをご確認ください',fm(28,False),SUB)
-exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')].replace("f'cut/","S+f'cut/")); from PIL import ImageOps
-for nm,h,r,x,y in [('majo013',230,-8,140,190),('mimi032',220,7,950,200),('karigurashi033',210,8,960,1720),('majo010',190,-6,130,1730),('mimi049',170,-5,540,1760)]:
-    c=chara(nm,h,r); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
 HOW=np.array(L.convert('RGB'))
 FOLLOW=np.array(Image.open(U+'6a98b9bb-image.jpg').convert('RGB').resize((W,H)))
 # segments: (source, start, dur, [narr...], sfx)
