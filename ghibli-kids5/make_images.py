@@ -10,23 +10,26 @@ def still(n,w,h,fx=.5,r=26,pad=12,rot=0):
     o=Image.new('RGBA',(w+2*pad+40,h+2*pad+40),(0,0,0,0)); sh=Image.new('L',o.size,0); ImageDraw.Draw(sh).rounded_rectangle((20,28,20+w+2*pad,28+h+2*pad),r+pad,fill=90)
     o.paste((0,0,0,255),(0,0),sh.filter(ImageFilter.GaussianBlur(10))); wb=Image.new('RGBA',(w+2*pad,h+2*pad),WHITE); wb.putalpha(rmask(w+2*pad,h+2*pad,r+pad)); o.alpha_composite(wb,(20,20)); o.alpha_composite(c,(20+pad,20+pad))
     return o.rotate(rot,resample=Image.BICUBIC,expand=True)
-FILMS=[('となりのトトロ','1988年','自然の中で遊ぶ楽しさを',['森や田んぼで駆け回る姉妹の姿に','外で遊びたくなる気持ちが芽生える'],'totoro018',.3,GREEN),
-('崖の上のポニョ','2008年','純粋な心が育てられる',['5歳にしてお母さんにもポニョにも','気遣いができる宗介。','メロい男になる未来しか見えない'],'ponyo049',.5,RED),
-('魔女の宅急便','1989年','「ありがとう」が人をつなぐ',['町の人に支えられて成長するキキから','感謝の気持ちの大切さが伝わる'],'majo038',.75,(70,110,170)),
-('天空の城ラピュタ','1986年','ワクワクが止まらない大冒険',['見たあと「バルス！」を叫ぶ子が続出。','目玉焼きトーストを作ってと','せがまれるのは確定'],'laputa036',.5,(40,130,150)),
-('千と千尋の神隠し','2001年','弱虫だった子が強くなる物語',['怖がりの千尋が家族を救うため','頑張る姿に、子どもも勇気をもらえる'],'chihiro045',.5,RED)]
+FILMS=[('となりのトトロ','1988年','自然の中で遊ぶ楽しさを',['森や田んぼで駆け回る姉妹の姿に','外で遊びたくなる気持ちが芽生える。','どんぐり拾いや虫探しが','いつもの何倍も楽しくなるはず'],'totoro018',.3,GREEN,'3歳ごろ〜','86分'),
+('崖の上のポニョ','2008年','純粋な心が育てられる',['5歳にしてお母さんにもポニョにも','気遣いができる宗介。','メロい男になる未来しか見えない。','「好き」をまっすぐ伝える大切さも'],'ponyo049',.5,RED,'3歳ごろ〜','101分'),
+('魔女の宅急便','1989年','「ありがとう」が人をつなぐ',['町の人に支えられて成長するキキから','感謝の気持ちの大切さが伝わる。','落ち込んでもまた飛べるようになる姿は','大人が見ても背中を押される'],'majo038',.75,(70,110,170),'5歳ごろ〜','102分'),
+('天空の城ラピュタ','1986年','ワクワクが止まらない大冒険',['見たあと「バルス！」を叫ぶ子が続出。','目玉焼きトーストを作ってと','せがまれるのは確定。','友だちを信じる強さも自然と伝わる'],'laputa036',.5,(40,130,150),'6歳ごろ〜','124分'),
+('千と千尋の神隠し','2001年','弱虫だった子が強くなる物語',['怖がりの千尋が家族を救うため','頑張る姿に、子どもも勇気をもらえる。','「挨拶」と「お礼」の大切さも','千尋の姿から学べる'],'chihiro045',.5,RED,'6歳ごろ〜','125分')]
 CH=[('majo013',200,-6,170,1560),('mimi032',190,6,830,1570),('karigurashi033',190,5,830,1570)]
-for i,(jp,yr,catch,lines,st,fx,col) in enumerate(FILMS,1):
+for i,(jp,yr,catch,lines,st,fx,col,age,mins) in enumerate(FILMS,1):
     L=layer(); d=ImageDraw.Draw(L)
     pill(L,W/2,300,f'子どもに見せたいジブリ　{i}/5',34,GREEN,WHITE,40)
     text(L,jp,76,900,410,col,12,maxw=900); text(L,f'（{yr}公開）',28,800,475,(110,100,92),6)
     paste(L,still(st,820,500,fx,rot=[-2,2][i%2]),W/2,790)
-    top=1080; d.rounded_rectangle((90,top,990,top+330),36,fill=(255,255,255,245),outline=GREEN,width=5)
+    top=1080; d.rounded_rectangle((90,top,990,top+400),36,fill=(255,255,255,245),outline=GREEN,width=5)
     pill(L,W/2,top,catch,40,ORANGE,WHITE,36)
-    for k,l in enumerate(lines): text(L,l,38,800,top+105+k*62-(31 if len(lines)==2 else 0)+ (20 if len(lines)==2 else 0),DARK,cx=W/2,maxw=840)
-    text(L,'© Studio Ghibli',22,800,1450,(110,100,92),6)
+    for k,l in enumerate(lines): text(L,l,36,800,top+82+k*56,DARK,cx=W/2,maxw=840)
+    for k,(lab,val) in enumerate([('おすすめ',age),('上映時間',mins)]):
+        cx=W/2-200+k*400; d.rounded_rectangle((cx-180,top+300,cx+180,top+360),30,fill=(236,244,236))
+        text(L,lab+'　'+val,30,900,top+330,GREEN,cx=cx)
+    text(L,'© Studio Ghibli',22,800,1500,(110,100,92),6)
     C=layer(); a,b=[('majo013','mimi032'),('karigurashi033','majo010'),('mimi049','karigurashi012'),('majo010','mimi013'),('karigurashi024','majo013')][i-1]
-    paste(C,chara(a,190,-6),200,1560); paste(C,chara(b,180,6),820,1565)
+    paste(C,chara(a,170,-6),190,1610); paste(C,chara(b,160,6),830,1615)
     compose(C,L).convert('RGB').save(OUT+f'{i:02d}.png')
 # thumbnail
 P=layer()
