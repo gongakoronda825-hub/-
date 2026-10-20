@@ -72,7 +72,7 @@ for i,(en,jp,film,sub,reals,ghib,acc) in enumerate(SL,1):
     names=' , '.join(f'{r[3]} ({r[4]})' for r in reals if r[3])
     L=grid(imgs,label(en,jp,film,sub,acc),acc,([f'Photos: {names} / Wikimedia Commons'] if names else [])+['© Studio Ghibli'])
     L.convert('RGB').save(OUT+f'{i:02d}_{en.split(",")[0].split()[0].lower().replace('-','')}.png')
-T=grid([(J(5),.5,.5),G_('chihiro011',.72),G_('totoro019',.57),(J(12),.55,.5)],thumb_label,ACC,['Photos: Maarten Heerlien (CC BY 2.0) , Saigen Jiro (CC0) / Wikimedia Commons','© Studio Ghibli'])
+T=grid([(J(5),.5,.5),G_('chihiro011',.72),G_('ponyo012',.5),(J(12),.55,.5)],thumb_label,ACC,['Photos: Maarten Heerlien (CC BY 2.0) , Saigen Jiro (CC0) / Wikimedia Commons','© Studio Ghibli'])
 T.convert('RGB').save(OUT+'00_thumbnail.png')
 open(OUT+'credits.txt','w').write('\n'.join(dict.fromkeys(allcred))+'\n')
 print('ok')
