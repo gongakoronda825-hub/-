@@ -23,7 +23,7 @@ exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')].replace("f'
 for nm,h,r,x,y in [('majo013',240,-8,150,200),('mimi032',230,7,940,210),('karigurashi012',190,10,560,140),
 ('mimi049',200,-6,70,720),('majo010',190,8,1010,820),('karigurashi048',180,-8,60,1180),('mimi007',190,6,1020,1260),
 ('mimi026',170,-5,1000,560),('karigurashi024',170,7,80,480),('majo013',150,9,60,1500),('mimi013',170,-7,1020,1520),
-('majo010',200,-6,150,1750),('mimi049',190,5,540,1790),('karigurashi033',220,8,940,1750)]:
+('mimi013',200,8,380,560),('majo010',190,-7,760,520),('karigurashi033',200,6,330,790),('mimi049',190,-8,820,1000),('karigurashi012',180,9,250,1030),('mimi032',200,-6,640,1250),('majo013',180,7,860,1260),('karigurashi024',170,-7,330,1590),('mimi026',170,8,760,1600),('majo010',200,-6,150,1750),('mimi049',190,5,540,1790),('karigurashi033',220,8,940,1750)]:
     c=chara(nm,h,r); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
 d=ImageDraw.Draw(L)
 ctext(d,(W/2,330),'HOW TO GET',fi(40,600),SUB,sp=8)
