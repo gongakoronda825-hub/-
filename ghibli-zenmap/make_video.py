@@ -45,11 +45,11 @@ SUB={'z1':'ジブリの禅マップが\nセブンで印刷できるらしい！\
 'z5':None,'z6':None,'z7':None,'z8':None}
 tl=[]; t=0
 for src,st,_,ns,sfx in SEG:
-    d_=sum(wdur(V+f'narr/{n}.wav')+0.25 for n in ns)+0.5
+    d_=sum(wdur(V+f'narr/{n}.wav')+0.25 for n in ns)+0.25
     if src.startswith('IMG'):
         cd=float(subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',V+src+'.mp4'],capture_output=True,text=True).stdout)-st
-        d_=max(d_,min(cd,d_+1.5))
-    if src=='HOW': d_+=1.5
+        d_=max(d_,min(cd,d_+0.75))
+    if src=='HOW': d_+=0.75
     tl.append((src,st,d_,ns,sfx,t)); t+=d_
 TOT=t
 enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-','-c:v','libx264','-crf','23','-pix_fmt','yuv420p',V+'v.mp4'],stdin=subprocess.PIPE)
@@ -70,7 +70,7 @@ for src,st,d_,ns,sfx,t0 in tl:
         g=t0+k/FPS; im=None
         for a,b,T in SUBS:
             if a<=g<b:
-                im=Image.fromarray(f).convert('RGBA'); im.alpha_composite(T,(int(W/2-T.width/2),int(H/2-T.height/2)+(560 if src=='INTRO' else 0)))
+                im=Image.fromarray(f).convert('RGBA'); im.alpha_composite(T,(int(W/2-T.width/2),int(H/2-T.height/2)+0))
         enc.stdin.write((np.array(im.convert('RGB')) if im else f).tobytes())
 enc.stdin.close(); enc.wait()
 N=int(TOT*SR)+SR; mix=np.zeros(N,np.float32)
