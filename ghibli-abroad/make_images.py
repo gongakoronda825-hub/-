@@ -62,13 +62,13 @@ SL=[('Visby, Sweden','ヴィスビー（スウェーデン）','魔女の宅急�
 ('Colmar, France','コルマール（フランス）','ハウルの動く城','町並みの参考にしたと言われる',[(Q(6),.4,.5,'DimiTalen','CC0'),(P('Colmar Petite Venise',7),.5,.5)+O('Colmar Petite Venise',7)[1:]],[G_('howl006'),G_('howl004')],(200,128,128)),
 ('Wales, UK','ウェールズ（イギリス）','天空の城ラピュタ','宮崎監督が訪れた炭鉱の町がヒントと言われる',[(Q(11),.5,.5,'Rosser1954','CC BY 4.0'),(P('Blaenavon',4),.5,.5)+O('Blaenavon',4)[1:]],[G_('laputa004'),G_('laputa002')],(120,150,110)),
 ('Adriatic Sea, Croatia','アドリア海（クロアチア）','紅の豚','作中の舞台はアドリア海',[(Q(9),.5,.5,'László Szalai','Public domain'),(P('Dubrovnik old town',5),.5,.5)+O('Dubrovnik old town',5)[1:]],[G_('porco002'),G_('porco001')],(90,150,165)),
-('Jiufen, Taiwan','九份（台湾）','千と千尋の神隠し','モデルと噂されるが、ジブリは公式に明言していない',[(Q(15),.5,.5,'lumoplank','CC0'),(S+'loc/q/user_jiufen.jpg',.62,.5,None,None)],[G_('chihiro008'),G_('chihiro011')],(190,90,80))]
+('Jiufen, Taiwan','九份（台湾）','千と千尋の神隠し','モデルと噂されるが、ジブリは公式に明言していない',[(S+'loc/q/user_jiufen2.jpg',.5,.5,None,None),(S+'loc/q/user_jiufen.jpg',.62,.5,None,None)],[G_('chihiro008'),G_('chihiro011')],(190,90,80))]
 allcred=[]
 for i,(en,jp,film,sub,reals,ghib,acc) in enumerate(SL,1):
     r1,r2=reals; imgs=[r1[:3],ghib[0],ghib[1],r2[:3]]
     allcred+=[f'{jp} {r[3]} ({r[4]})' for r in reals if r[3]]
     names=' , '.join(f'{r[3]} ({r[4]})' for r in reals if r[3])
-    L=grid(imgs,label(en,jp,film,sub,acc),acc,[f'Photos: {names} / Wikimedia Commons','© Studio Ghibli'])
+    L=grid(imgs,label(en,jp,film,sub,acc),acc,([f'Photos: {names} / Wikimedia Commons'] if names else [])+['© Studio Ghibli'])
     L.convert('RGB').save(OUT+f'{i:02d}_{en.split(",")[0].split()[0].lower()}.png')
 T=grid([(Q(2),.5,.5),G_('majo024'),G_('chihiro008'),(Q(15),.5,.5)],thumb_label,ACC,['Photos: Julian Herzog (CC BY 4.0) , lumoplank (CC0) / Wikimedia Commons','© Studio Ghibli'])
 T.convert('RGB').save(OUT+'00_thumbnail.png')
