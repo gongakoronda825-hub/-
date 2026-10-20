@@ -15,13 +15,16 @@ def pin(col,s=30):
     d.ellipse((0,0,s,s),fill=col); d.polygon([(s*0.14,s*0.68),(s*0.86,s*0.68),(s/2,s*1.33)],fill=col); d.ellipse((s*0.32,s*0.32,s*0.68,s*0.68),fill=(255,253,249)); return o
 def grid(imgs,center,acc,credit):
     L=paper()
-    pos=[(X0,Y0),(X0+CW+G,Y0),(X0,Y0+CH+G),(X0+CW+G,Y0+CH+G)]
+    if len(imgs)==6:
+        ch=(Y1-Y0-2*G)//3; pos=[(X0+c*(CW+G),Y0+r*(ch+G)) for r in range(3) for c in range(2)]; cw_,ch_=CW,ch
+    else:
+        pos=[(X0,Y0),(X0+CW+G,Y0),(X0,Y0+CH+G),(X0+CW+G,Y0+CH+G)]; cw_,ch_=CW,CH
     for (p,fx,fy),(x,y) in zip(imgs,pos):
         im=Image.open(p).convert('RGB')
         if fx=='fit':
             bg=cover(im,CW,CH).filter(ImageFilter.GaussianBlur(28)); bg=Image.blend(bg,Image.new('RGB',bg.size,(250,246,240)),0.25)
             s_=CW/im.width; fg=im.resize((CW,int(im.height*s_)),Image.LANCZOS); bg.paste(fg,(0,int(CH*fy-fg.height/2))); c=bg.convert('RGBA')
-        else: c=cover(im,CW,CH,fx,fy).convert('RGBA')
+        else: c=cover(im,cw_,ch_,fx,fy).convert('RGBA')
         L.alpha_composite(c,(x,y))
     center(L)
     d=ImageDraw.Draw(L)
@@ -63,11 +66,12 @@ SL=[('Sayama Hills, Saitama','狭山丘陵（埼玉・所沢）','となりの�
 ('Dogo Onsen, Ehime','道後温泉本館（愛媛・松山）','千と千尋の神隠し','油屋のモデルのひとつと言われる老舗の湯',[(J(5),.5,.5,'Maarten Heerlien','CC BY 2.0'),(J(4),.55,.5,'松山市役所','CC BY 4.0')],[G_('chihiro011',.72),G_('chihiro048',.79)],(190,90,80)),
 ('Yakushima, Kagoshima','屋久島・白谷雲水峡（鹿児島）','もののけ姫','スタッフが森を取材したと言われる苔むす森',[(J(8),.5,.5,'MaedaAkihiko','CC0'),(J(11),.5,.5,'lumoplank','CC0')],[G_('mononoke010',.62),G_('mononoke023',.68)],(90,140,110)),
 ('Tomonoura, Hiroshima','鞆の浦（広島・福山）','崖の上のポニョ','宮崎監督が滞在し、構想のヒントになったと言われる港町',[(J(12),.55,.5,'Saigen Jiro','CC0'),(J2(2),.5,.5,'663highland','CC BY 2.5')],[G_('ponyo006',.35),G_('ponyo012',.5)],(90,150,180)),
-('Seiseki-Sakuragaoka, Tokyo','聖蹟桜ヶ丘（東京・多摩）','耳をすませば','雫の住む町のモデルと言われる坂の町',[(J2(1),.5,.5,'多摩に暇人','CC BY 3.0'),(J(16),.5,.5,'多摩に暇人','CC BY 3.0')],[G_('mimi017',.5),G_('mimi011',.35)],(200,128,128)),
+('Seiseki-Sakuragaoka, Tokyo','聖蹟桜ヶ丘（東京・多摩）','耳をすませば','雫の住む町のモデルと言われる坂の町',[(J2(1),.5,.5,'多摩に暇人','CC BY 3.0'),(S+'loc/q/user_mimi1.jpg',.5,.5,None,None),(S+'loc/q/user_mimi2.jpg',.5,.5,None,None)],[G_('mimi017',.5),G_('mimi048',.5),G_('mimi035',.45)],(200,128,128)),
 ('Yamate, Yokohama','横浜・山手（神奈川）','コクリコ坂から','作中の舞台は横浜。港を見下ろす丘の町',[(J(18),.4,.5,'Yoshio Kohara','CC BY 3.0'),(J(22),.5,.5,'Fumihiko Ueno','CC BY 3.0')],[G_('kokurikozaka002',.5),G_('kokurikozaka003',.57)],(200,150,90))]
 allcred=[]
 for i,(en,jp,film,sub,reals,ghib,acc) in enumerate(SL,1):
-    r1,r2=reals; imgs=[r1[:3],ghib[0],ghib[1],r2[:3]]
+    if len(reals)==3: imgs=[reals[0][:3],ghib[0],ghib[1],reals[1][:3],reals[2][:3],ghib[2]]
+    else: r1,r2=reals; imgs=[r1[:3],ghib[0],ghib[1],r2[:3]]
     allcred+=[f'{jp} {r[3]} ({r[4]})' for r in reals if r[3]]
     names=' , '.join(f'{r[3]} ({r[4]})' for r in reals if r[3])
     L=grid(imgs,label(en,jp,film,sub,acc),acc,([f'Photos: {names} / Wikimedia Commons'] if names else [])+['© Studio Ghibli'])
