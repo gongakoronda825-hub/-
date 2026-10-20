@@ -1,6 +1,11 @@
 S='/tmp/claude-0/-home-user--/e2f1f029-242f-578c-b26c-0ea9dd511990/scratchpad/'
 exec(open(S+'loc/make.py').read())
 OUT='/home/user/-/ghibli-kids5/'
+_GB=Image.open('/root/.claude/uploads/e2f1f029-242f-578c-b26c-0ea9dd511990/45f66300-image.jpg').convert('RGBA').resize((W,H))
+def paper(): return _GB.copy()
+def panel(L,box,r=40):
+    x0,y0,x1,y1=box; p=Image.new('RGBA',(x1-x0,y1-y0),(0,0,0,0)); ImageDraw.Draw(p).rounded_rectangle((0,0,x1-x0-1,y1-y0-1),r,fill=(252,250,246,235))
+    shadow(L,p,(x0,y0),blur=16,off=(0,8),alpha=50); L.alpha_composite(p,(x0,y0))
 def rcard(img,w,h,fx=.5,fy=.5,r=36,b=12):
     ph=cover(img,w,h,fx,fy).convert('RGBA'); m=Image.new('L',(w,h),0); ImageDraw.Draw(m).rounded_rectangle((0,0,w-1,h-1),r,fill=255); ph.putalpha(m)
     o=Image.new('RGBA',(w+2*b,h+2*b),(0,0,0,0)); wb=Image.new('RGBA',o.size,(255,253,249,255)); mm=Image.new('L',o.size,0); ImageDraw.Draw(mm).rounded_rectangle((0,0,o.width-1,o.height-1),r+b,fill=255); wb.putalpha(mm); o.alpha_composite(wb); o.alpha_composite(ph,(b,b)); return o
@@ -17,7 +22,7 @@ FILMS=[('となりのトトロ','My Neighbor Totoro','1988年・86分','自然�
 ('天空の城ラピュタ','Castle in the Sky','1986年・124分','ワクワクが止まらない大冒険','見たあと「バルス！」を叫ぶ子が続出。\n目玉焼きトーストを作ってと\nせがまれるのは確定','laputa036',.5,(90,150,165)),
 ('千と千尋の神隠し','Spirited Away','2001年・125分','弱虫だった子が強くなる物語','怖がりの千尋が家族を救うため\n頑張る姿に、子どもも勇気をもらえる','chihiro045',.5,(190,90,80))]
 for i,(jp,en,meta,catch,reason,st,fx,acc) in enumerate(FILMS,1):
-    L=paper(); d=ImageDraw.Draw(L)
+    L=paper(); panel(L,(90,190,910,430)); panel(L,(90,1070,910,1480)); d=ImageDraw.Draw(L)
     ctext(d,(X,250),f'No.{i}',fi(64,600),acc)
     ctext(d,(X,330),'『'+jp+'』',fm(62),INK)
     ctext(d,(X,398),en+'　|　'+meta,fm(26,False),SUB)
@@ -28,10 +33,10 @@ for i,(jp,en,meta,catch,reason,st,fx,acc) in enumerate(FILMS,1):
     ctext(d,(X,y),catch,f1,(255,253,249))
     f2=fm(38,False); ls=reason.split('\n')
     for k,l in enumerate(ls): ctext(d,(X,1265+k*66),l,f2,INK)
-    ctext(d,(X,1560),'© Studio Ghibli',fi(24,500),SUB)
+    ctext(d,(X,1530),'© Studio Ghibli',fi(24,600),INK)
     L.convert('RGB').save(OUT+f'{i:02d}.png')
 # thumbnail
-L=paper(); d=ImageDraw.Draw(L)
+L=paper(); panel(L,(110,140,890,680)); d=ImageDraw.Draw(L)
 ctext(d,(X,240),'for kids',fs(110),ACC)
 ctext(d,(X,370),'子どもに見せたい',fm(64),INK,sp=4)
 ctext(d,(X,470),'ジブリ映画',fm(96),INK,sp=4)
