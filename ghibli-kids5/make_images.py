@@ -46,7 +46,7 @@ FILMS=[('となりのトトロ','1988年','自然の中で遊ぶ楽しさを',['
 CH=[('majo013',200,-6,170,1560),('mimi032',190,6,830,1570),('karigurashi033',190,5,830,1570)]
 for i,(jp,yr,catch,lines,st,fx,col,age,mins) in enumerate(FILMS,1):
     L=layer(); d=ImageDraw.Draw(L)
-    pill(L,W/2,300,f'子どもに見せたいジブリ　{i}/5',34,GREEN,WHITE,40)
+    pill(L,W/2,300,f'将来子どもに見せたいジブリ　{i}/5',34,GREEN,WHITE,40)
     paste(L,logo(i),W/2,{4:412}.get(i,410)); text(L,f'（{yr}公開）',28,800,{4:518}.get(i,495),(110,100,92),6)
     paste(L,still(st,820,480,fx,rot=[-2,2][i%2]),W/2,800)
     top=1080; d.rounded_rectangle((90,top,990,top+400),36,fill=(255,255,255,245),outline=GREEN,width=5)
@@ -67,7 +67,7 @@ for nm,h,r,x,y in [('totoro044',150,-6,170,220),('ponyo021',150,6,540,190),('maj
 ('ponyo033',150,-5,170,1720),('chihiro019',170,5,540,1780),('totoro008',160,-6,880,1730)]:
     paste(C,chara(nm,h,r),x,y)
 T=layer()
-x,tw=text(T,'子どもに見せたい',58,900,800,DARK,10); d=ImageDraw.Draw(T)
+x,tw=text(T,'将来子どもに見せたい',58,900,800,DARK,10); d=ImageDraw.Draw(T)
 for sx,ex in ((x-54,x-26),(x+tw+54,x+tw+26)): d.line((sx,770,ex,830),fill=DARK,width=8)
 text(T,'ジブリ映画',120,900,930,GREEN,16,maxw=980)
 pill(T,W/2,1080,'5選',64,ORANGE,WHITE,60)
