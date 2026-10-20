@@ -10,15 +10,34 @@ def still(n,w,h,fx=.5,r=26,pad=12,rot=0):
     o=Image.new('RGBA',(w+2*pad+40,h+2*pad+40),(0,0,0,0)); sh=Image.new('L',o.size,0); ImageDraw.Draw(sh).rounded_rectangle((20,28,20+w+2*pad,28+h+2*pad),r+pad,fill=90)
     o.paste((0,0,0,255),(0,0),sh.filter(ImageFilter.GaussianBlur(10))); wb=Image.new('RGBA',(w+2*pad,h+2*pad),WHITE); wb.putalpha(rmask(w+2*pad,h+2*pad,r+pad)); o.alpha_composite(wb,(20,20)); o.alpha_composite(c,(20+pad,20+pad))
     return o.rotate(rot,resample=Image.BICUBIC,expand=True)
-LG={1:'totoro',2:'ponyo',3:'majo',4:'laputa',5:'chihiro'}
-def logo(i,maxw=860,maxh=130):
-    im=Image.open(S+f'logo/{LG[i]}.png').convert('RGBA'); s_=min(maxw/im.width,maxh/im.height); im=im.resize((int(im.width*s_),int(im.height*s_)),Image.LANCZOS)
-    if LG[i] in ('totoro','laputa'):
-        pad=18; big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
-        A=big.getchannel('A').point(lambda v:255 if v>80 else 0).filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.GaussianBlur(1))
-        w=Image.new('RGBA',big.size,WHITE); w.putalpha(A); o=Image.new('RGBA',big.size,(0,0,0,0)); o.alpha_composite(w); o.alpha_composite(big); return o
-    b=10; r=18; ph=im.copy(); ph.putalpha(rmask(im.width,im.height,r))
-    o=Image.new('RGBA',(im.width+2*b,im.height+2*b),(0,0,0,0)); wb=Image.new('RGBA',o.size,WHITE); wb.putalpha(rmask(o.width,o.height,r+b)); o.alpha_composite(wb); o.alpha_composite(ph,(b,b)); return o
+from PIL import ImageFont
+FD=S+'fonts/'
+def styled(parts,font,size,inner,si,so=14,maxw=860,shadow_col=(0,0,0,90)):
+    f=ImageFont.truetype(FD+font,size)
+    while sum(f.getlength(t) for t,_ in parts)>maxw: size-=4; f=ImageFont.truetype(FD+font,size)
+    tw=int(sum(f.getlength(t) for t,_ in parts)); pad=so+si+20; th=int(size*1.5)+2*pad
+    T=Image.new('RGBA',(tw+2*pad,th),(0,0,0,0)); y=th/2
+    def lay(col,sw,dx=0,dy=0):
+        m=Image.new('L',T.size,0); d=ImageDraw.Draw(m); x=pad+dx
+        for t,_ in parts: d.text((x,y+dy),t,font=f,fill=255,anchor='lm',stroke_width=sw,stroke_fill=255); x+=f.getlength(t)
+        m=m.filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(5)) if sw else m
+        c=Image.new('RGBA',T.size,col[:3]+(255,)); c.putalpha(m.point(lambda v:int(v*(col[3] if len(col)>3 else 255)/255))); T.alpha_composite(c)
+    lay(shadow_col,si+so,6,8); lay((255,255,255),si+so); 
+    if si: lay(inner,si)
+    d=ImageDraw.Draw(T); x=pad
+    for t,c in parts: d.text((x,y),t,font=f,fill=c,anchor='lm'); x+=f.getlength(t)
+    return T.crop(T.getbbox())
+def logo(i):
+    if i==1: return styled([('となりのトトロ',(232,80,122))],'mochiy-japanese.woff',104,(232,80,122),0)
+    if i==2:
+        O,L_,P=(236,168,72),(200,190,225),(228,80,130)
+        return styled([('崖',O),('の',L_),('上',O),('の',L_),('ポニョ',P)],'keifont.ttf',112,(70,45,35),7)
+    if i==3: return styled([('魔女の宅急便',(222,96,150))],'ZenOldMincho-Bold.ttf',100,(222,96,150),0,so=12)
+    if i==4:
+        a=styled([('天空の城',(46,158,120))],'dela-gothic-one.woff',50,(20,60,50),0,so=10)
+        b=styled([('ラピュタ',(46,158,120))],'dela-gothic-one.woff',88,(20,60,50),6,so=12)
+        o=Image.new('RGBA',(max(a.width,b.width),a.height+b.height-34),(0,0,0,0)); o.alpha_composite(a,(0,0)); o.alpha_composite(b,(int((o.width-b.width)*0.3),a.height-34)); return o
+    if i==5: return styled([('千と千尋の神隠し',(255,255,255))],'reggae-one.woff',96,(90,45,130),8,so=10)
 FILMS=[('となりのトトロ','1988年','自然の中で遊ぶ楽しさを',['森や田んぼで駆け回る姉妹の姿に','外で遊びたくなる気持ちが芽生える。','どんぐり拾いや虫探しが','いつもの何倍も楽しくなるはず'],'totoro018',.3,GREEN,'3歳ごろ〜','86分'),
 ('崖の上のポニョ','2008年','純粋な心が育てられる',['5歳にしてお母さんにもポニョにも','気遣いができる宗介。','メロい男になる未来しか見えない。','「好き」をまっすぐ伝える大切さも'],'ponyo049',.5,RED,'3歳ごろ〜','101分'),
 ('魔女の宅急便','1989年','「ありがとう」が人をつなぐ',['町の人に支えられて成長するキキから','感謝の気持ちの大切さが伝わる。','落ち込んでもまた飛べるようになる姿は','大人が見ても背中を押される'],'majo038',.75,(70,110,170),'5歳ごろ〜','102分'),
@@ -28,7 +47,7 @@ CH=[('majo013',200,-6,170,1560),('mimi032',190,6,830,1570),('karigurashi033',190
 for i,(jp,yr,catch,lines,st,fx,col,age,mins) in enumerate(FILMS,1):
     L=layer(); d=ImageDraw.Draw(L)
     pill(L,W/2,300,f'子どもに見せたいジブリ　{i}/5',34,GREEN,WHITE,40)
-    paste(L,logo(i,*{1:(820,120),2:(760,120),3:(640,110),4:(480,165),5:(780,120)}[i]),W/2,{4:418}.get(i,410)); text(L,f'（{yr}公開）',28,800,{4:520}.get(i,495),(110,100,92),6)
+    paste(L,logo(i),W/2,{4:412}.get(i,410)); text(L,f'（{yr}公開）',28,800,{4:518}.get(i,495),(110,100,92),6)
     paste(L,still(st,820,480,fx,rot=[-2,2][i%2]),W/2,800)
     top=1080; d.rounded_rectangle((90,top,990,top+400),36,fill=(255,255,255,245),outline=GREEN,width=5)
     pill(L,W/2,top,catch,40,ORANGE,WHITE,36)
