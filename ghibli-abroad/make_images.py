@@ -49,20 +49,23 @@ def thumb_label(L):
     ctext(d,(cx,cy+42),'ジブリの舞台',fm(66),INK,sp=3)
     ctext(d,(cx,cy+118),'—  海外編  —',fm(30,False),INK,sp=6)
 G_=lambda n,fx=.5,fy=.5:(S+f'gb/{n}.jpg',fx,fy)
-SL=[('Visby, Sweden','ヴィスビー（スウェーデン）','魔女の宅急便','コリコの町のモデルと言われる城壁の町',[('Visby old town',3,.5,.6),('Visby old town',2,.5,.5)],[G_('majo024'),G_('majo011',.45)],(122,150,190)),
-('Stockholm, Sweden','ストックホルム（スウェーデン）','魔女の宅急便','ロケハンで訪れたと言われる旧市街',[('Gamla stan',3,.5,.5),('Gamla stan',1,.5,.5)],[G_('majo014'),G_('majo022')],(122,150,190)),
-('Colmar, France','コルマール（フランス）','ハウルの動く城','町並みの参考にしたと言われる',[('Colmar Petite Venise',7,.5,.5),('Colmar Petite Venise',5,.5,.5)],[G_('howl006'),G_('howl004')],(200,128,128)),
-('Wales, UK','ウェールズ（イギリス）','天空の城ラピュタ','宮崎監督が訪れた炭鉱の町がヒントと言われる',[('Blaenavon',0,.5,.5),('Blaenavon',4,.5,.5)],[G_('laputa004'),G_('laputa002')],(120,150,110)),
-('Adriatic Sea, Croatia','アドリア海（クロアチア）','紅の豚','作中の舞台はアドリア海',[('Dubrovnik old town',5,.5,.5),('Dubrovnik old town',4,.5,.5)],[G_('porco002'),G_('porco001')],(90,150,165)),
-('Jiufen, Taiwan','九份（台湾）','千と千尋の神隠し','モデルと噂されるが、ジブリは公式に明言していない',[('Jiufen',2,.5,.5),('Jiufen',0,.5,.5)],[G_('chihiro008'),G_('chihiro011')],(190,90,80))]
+Q=lambda i:S+f'loc/q/{i:02d}.jpg'
+def O(q,k):
+    c,l,u=cred(q,k); return (P(q,k),c,l)
+SL=[('Visby, Sweden','ヴィスビー（スウェーデン）','魔女の宅急便','コリコの町のモデルと言われる城壁の町',[(Q(1),.5,.5,'VisbyStar','CC0'),(Q(0),.42,.5,'Alexandru Baboş','CC BY 3.0')],[G_('majo024'),G_('majo011',.45)],(122,150,190)),
+('Stockholm, Sweden','ストックホルム（スウェーデン）','魔女の宅急便','ロケハンで訪れたと言われる旧市街',[(Q(2),.5,.5,'Julian Herzog','CC BY 4.0'),(Q(3),.5,.5,'OleNeitzel','CC BY 4.0')],[G_('majo014'),G_('majo022')],(122,150,190)),
+('Colmar, France','コルマール（フランス）','ハウルの動く城','町並みの参考にしたと言われる',[(Q(6),.4,.5,'DimiTalen','CC0'),(P('Colmar Petite Venise',7),.5,.5)+O('Colmar Petite Venise',7)[1:]],[G_('howl006'),G_('howl004')],(200,128,128)),
+('Wales, UK','ウェールズ（イギリス）','天空の城ラピュタ','宮崎監督が訪れた炭鉱の町がヒントと言われる',[(Q(11),.5,.5,'Rosser1954','CC BY 4.0'),(P('Blaenavon',4),.5,.5)+O('Blaenavon',4)[1:]],[G_('laputa004'),G_('laputa002')],(120,150,110)),
+('Adriatic Sea, Croatia','アドリア海（クロアチア）','紅の豚','作中の舞台はアドリア海',[(Q(9),.5,.5,'László Szalai','Public domain'),(P('Dubrovnik old town',5),.5,.5)+O('Dubrovnik old town',5)[1:]],[G_('porco002'),G_('porco001')],(90,150,165)),
+('Jiufen, Taiwan','九份（台湾）','千と千尋の神隠し','モデルと噂されるが、ジブリは公式に明言していない',[(Q(15),.5,.5,'lumoplank','CC0'),(Q(12),.3,.5,'Jun Jie Yam','CC BY 4.0')],[G_('chihiro008'),G_('chihiro011')],(190,90,80))]
 allcred=[]
 for i,(en,jp,film,sub,reals,ghib,acc) in enumerate(SL,1):
-    r1,r2=reals; imgs=[(P(r1[0],r1[1]),r1[2],r1[3]),ghib[0],ghib[1],(P(r2[0],r2[1]),r2[2],r2[3])]
-    cs=[cred(r[0],r[1]) for r in reals]; allcred+= [f'{jp} {c} / {l} / {u}' for c,l,u in cs]
-    names=' , '.join(f'{c} ({l})' for c,l,u in cs)
-    L=grid(imgs,label(en,jp,film,sub,acc),acc,[f'Photos: {names} / Wikimedia Commons',  '© Studio Ghibli'])
+    r1,r2=reals; imgs=[r1[:3],ghib[0],ghib[1],r2[:3]]
+    allcred+=[f'{jp} {r[3]} ({r[4]})' for r in reals]
+    names=' , '.join(f'{r[3]} ({r[4]})' for r in reals)
+    L=grid(imgs,label(en,jp,film,sub,acc),acc,[f'Photos: {names} / Wikimedia Commons','© Studio Ghibli'])
     L.convert('RGB').save(OUT+f'{i:02d}_{en.split(",")[0].split()[0].lower()}.png')
-T=grid([(P('Colmar Petite Venise',7),.5,.5),G_('howl006'),G_('chihiro008'),(P('Jiufen',2),.5,.5)],thumb_label,ACC,['Photos: '+' , '.join(f'{c} ({l})' for c,l,u in [cred('Colmar Petite Venise',7),cred('Jiufen',2)])+' / Wikimedia Commons','© Studio Ghibli'])
+T=grid([(Q(2),.5,.5),G_('majo024'),G_('chihiro008'),(Q(15),.5,.5)],thumb_label,ACC,['Photos: Julian Herzog (CC BY 4.0) , lumoplank (CC0) / Wikimedia Commons','© Studio Ghibli'])
 T.convert('RGB').save(OUT+'00_thumbnail.png')
 open(OUT+'credits.txt','w').write('\n'.join(dict.fromkeys(allcred))+'\n')
 print('ok')
