@@ -62,10 +62,14 @@ for i,(jp,yr,catch,lines,st,fx,col,age,mins) in enumerate(FILMS,1):
 P=layer()
 for (n,fx,cx,cy,r) in [('totoro018',.3,320,500,-5),('ponyo049',.5,760,520,5),('majo038',.75,320,1310,4),('chihiro045',.5,760,1330,-4),('laputa036',.5,540,1560,0)]:
     paste(P,still(n,380,250,fx,rot=r),cx,cy)
+C=layer()
+for nm,h,r,x,y in [('totoro044',150,-6,170,220),('ponyo021',150,6,540,190),('majo013',170,5,890,230),('laputa048',140,-6,165,960),('chihiro022',170,6,930,950),
+('ponyo033',150,-5,170,1720),('chihiro019',170,5,540,1780),('totoro008',160,-6,880,1730)]:
+    paste(C,chara(nm,h,r),x,y)
 T=layer()
 x,tw=text(T,'子どもに見せたい',58,900,800,DARK,10); d=ImageDraw.Draw(T)
 for sx,ex in ((x-54,x-26),(x+tw+54,x+tw+26)): d.line((sx,770,ex,830),fill=DARK,width=8)
 text(T,'ジブリ映画',120,900,930,GREEN,16,maxw=980)
 pill(T,W/2,1080,'5選',64,ORANGE,WHITE,60)
-compose(P,T).convert('RGB').save(OUT+'00_thumbnail.png')
+compose(C,P,T).convert('RGB').save(OUT+'00_thumbnail.png')
 print('ok')
