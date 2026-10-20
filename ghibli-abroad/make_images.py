@@ -17,7 +17,12 @@ def grid(imgs,center,acc,credit):
     L=paper()
     pos=[(X0,Y0),(X0+CW+G,Y0),(X0,Y0+CH+G),(X0+CW+G,Y0+CH+G)]
     for (p,fx,fy),(x,y) in zip(imgs,pos):
-        c=cover(Image.open(p).convert('RGB'),CW,CH,fx,fy).convert('RGBA'); L.alpha_composite(c,(x,y))
+        im=Image.open(p).convert('RGB')
+        if fx=='fit':
+            bg=cover(im,CW,CH).filter(ImageFilter.GaussianBlur(28)); bg=Image.blend(bg,Image.new('RGB',bg.size,(250,246,240)),0.25)
+            s_=CW/im.width; fg=im.resize((CW,int(im.height*s_)),Image.LANCZOS); bg.paste(fg,(0,int(CH*fy-fg.height/2))); c=bg.convert('RGBA')
+        else: c=cover(im,CW,CH,fx,fy).convert('RGBA')
+        L.alpha_composite(c,(x,y))
     center(L)
     d=ImageDraw.Draw(L)
     band=Image.new('RGBA',(W,70),(0,0,0,0)); bd=ImageDraw.Draw(band)
@@ -52,8 +57,8 @@ G_=lambda n,fx=.5,fy=.5:(S+f'gb/{n}.jpg',fx,fy)
 Q=lambda i:S+f'loc/q/{i:02d}.jpg'
 def O(q,k):
     c,l,u=cred(q,k); return (P(q,k),c,l)
-SL=[('Visby, Sweden','ヴィスビー（スウェーデン）','魔女の宅急便','コリコの町のモデルと言われる城壁の町',[(Q(1),.5,.5,'VisbyStar','CC0'),(Q(0),.42,.5,'Alexandru Baboş','CC BY 3.0')],[G_('majo024'),G_('majo038')],(122,150,190)),
-('Stockholm, Sweden','ストックホルム（スウェーデン）','魔女の宅急便','ロケハンで訪れたと言われる旧市街',[(Q(2),.5,.5,'Julian Herzog','CC BY 4.0'),(Q(3),.5,.5,'OleNeitzel','CC BY 4.0')],[G_('majo014'),G_('majo036',.85)],(122,150,190)),
+SL=[('Visby, Sweden','ヴィスビー（スウェーデン）','魔女の宅急便','コリコの町のモデルと言われる城壁の町',[(Q(1),.45,.5,'VisbyStar','CC0'),(Q(0),.42,.5,'Alexandru Baboş','CC BY 3.0')],[G_('majo038',.78),G_('majo002',.45)],(122,150,190)),
+('Stockholm, Sweden','ストックホルム（スウェーデン）','魔女の宅急便','ロケハンで訪れたと言われる旧市街',[(Q(2),.6,.5,'Julian Herzog','CC BY 4.0'),(Q(4),.55,.5,'OleNeitzel','CC BY 4.0')],[G_('majo047',.3),G_('majo014')],(122,150,190)),
 ('Colmar, France','コルマール（フランス）','ハウルの動く城','町並みの参考にしたと言われる',[(Q(6),.4,.5,'DimiTalen','CC0'),(P('Colmar Petite Venise',7),.5,.5)+O('Colmar Petite Venise',7)[1:]],[G_('howl006'),G_('howl004')],(200,128,128)),
 ('Wales, UK','ウェールズ（イギリス）','天空の城ラピュタ','宮崎監督が訪れた炭鉱の町がヒントと言われる',[(Q(11),.5,.5,'Rosser1954','CC BY 4.0'),(P('Blaenavon',4),.5,.5)+O('Blaenavon',4)[1:]],[G_('laputa004'),G_('laputa002')],(120,150,110)),
 ('Adriatic Sea, Croatia','アドリア海（クロアチア）','紅の豚','作中の舞台はアドリア海',[(Q(9),.5,.5,'László Szalai','Public domain'),(P('Dubrovnik old town',5),.5,.5)+O('Dubrovnik old town',5)[1:]],[G_('porco002'),G_('porco001')],(90,150,165)),
