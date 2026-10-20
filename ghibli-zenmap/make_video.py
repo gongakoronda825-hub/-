@@ -32,6 +32,9 @@ for i,t in enumerate(['💡 京都で開催中『禅とジブリ』展のオリ�
 for i,t in enumerate(['京都で開催中『禅とジブリ』展のオリジナル','全国のセブン-イレブンで1枚400円','禅寺をめぐる京都観光マップ（日英表記）']):
     d.text((170,y+55+i*72),'・'+t,font=fm(36,False),fill=INK,anchor='lm')
 ctext(d,(W/2,1600),'※販売期間などは公式サイトをご確認ください',fm(28,False),SUB)
+exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')].replace("f'cut/","S+f'cut/")); from PIL import ImageOps
+for nm,h,r,x,y in [('majo013',230,-8,140,190),('mimi032',220,7,950,200),('karigurashi033',210,8,960,1720),('majo010',190,-6,130,1730),('mimi049',170,-5,540,1760)]:
+    c=chara(nm,h,r); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
 HOW=np.array(L.convert('RGB'))
 FOLLOW=np.array(Image.open(U+'6a98b9bb-image.jpg').convert('RGB').resize((W,H)))
 # segments: (source, start, dur, [narr...], sfx)
@@ -45,11 +48,11 @@ SUB={'z1':'ジブリの禅マップが\nセブンで印刷できるらしい！\
 'z5':None,'z6':None,'z7':None,'z8':None}
 tl=[]; t=0
 for src,st,_,ns,sfx in SEG:
-    d_=sum(wdur(V+f'narr/{n}.wav')+0.25 for n in ns)+0.25
+    d_=sum(wdur(V+f'narr/{n}.wav')+0.25 for n in ns)+0.5
     if src.startswith('IMG'):
         cd=float(subprocess.run(['ffprobe','-v','error','-show_entries','format=duration','-of','csv=p=0',V+src+'.mp4'],capture_output=True,text=True).stdout)-st
-        d_=max(d_,min(cd,d_+0.75))
-    if src=='HOW': d_+=0.75
+        d_=max(d_,min(cd,d_+1.5))
+    if src=='HOW': d_+=1.5
     tl.append((src,st,d_,ns,sfx,t)); t+=d_
 TOT=t
 enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-','-c:v','libx264','-crf','23','-pix_fmt','yuv420p',V+'v.mp4'],stdin=subprocess.PIPE)
