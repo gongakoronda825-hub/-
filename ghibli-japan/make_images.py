@@ -59,12 +59,12 @@ G_=lambda n,fx=.5,fy=.5:(S+f'gb/{n}.jpg',fx,fy)
 J=lambda i:S+f'loc/jp/{i:02d}.jpg'
 J2=lambda i:S+f'loc/jp2/{i:02d}.jpg'
 OUT='/home/user/-/ghibli-japan/'; os.makedirs(OUT,exist_ok=True)
-SL=[('Sayama Hills, Saitama','狭山丘陵（埼玉・所沢）','となりのトトロ','トトロの森と呼ばれる、宮崎監督ゆかりの雑木林',[(J(3),.5,.5,'Asanagi','CC0'),(J(0),.5,.5,'Asanagi','CC0')],[G_('totoro019'),G_('totoro041',.3)],(110,150,100)),
-('Dogo Onsen, Ehime','道後温泉本館（愛媛・松山）','千と千尋の神隠し','油屋のモデルのひとつと言われる老舗の湯',[(J(4),.5,.5,'松山市役所','CC BY 4.0'),(J(5),.5,.5,'Maarten Heerlien','CC BY 2.0')],[G_('chihiro011'),G_('chihiro048')],(190,90,80)),
+SL=[('Sayama Hills, Saitama','狭山丘陵（埼玉・所沢）','となりのトトロ','トトロの森と呼ばれる、宮崎監督ゆかりの雑木林',[(J(3),.5,.5,'Asanagi','CC0'),(J(0),.5,.5,'Asanagi','CC0')],[G_('totoro019'),G_('totoro018',.4)],(110,150,100)),
+('Dogo Onsen, Ehime','道後温泉本館（愛媛・松山）','千と千尋の神隠し','油屋のモデルのひとつと言われる老舗の湯',[(J(5),.5,.5,'Maarten Heerlien','CC BY 2.0'),(J(4),.55,.5,'松山市役所','CC BY 4.0')],[G_('chihiro011'),G_('chihiro048')],(190,90,80)),
 ('Yakushima, Kagoshima','屋久島・白谷雲水峡（鹿児島）','もののけ姫','スタッフが森を取材したと言われる苔むす森',[(J(8),.5,.5,'MaedaAkihiko','CC0'),(J(11),.5,.5,'lumoplank','CC0')],[G_('mononoke010',.6),G_('mononoke023')],(90,140,110)),
-('Tomonoura, Hiroshima','鞆の浦（広島・福山）','崖の上のポニョ','宮崎監督が滞在し、構想のヒントになったと言われる港町',[(J2(0),.5,.5,'Kanesue','CC BY 2.0'),(J2(2),.5,.5,'663highland','CC BY 2.5')],[G_('ponyo012'),G_('ponyo006')],(90,150,180)),
-('Seiseki-Sakuragaoka, Tokyo','聖蹟桜ヶ丘（東京・多摩）','耳をすませば','雫の住む町のモデルと言われる坂の町',[(J2(1),.5,.5,'多摩に暇人','CC BY 3.0'),(J(16),.5,.5,'多摩に暇人','CC BY 3.0')],[G_('mimi047',.6),G_('mimi020',.7)],(200,128,128)),
-('Yamate, Yokohama','横浜・山手（神奈川）','コクリコ坂から','作中の舞台は横浜。港を見下ろす丘の町',[(J(18),.4,.5,'Yoshio Kohara','CC BY 3.0'),(J(22),.5,.5,'Fumihiko Ueno','CC BY 3.0')],[G_('kokurikozaka002',.5),G_('kokurikozaka049')],(200,150,90))]
+('Tomonoura, Hiroshima','鞆の浦（広島・福山）','崖の上のポニョ','宮崎監督が滞在し、構想のヒントになったと言われる港町',[(J(12),.55,.5,'Saigen Jiro','CC0'),(J2(2),.5,.5,'663highland','CC BY 2.5')],[G_('ponyo006',.55),G_('ponyo012',.3)],(90,150,180)),
+('Seiseki-Sakuragaoka, Tokyo','聖蹟桜ヶ丘（東京・多摩）','耳をすませば','雫の住む町のモデルと言われる坂の町',[(J2(1),.5,.5,'多摩に暇人','CC BY 3.0'),(J(16),.5,.5,'多摩に暇人','CC BY 3.0')],[G_('mimi017',.5),G_('mimi047',.6)],(200,128,128)),
+('Yamate, Yokohama','横浜・山手（神奈川）','コクリコ坂から','作中の舞台は横浜。港を見下ろす丘の町',[(J(18),.4,.5,'Yoshio Kohara','CC BY 3.0'),(J(22),.5,.5,'Fumihiko Ueno','CC BY 3.0')],[G_('kokurikozaka002',.5),G_('kokurikozaka003',.6)],(200,150,90))]
 allcred=[]
 for i,(en,jp,film,sub,reals,ghib,acc) in enumerate(SL,1):
     r1,r2=reals; imgs=[r1[:3],ghib[0],ghib[1],r2[:3]]
@@ -72,7 +72,7 @@ for i,(en,jp,film,sub,reals,ghib,acc) in enumerate(SL,1):
     names=' , '.join(f'{r[3]} ({r[4]})' for r in reals if r[3])
     L=grid(imgs,label(en,jp,film,sub,acc),acc,([f'Photos: {names} / Wikimedia Commons'] if names else [])+['© Studio Ghibli'])
     L.convert('RGB').save(OUT+f'{i:02d}_{en.split(",")[0].split()[0].lower().replace('-','')}.png')
-T=grid([(J(5),.5,.5),G_('chihiro011'),G_('totoro019'),(J2(0),.5,.5)],thumb_label,ACC,['Photos: Maarten Heerlien (CC BY 2.0) , Kanesue (CC BY 2.0) / Wikimedia Commons','© Studio Ghibli'])
+T=grid([(J(5),.5,.5),G_('chihiro011'),G_('totoro019'),(J(12),.55,.5)],thumb_label,ACC,['Photos: Maarten Heerlien (CC BY 2.0) , Saigen Jiro (CC0) / Wikimedia Commons','© Studio Ghibli'])
 T.convert('RGB').save(OUT+'00_thumbnail.png')
 open(OUT+'credits.txt','w').write('\n'.join(dict.fromkeys(allcred))+'\n')
 print('ok')
