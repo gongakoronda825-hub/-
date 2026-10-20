@@ -10,6 +10,15 @@ def still(n,w,h,fx=.5,r=26,pad=12,rot=0):
     o=Image.new('RGBA',(w+2*pad+40,h+2*pad+40),(0,0,0,0)); sh=Image.new('L',o.size,0); ImageDraw.Draw(sh).rounded_rectangle((20,28,20+w+2*pad,28+h+2*pad),r+pad,fill=90)
     o.paste((0,0,0,255),(0,0),sh.filter(ImageFilter.GaussianBlur(10))); wb=Image.new('RGBA',(w+2*pad,h+2*pad),WHITE); wb.putalpha(rmask(w+2*pad,h+2*pad,r+pad)); o.alpha_composite(wb,(20,20)); o.alpha_composite(c,(20+pad,20+pad))
     return o.rotate(rot,resample=Image.BICUBIC,expand=True)
+LG={1:'totoro',2:'ponyo',3:'majo',4:'laputa',5:'chihiro'}
+def logo(i,maxw=860,maxh=130):
+    im=Image.open(S+f'logo/{LG[i]}.png').convert('RGBA'); s_=min(maxw/im.width,maxh/im.height); im=im.resize((int(im.width*s_),int(im.height*s_)),Image.LANCZOS)
+    if LG[i] in ('totoro','laputa'):
+        pad=18; big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
+        A=big.getchannel('A').point(lambda v:255 if v>80 else 0).filter(ImageFilter.MaxFilter(15)).filter(ImageFilter.GaussianBlur(1))
+        w=Image.new('RGBA',big.size,WHITE); w.putalpha(A); o=Image.new('RGBA',big.size,(0,0,0,0)); o.alpha_composite(w); o.alpha_composite(big); return o
+    b=10; r=18; ph=im.copy(); ph.putalpha(rmask(im.width,im.height,r))
+    o=Image.new('RGBA',(im.width+2*b,im.height+2*b),(0,0,0,0)); wb=Image.new('RGBA',o.size,WHITE); wb.putalpha(rmask(o.width,o.height,r+b)); o.alpha_composite(wb); o.alpha_composite(ph,(b,b)); return o
 FILMS=[('となりのトトロ','1988年','自然の中で遊ぶ楽しさを',['森や田んぼで駆け回る姉妹の姿に','外で遊びたくなる気持ちが芽生える。','どんぐり拾いや虫探しが','いつもの何倍も楽しくなるはず'],'totoro018',.3,GREEN,'3歳ごろ〜','86分'),
 ('崖の上のポニョ','2008年','純粋な心が育てられる',['5歳にしてお母さんにもポニョにも','気遣いができる宗介。','メロい男になる未来しか見えない。','「好き」をまっすぐ伝える大切さも'],'ponyo049',.5,RED,'3歳ごろ〜','101分'),
 ('魔女の宅急便','1989年','「ありがとう」が人をつなぐ',['町の人に支えられて成長するキキから','感謝の気持ちの大切さが伝わる。','落ち込んでもまた飛べるようになる姿は','大人が見ても背中を押される'],'majo038',.75,(70,110,170),'5歳ごろ〜','102分'),
@@ -19,8 +28,8 @@ CH=[('majo013',200,-6,170,1560),('mimi032',190,6,830,1570),('karigurashi033',190
 for i,(jp,yr,catch,lines,st,fx,col,age,mins) in enumerate(FILMS,1):
     L=layer(); d=ImageDraw.Draw(L)
     pill(L,W/2,300,f'子どもに見せたいジブリ　{i}/5',34,GREEN,WHITE,40)
-    text(L,jp,76,900,410,col,12,maxw=900); text(L,f'（{yr}公開）',28,800,475,(110,100,92),6)
-    paste(L,still(st,820,500,fx,rot=[-2,2][i%2]),W/2,790)
+    paste(L,logo(i,*{1:(820,120),2:(760,120),3:(640,110),4:(480,165),5:(780,120)}[i]),W/2,{4:418}.get(i,410)); text(L,f'（{yr}公開）',28,800,{4:520}.get(i,495),(110,100,92),6)
+    paste(L,still(st,820,480,fx,rot=[-2,2][i%2]),W/2,800)
     top=1080; d.rounded_rectangle((90,top,990,top+400),36,fill=(255,255,255,245),outline=GREEN,width=5)
     pill(L,W/2,top,catch,40,ORANGE,WHITE,36)
     for k,l in enumerate(lines): text(L,l,36,800,top+82+k*56,DARK,cx=W/2,maxw=840)
