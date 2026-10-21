@@ -2,6 +2,7 @@ import sys
 S='/tmp/claude-0/-home-user--/e2f1f029-242f-578c-b26c-0ea9dd511990/scratchpad/'
 src=open(S+'kh2.py').read().split("if len(sys.argv)>1")[0].replace('/ghibli-keyholder/vol2/','/ghibli-news-1022/')
 exec(src)
+BG=Image.open(S+'bg_navy.jpg').convert('RGBA').resize((W,H))
 cs=open(S+'imax.py').read(); exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')]); from PIL import ImageOps
 RED=(206,72,80); GRAY=(110,100,92)
 def block(L,y,title,rows,k_=1.0):
