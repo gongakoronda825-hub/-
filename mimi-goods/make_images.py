@@ -75,23 +75,23 @@ def thumb_layers():
     text(T,'耳をすませば',118,900,925,GREEN,16,maxw=980)
     pill(T,W/2,1065,'グッズまとめ',58,ORANGE,WHITE,60)
     return P,T
-CELL=[(290,640),(760,640),(290,1180),(760,1180)]
+CELL=[(285,690),(775,690),(285,1270),(775,1270)]
 def item_layer(k,item,cells=None):
     n,name,price=item; L=layer(); cx,cy=(cells or CELL)[k]
-    paste(L,photo(n,270,[-3,3,3,-3][k]),cx,cy-60)
-    d=ImageDraw.Draw(L); top=cy+110; lw=430
-    d.rounded_rectangle((cx-lw/2,top,cx+lw/2,top+150),30,fill=(255,255,255,245),outline=GREEN,width=4)
+    paste(L,photo(n,360,[-3,3,3,-3][k]),cx,cy-90)
+    d=ImageDraw.Draw(L); top=cy+125; lw=470
+    d.rounded_rectangle((cx-lw/2,top,cx+lw/2,top+160),30,fill=(255,255,255,245),outline=GREEN,width=4)
     text(L,'耳をすませば',24,800,top+30,(110,100,92),cx=cx)
-    text(L,name,32,900,top+74,GREEN,cx=cx,maxw=lw-30)
-    text(L,(price[0]+'¥'+price[1:] if price[0]=='各' else '¥'+price)+'（税込）',30,900,top+118,DARK,cx=cx)
+    text(L,name,34,900,top+78,GREEN,cx=cx,maxw=lw-30)
+    text(L,(price[0]+'¥'+price[1:] if price[0]=='各' else '¥'+price)+'（税込）',32,900,top+126,DARK,cx=cx)
     return L
 def head_layer(p):
     L=layer(); pill(L,W/2,330,f'耳をすませば グッズまとめ　{p+1}/{len(PAGES)}',36,GREEN,WHITE,40)
-    text(L,PAGE_CREDIT,24,800,1490,(110,100,92),6); return L
+    text(L,PAGE_CREDIT,24,800,1590,(110,100,92),6); return L
 def chars_layer(p):
     L=layer()
     for n,cx in zip(PAGE_CHARS[p],(215,905)):
-        st=cut_sticker(n,300,240,0); L.alpha_composite(st,(int(cx-st.width/2),1815-st.height))
+        st=cut_sticker(n,260,190,0); L.alpha_composite(st,(int(cx-st.width/2),1885-st.height))
     return L
 def compose(*Ls):
     f=BG.copy()
