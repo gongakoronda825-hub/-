@@ -59,21 +59,18 @@ for i,(L,C) in enumerate(pages,1):
 # thumbnail
 cs2=open(S+'imax.py').read(); exec(cs2[cs2.index('def kf('):cs2.index('def chara(')].replace("KF,","S+'fonts/keifont.ttf',"))
 YEL=(255,214,0); NAVY=(30,50,100)
-P=layer()
-for n,fx,cx,cy,r in [('mimi048',.5,280,330,-5),('chihiro011',.72,800,350,5),('totoro019',.57,280,1560,4),('karigurashi033',.5,800,1580,-4)]:
-    paste(P,still(n,420,280,fx,r),cx,cy)
-T=layer(); d=ImageDraw.Draw(T)
-pill(T,W/2,620,'10/22',70,RED,WHITE,60)
-st_=Image.new('RGBA',(200,200),(0,0,0,0)); ImageDraw.Draw(st_).ellipse((5,5,195,195),fill=YEL,outline=WHITE,width=9)
-from PIL import ImageFont; ImageDraw.Draw(st_).text((100,100),'NEW',font=ImageFont.truetype(S+'fonts/lat900.woff',60),fill=RED,anchor='mm')
-paste(T,st_.rotate(14,resample=Image.BICUBIC,expand=True),820,600)
-kf(T,'最新ジブリ',150,780,YEL,inner=(20,20,20),si=18,so=32,maxw=1000)
-kf(T,'ニュース',150,950,YEL,inner=(20,20,20),si=18,so=32,maxw=1000)
-chips=[('IMAX上映',GREEN),('千と千尋 舞台',RED),('どんどこ祭り',ORANGE),('展覧会',(70,110,170)),('テレビ',(140,90,160))]
-rows=[chips[:3],chips[3:]]
-for r_,row in enumerate(rows):
-    fp=fonts(900,40); ws=[tlen(t,fp)+64 for t,_ in row]; tot=sum(ws)+20*(len(row)-1); x=W/2-tot/2
-    for (t,c),w in zip(row,ws): pill(T,x+w/2,1120+r_*100,t,40,c,WHITE,32); x+=w+20
+P=layer(); T=layer(); d=ImageDraw.Draw(T)
+pill(T,W/2,230,'10/22',56,RED,WHITE,50)
+kf(T,'最新ジブリニュース',112,355,YEL,inner=(20,20,20),si=16,so=28,maxw=1000)
+HL=[('mimi048',.5,'耳すま＆アリエッティ','IMAXで上映！',GREEN),('chihiro011',.72,'舞台 千と千尋','千尋役7人が決定',RED),
+('totoro019',.57,'ジブリパーク','秋のどんどこ祭り',ORANGE),('majo038',.75,'展覧会','京都・佐賀で開催',(70,110,170))]
+for k,(n,fx,a1,a2,c) in enumerate(HL):
+    y=520+k*285
+    d.rounded_rectangle((60,y,1020,y+250),34,fill=(255,255,255,250),outline=c,width=6)
+    paste(T,still(n,330,210,fx,0,r=22,pad=0),255,y+125)
+    text(T,a1,40,900,y+80,c,0,cx=690,maxw=560)
+    text(T,a2,58,900,y+160,DARK,0,cx=690,maxw=560)
+text(T,'＋テレビ情報も！ 詳しくはスワイプ',40,900,1680,DARK,10,maxw=980)
 C=layer()
 f=BG.copy()
 for Lx in (P,C,T): f.alpha_composite(Lx)
