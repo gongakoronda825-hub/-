@@ -61,8 +61,8 @@ for i,(L,C) in enumerate(pages,1):
 cs2=open(S+'imax.py').read(); exec(cs2[cs2.index('def kf('):cs2.index('def chara(')].replace("KF,","S+'fonts/keifont.ttf',"))
 YEL=(255,214,0); NAVY=(30,50,100)
 P=layer()
-for n,fx,cx,cy,r in [('mimi048',.5,305,415,-5),('chihiro011',.72,775,425,5),('totoro019',.57,305,1490,4),('karigurashi033',.5,775,1500,-4)]:
-    paste(P,still(n,360,230,fx,r),cx,cy)
+for n,fx,cx,cy,r in [('mimi048',.5,295,420,-5),('chihiro011',.72,785,428,5),('totoro019',.57,295,1488,4),('karigurashi033',.5,785,1496,-4)]:
+    paste(P,still(n,400,252,fx,r),cx,cy)
 T=layer(); d=ImageDraw.Draw(T)
 pill(T,W/2,640,'〜10/22',64,RED,WHITE,56)
 st_=Image.new('RGBA',(190,190),(0,0,0,0)); ImageDraw.Draw(st_).ellipse((5,5,185,185),fill=YEL,outline=WHITE,width=9)
