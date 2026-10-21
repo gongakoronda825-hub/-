@@ -43,12 +43,12 @@ st=Image.new('RGBA',(330,330),(0,0,0,0)); sd=ImageDraw.Draw(st); sd.ellipse((10,
 T2=layer(); text(T2,'佐賀',96,900,0,WHITE,0,cx=0)
 from PIL import ImageFont
 f=ImageFont.truetype(S+'fonts/jp900.woff',100); sd.text((165,140),'佐賀',font=f,fill=WHITE,anchor='mm'); f2=ImageFont.truetype(S+'fonts/jp900.woff',44); sd.text((165,232),'で開催！',font=f2,fill=WHITE,anchor='mm')
-st=st.rotate(12,resample=Image.BICUBIC,expand=True); paste(T,st.resize((int(st.width*1.2),int(st.height*1.2))),850,1040)
-text(T,'11/3(火・祝)〜 佐賀県立美術館',40,900,1215,DARK,9)
-text(T,'会場限定グッズ',128,900,1360,RED,18,maxw=960)
-pill(T,W/2,1500,'全22点 まとめました！',52,GREEN,WHITE,50)
+st=st.rotate(12,resample=Image.BICUBIC,expand=True); paste(T,st.resize((int(st.width*1.2),int(st.height*1.2))),860,760)
+text(T,'11/3(火・祝)〜 佐賀県立美術館',42,900,935,DARK,10)
+text(T,'会場限定グッズ',136,900,1075,RED,20,maxw=1000)
+pill(T,W/2,1220,'全22点 まとめました！',54,GREEN,WHITE,52)
 C=layer()
-for n,h,r,cx,cy in [('10',250,-6,150,1030),('09a',230,6,180,1640),('21b',230,-5,530,1690),('kyoto1',230,5,860,1650)]:
+for n,h,r,cx,cy in [('10',250,-6,150,780),('09a',250,6,200,1480),('21b',250,-5,540,1530),('kyoto1',250,5,880,1490)]:
     paste(C,gs(n,h,r),cx,cy)
 _f=BG.copy()
 for _L in (P,C,T): _f.alpha_composite(_L)
