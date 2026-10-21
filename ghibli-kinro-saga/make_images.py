@@ -50,7 +50,9 @@ pill(T,W/2,1500,'全22点 まとめました！',52,GREEN,WHITE,50)
 C=layer()
 for n,h,r,cx,cy in [('10',250,-6,150,1030),('09a',230,6,180,1640),('21b',230,-5,530,1690),('kyoto1',230,5,860,1650)]:
     paste(C,gs(n,h,r),cx,cy)
-compose(P,C,T).convert('RGB').save(OUT+'00_thumbnail.png')
+_f=BG.copy()
+for _L in (P,C,T): _f.alpha_composite(_L)
+_f.convert('RGB').save(OUT+'00_thumbnail.png')
 # info slide
 L=layer(); d=ImageDraw.Draw(L)
 pill(L,W/2,330,'開催概要',40,GREEN,WHITE,44)
