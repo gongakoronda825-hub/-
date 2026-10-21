@@ -22,15 +22,29 @@ def photo_card(path,w,rot,r=30,pad=14):
     wb=Image.new('RGBA',(w+2*pad,h+2*pad),WHITE); wb.putalpha(rmask(w+2*pad,h+2*pad,r+pad)); card.alpha_composite(wb,(20,20)); card.alpha_composite(im,(20+pad,20+pad))
     return card.rotate(rot,resample=Image.BICUBIC,expand=True)
 # thumbnail
-P=layer(); paste(P,photo_card(U+'97812fdd-image.jpg',640,-3),W/2+20,520)
-T=layer(); x,tw=text(T,'金曜ロードショーとジブリ展',50,900,950,DARK,10); d=ImageDraw.Draw(T)
-for sx,ex in ((x-54,x-26),(x+tw+54,x+tw+26)): d.line((sx,920,ex,980),fill=DARK,width=8)
-text(T,'佐賀展',90,900,1070,GREEN,16); text(T,'グッズまとめ',110,900,1200,GREEN,16,maxw=980)
-pill(T,W/2,1335,'2026.11.3(火・祝)〜 佐賀県立美術館',40,ORANGE,WHITE,44)
-C=layer()
-for k,(n,r,cx,cy) in enumerate([('10',-6,280,1560),('18b',5,560,1600),('09a',6,830,1560)]):
-    paste(C,photo(n,230,r),cx,cy)
-compose(P,C,T).convert('RGB').save(OUT+'00_thumbnail.png')
+fig=Image.open(S+'kinro/fig.png').convert('RGBA'); fig=fig.crop((0,0,fig.width,int(fig.height*0.83)))
+al=fig.getchannel('A').point(lambda v:0 if v<90 else v); fig.putalpha(al)
+def sticker(im,h,rot=0,ow=12):
+    im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS); pad=ow*3
+    big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
+    A=big.getchannel('A').point(lambda v:255 if v>100 else 0).filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
+    out=Image.new('RGBA',big.size,(0,0,0,0)); sh=Image.new('RGBA',big.size,(0,0,0,0)); sh.putalpha(A.filter(ImageFilter.GaussianBlur(12)).point(lambda v:int(v*0.35)))
+    out.alpha_composite(sh,(6,10)); w=Image.new('RGBA',big.size,WHITE); w.putalpha(A); out.alpha_composite(w); out.alpha_composite(big)
+    return out.rotate(rot,resample=Image.BICUBIC,expand=True)
+YEL=(246,176,40); RED=(220,70,60)
+P=layer(); d=ImageDraw.Draw(P)
+pc=Image.open(U+'0fa04ca6-image.jpg').convert('RGB').crop((80,330,1620,1720)); pc.save(S+'kinro/pc.jpg')
+paste(P,photo_card(S+'kinro/pc.jpg',660,-3,r=40,pad=16),W/2,1030)
+for n,r,cx,cy in [('10',-8,190,760),('18b',7,880,790),('kyoto1',-6,190,1320),('09a',6,880,1330)]:
+    paste(P,photo(n,200,r),cx,cy)
+T=layer(); d=ImageDraw.Draw(T)
+x,tw=text(T,'11/3(火・祝)〜 佐賀で開催',40,900,262,DARK,8); 
+for sx,ex in ((x-50,x-24),(x+tw+50,x+tw+24)): d.line((sx,237,ex,287),fill=DARK,width=7)
+text(T,'金ロー×ジブリ展',84,900,370,GREEN,14,maxw=900)
+text(T,'限定グッズ',150,900,515,RED,18,maxw=960)
+pill(T,W/2,1520,'全22点 まとめました！',54,GREEN,WHITE,50)
+text(T,'フライデーおじさんグッズが可愛すぎる…',36,900,1625,DARK,9,maxw=900)
+compose(P,T).convert('RGB').save(OUT+'00_thumbnail.png')
 # info slide
 L=layer(); d=ImageDraw.Draw(L)
 pill(L,W/2,330,'開催概要',40,GREEN,WHITE,44)
