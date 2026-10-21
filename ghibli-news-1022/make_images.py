@@ -59,17 +59,22 @@ for i,(L,C) in enumerate(pages,1):
 # thumbnail
 cs2=open(S+'imax.py').read(); exec(cs2[cs2.index('def kf('):cs2.index('def chara(')].replace("KF,","S+'fonts/keifont.ttf',"))
 YEL=(255,214,0); NAVY=(30,50,100)
-P=layer(); paste(P,still('mimi048',520,400,.5,-5),290,470); paste(P,still('karigurashi033',520,400,.5,5),790,500)
+P=layer()
+for n,fx,cx,cy,r in [('mimi048',.5,280,330,-5),('chihiro011',.72,800,350,5),('totoro019',.57,280,1560,4),('karigurashi033',.5,800,1580,-4)]:
+    paste(P,still(n,420,280,fx,r),cx,cy)
 T=layer(); d=ImageDraw.Draw(T)
-pill(T,W/2,790,'10/22 最新ジブリニュース',62,RED,WHITE,56)
+pill(T,W/2,620,'10/22',70,RED,WHITE,60)
 st_=Image.new('RGBA',(200,200),(0,0,0,0)); ImageDraw.Draw(st_).ellipse((5,5,195,195),fill=YEL,outline=WHITE,width=9)
 from PIL import ImageFont; ImageDraw.Draw(st_).text((100,100),'NEW',font=ImageFont.truetype(S+'fonts/lat900.woff',60),fill=RED,anchor='mm')
-paste(T,st_.rotate(14,resample=Image.BICUBIC,expand=True),930,250)
-kf(T,'耳すま＆アリエッティ',96,940,WHITE,inner=NAVY,si=14,so=26,maxw=1000)
-kf(T,'IMAXで復活！',170,1110,YEL,inner=(20,20,20),si=18,so=32,maxw=1020)
-pill(T,W/2,1290,'10/23(金)〜 たった11日間！',50,GREEN,WHITE,48)
-text(T,'＋ 千と千尋 舞台・どんどこ祭り・展覧会',40,900,1395,DARK,10,maxw=980)
-C=layer(); st(C,[('mimi032',240,-6,190,1610),('chihiro019',230,4,540,1650),('karigurashi033',240,6,880,1610)])
+paste(T,st_.rotate(14,resample=Image.BICUBIC,expand=True),820,600)
+kf(T,'最新ジブリ',150,780,YEL,inner=(20,20,20),si=18,so=32,maxw=1000)
+kf(T,'ニュース',150,950,YEL,inner=(20,20,20),si=18,so=32,maxw=1000)
+chips=[('IMAX上映',GREEN),('千と千尋 舞台',RED),('どんどこ祭り',ORANGE),('展覧会',(70,110,170)),('テレビ',(140,90,160))]
+rows=[chips[:3],chips[3:]]
+for r_,row in enumerate(rows):
+    fp=fonts(900,40); ws=[tlen(t,fp)+64 for t,_ in row]; tot=sum(ws)+20*(len(row)-1); x=W/2-tot/2
+    for (t,c),w in zip(row,ws): pill(T,x+w/2,1120+r_*100,t,40,c,WHITE,32); x+=w+20
+C=layer()
 f=BG.copy()
 for Lx in (P,C,T): f.alpha_composite(Lx)
 f.convert('RGB').save(OUT+'00_thumbnail.png')
