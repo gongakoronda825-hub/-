@@ -11,7 +11,8 @@ def layer(): return Image.new('RGBA',(W,H),(0,0,0,0))
 def rmask(w,h,r):
     m=Image.new('L',(w,h),0); ImageDraw.Draw(m).rounded_rectangle((0,0,w-1,h-1),r,fill=255); return m
 def photo(n,s,rot):
-    im=Image.open(f'mimi/big/{n}.jpg').convert('RGB'); m=min(im.size); im=im.crop(((im.width-m)//2,(im.height-m)//2,(im.width+m)//2,(im.height+m)//2)).resize((s,s),Image.LANCZOS).convert('RGBA')
+    im=Image.open(f'mimi/big/{n}.jpg').convert('RGB'); m=max(im.size); sq=Image.new('RGB',(m,m),WHITE); sq.paste(im,((m-im.width)//2,(m-im.height)//2))  # 縦長は白で余白をつける
+    im=sq.resize((s,s),Image.LANCZOS).convert('RGBA')
     im.putalpha(rmask(s,s,24)); pad=14
     card=Image.new('RGBA',(s+2*pad+40,s+2*pad+40),(0,0,0,0))
     sh=Image.new('L',card.size,0); ImageDraw.Draw(sh).rounded_rectangle((20,28,20+s+2*pad,28+s+2*pad),34,fill=90)
@@ -35,19 +36,22 @@ def pill(L,cx,cy,t,size,bg,fg,pad=34):
     d.rounded_rectangle((cx-w/2,cy-size*0.85,cx+w/2,cy+size*0.85),size,fill=bg); text(L,t,size,900,cy,fg,cx=cx)
 def shifted(L): o=layer(); o.alpha_composite(L.crop((DX,0,W,H)),(0,0)); return o
 
-ITEMS=[(2,'「地球屋」ミニタオル','880'),(44,'ガラスミニ皿 鍋焼きうどん','1,100'),
+ITEMS=[(21,'箔押し ミニリングノート','495'),(2,'「地球屋」ミニタオル','880'),
+(44,'ガラスミニ皿 鍋焼きうどん','1,100'),(25,'ミニタオル カントリーロード','1,100'),
 (26,'ロルバーン ポケット付メモL','1,430'),(34,'刺繍キーホルダー 地球屋の看板','1,760'),
-(13,'アートマグカップ','2,530'),(42,'こもれび ムーン','3,960'),
-(11,'ディフューザー 地球屋での思い出','5,500'),(67,'オルゴール バロンドール／ルイーゼ','各14,300')]
+(35,'PAPER THEATER 天沢聖司','2,200'),(13,'アートマグカップ','2,530'),
+(42,'こもれび ムーン','3,960'),(11,'ディフューザー 地球屋での思い出','5,500'),
+(2728,'ピアス 再会 バロン／ルイーゼ','各8,800'),(67,'オルゴール バロンドール／ルイーゼ','各14,300')]
 PAGES=[ITEMS[i:i+4] for i in range(0,len(ITEMS),4)]
 CREDIT='画像出典：どんぐり共和国 そらのうえ店'
 PAGE_CREDIT=CREDIT+'　© Studio Ghibli'
 # 各ページの左下・右下に貼るキャラ（場面写真の切り抜き）
-PAGE_CHARS=[('mimi049','mimi005'),('mimi013','mimi026')]
-# 6と7を左右に並べた1枚
-a,b=[Image.open(f'mimi/big/{n}.jpg').convert('RGB') for n in (6,7)]
+PAGE_CHARS=[('mimi049','mimi005'),('mimi013','mimi026'),('mimi032','mimi022')]
+# 2商品を左右に並べた1枚（元の写真番号, 切り取る中心の横位置）
 def half(im,cx): s=min(im.size); w=s//2; x=int(im.width*cx)-w//2; return im.crop((x,(im.height-s)//2,x+w,(im.height+s)//2))
-pa,pb=half(a,0.5),half(b,0.52); c=Image.new('RGB',(pa.width*2,pa.height)); c.paste(pa,(0,0)); c.paste(pb.resize(pa.size),(pa.width,0)); c.save('mimi/big/67.jpg')
+for out,((na,ca),(nb,cb)) in {67:((6,0.5),(7,0.52)),2728:((27,0.27),(28,0.72))}.items():
+    a,b=[Image.open(f'mimi/big/{n}.jpg').convert('RGB') for n in (na,nb)]
+    pa,pb=half(a,ca),half(b,cb); c=Image.new('RGB',(pa.width*2,pa.height)); c.paste(pa,(0,0)); c.paste(pb.resize(pa.size),(pa.width,0)); c.save(f'mimi/big/{out}.jpg')
 # 切り抜きに残った背景を消す（割合で指定）
 TRIM={42:[(0,0,0.27,1)],34:[(0.4,0,1,0.3)],'mimi026':[(0.4,0,1,1)]}
 def cut_sticker(n,bw,bh,rot,ow=10):
@@ -102,5 +106,5 @@ if __name__=='__main__':
     text(f,CREDIT,24,800,1515,(110,100,92),6); f.convert('RGB').save(OUT+'00_thumbnail.png')
     for p,pg in enumerate(PAGES):
         compose(head_layer(p),chars_layer(p),*[item_layer(k,it) for k,it in enumerate(pg)]).convert('RGB').save(OUT+f'{p+1:02d}_page.png')
-    Image.open('/home/user/-/ghibli-toolkit/assets/follow.jpg').convert('RGB').save(OUT+'03_follow.png')
+    Image.open('/home/user/-/ghibli-toolkit/assets/follow.jpg').convert('RGB').save(OUT+f'{len(PAGES)+1:02d}_follow.png')
     print('ok')
