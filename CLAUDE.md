@@ -57,7 +57,9 @@
 - 全部の画像をまとめて渡すときは zip にする（ファイル名順＝投稿順）
 
 ## 参考になる過去作
-- 商品まとめ（4つずつ）：`ghibli-keyholder/`、`ghibli-kinro-saga/`
+- 商品まとめ（4つずつ）：`ghibli-keyholder/`、`ghibli-kinro-saga/`、`mimi-goods/`
+  - 4つずつのページの商品の大きさは `mimi-goods/make_images.py` を標準にする：写真360px（カード位置 x=285/775・y=690/1270、写真は cy-90）、下の情報カードは幅470×高さ160（cy+125から）、商品名34px・価格32px
+  - 商品ページの左下・右下に作品のキャラ（場面写真の切り抜き）を貼る。カードの下の空いたところに置き、クレジットに © Studio Ghibli を足す
 - 1ページ1商品：`ghibli-majo-goods/`
 - 1作品1ページ＋キャッチコピー：`ghibli-kids5/`
 - 4枚の写真を田の字＋中央カード：`ghibli-abroad/`、`ghibli-japan/`
