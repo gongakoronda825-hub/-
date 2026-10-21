@@ -50,10 +50,13 @@ text(T,'11/3(火・祝)〜 佐賀県立美術館',42,900,935,DARK,10)
 text(T,'会場限定グッズ',136,900,1075,RED,20,maxw=1000)
 pill(T,W/2,1220,'全22点 まとめました！',54,GREEN,WHITE,52)
 C=layer()
-for n,h,r,cx,cy in [('10',250,-6,150,780),('09a',250,6,200,1480),('21b',250,-5,540,1530),('kyoto1',250,5,880,1490)]:
+for n,h,r,cx,cy in [('10',250,-6,150,900),('09a',230,6,200,1560),('21b',230,-5,540,1610),('kyoto1',230,5,880,1570)]:
     paste(C,gs(n,h,r),cx,cy)
 _f=BG.copy()
-for _L in (P,C,T): _f.alpha_composite(_L)
+for _L in (P,T):
+    _s=Image.new('RGBA',(W,H),(0,0,0,0)); _s.alpha_composite(_L.crop((0,0,W,H-120)),(0,120)); _f.alpha_composite(_s) if _L is P else None
+_f.alpha_composite(C)
+_s=Image.new('RGBA',(W,H),(0,0,0,0)); _s.alpha_composite(T.crop((0,0,W,H-120)),(0,120)); _f.alpha_composite(_s)
 _f.convert('RGB').save(OUT+'00_thumbnail.png')
 # info slide
 L=layer(); d=ImageDraw.Draw(L)
