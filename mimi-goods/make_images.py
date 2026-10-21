@@ -41,14 +41,15 @@ ITEMS=[(2,'「地球屋」ミニタオル','880'),(44,'ガラスミニ皿 鍋焼
 (11,'ディフューザー 地球屋での思い出','5,500'),(67,'オルゴール バロンドール／ルイーゼ','各14,300')]
 PAGES=[ITEMS[i:i+4] for i in range(0,len(ITEMS),4)]
 CREDIT='画像出典：どんぐり共和国 そらのうえ店'
+THUMB_CREDIT=CREDIT+'　© Studio Ghibli'
 # 6と7を左右に並べた1枚
 a,b=[Image.open(f'mimi/big/{n}.jpg').convert('RGB') for n in (6,7)]
 def half(im,cx): s=min(im.size); w=s//2; x=int(im.width*cx)-w//2; return im.crop((x,(im.height-s)//2,x+w,(im.height+s)//2))
 pa,pb=half(a,0.5),half(b,0.52); c=Image.new('RGB',(pa.width*2,pa.height)); c.paste(pa,(0,0)); c.paste(pb.resize(pa.size),(pa.width,0)); c.save('mimi/big/67.jpg')
 # 切り抜きに残った背景を消す（割合で指定）
-TRIM={42:[(0,0,0.27,1)],34:[(0.4,0,1,0.3)]}
+TRIM={42:[(0,0,0.27,1)],34:[(0.4,0,1,0.3)],'mimi002':[(0,0,1,0.12),(0.7,0,1,1),(0,0,0.1,0.5)]}
 def cut_sticker(n,bw,bh,rot,ow=10):
-    im=Image.open(f'mimi/cut/{n}.png').convert('RGBA')
+    im=Image.open(f'cut/{n}.png' if isinstance(n,str) else f'mimi/cut/{n}.png').convert('RGBA')
     al=im.getchannel('A').point(lambda v:0 if v<30 else v)
     for (x0,y0,x1,y1) in TRIM.get(n,()): al.paste(0,(int(x0*im.width),int(y0*im.height),int(x1*im.width),int(y1*im.height)))
     im.putalpha(al); im=im.crop(al.getbbox())
@@ -65,6 +66,9 @@ def thumb_layers():
     bot=[(26,6,230,330),(44,-5,250,300),(2,5,250,300),(11,-6,230,400)]
     for k,(n,r,bw,bh) in enumerate(top): paste(P,cut_sticker(n,bw,bh,r),xs[k],505+(30 if k%2 else 0))
     for k,(n,r,bw,bh) in enumerate(bot): paste(P,cut_sticker(n,bw,bh,r),xs[k],1345-(30 if k%2 else 0))
+    # 左下に雫、右下に聖司（場面写真 © Studio Ghibli）
+    for n,cx,r in (('mimi002',150,0),('mimi005',925,0)):
+        st=cut_sticker(n,300,300,r); P.alpha_composite(st,(int(cx-st.width/2),1600-st.height))
     T=layer()
     x,tw=text(T,'どんぐり共和国で買える',54,900,800,DARK,10)
     d=ImageDraw.Draw(T)
@@ -91,7 +95,7 @@ def compose(*Ls):
     return f
 if __name__=='__main__':
     P,T=thumb_layers(); f=BG.copy(); f.alpha_composite(P); f.alpha_composite(T)
-    text(f,CREDIT,24,800,1515,(110,100,92),6); f.convert('RGB').save(OUT+'00_thumbnail.png')
+    text(f,THUMB_CREDIT,24,800,1640,(110,100,92),6); f.convert('RGB').save(OUT+'00_thumbnail.png')
     for p,pg in enumerate(PAGES):
         compose(head_layer(p),*[item_layer(k,it) for k,it in enumerate(pg)]).convert('RGB').save(OUT+f'{p+1:02d}_page.png')
     Image.open('/home/user/-/ghibli-toolkit/assets/follow.jpg').convert('RGB').save(OUT+'03_follow.png')
