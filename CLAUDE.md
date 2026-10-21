@@ -12,6 +12,8 @@
 ## 共通ルール
 - 画面は TikTok の 9:16（1080×1920）。右側ボタン・下の説明文エリアに大事な要素を置かない（通常ページは全体を左に40px寄せる `shifted`／DX=40。サムネは中央そろえ）
 - 背景：緑の方眼 `ghibli-toolkit/assets/bg_grid.jpg`（ほぼ全投稿で使用）
+  - ニュース系（最新ジブリニュースまとめ等）は紺の方眼 `ghibli-toolkit/assets/bg_grid_navy.jpg` を使う（模様は同じ、線の色だけ紺 #1E3A6E）
+- サムネはTikTokプロフィール一覧で3:4（上下240pxずつ）に切られるので、写真・文字は y=240〜1680 の内側に収める
 - 最後のページ：フォロー画像 `ghibli-toolkit/assets/follow.jpg`
 - 文字：丸ゴシック太字（M PLUS Rounded 1c 800/900、`kh2.py` の `text`/`pill`）。白フチ付き。見出しは緑、強調はオレンジや赤の帯（pill）
 - サムネの見出しの型：「＼○○で買える／」小さめ黒＋大きい緑文字＋オレンジの帯（例：キーホルダーまとめ vol.2）
@@ -64,4 +66,5 @@
 - 1作品1ページ＋キャッチコピー：`ghibli-kids5/`
 - 4枚の写真を田の字＋中央カード：`ghibli-abroad/`、`ghibli-japan/`
 - まとめカルーセル（情報系）：`ghibli-imax/`
+- ニュースまとめ：`ghibli-news-1022/`（サムネ＝日付帯＋「最新ジブリニュース」＋話題ラベル＋四隅に場面写真）
 - ナレーション動画：`majo-sainou/`、`ghibli-donguri-vlog/`、`ghibli-zenmap/`
