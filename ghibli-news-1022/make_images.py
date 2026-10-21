@@ -63,7 +63,7 @@ P=layer()
 for n,fx,cx,cy,r in [('mimi048',.5,280,300,-5),('chihiro011',.72,800,320,5),('totoro019',.57,280,1620,4),('karigurashi033',.5,800,1640,-4)]:
     paste(P,still(n,400,260,fx,r),cx,cy)
 T=layer(); d=ImageDraw.Draw(T)
-pill(T,W/2,640,'10/22',64,RED,WHITE,56)
+pill(T,W/2,640,'〜10/22',64,RED,WHITE,56)
 st_=Image.new('RGBA',(190,190),(0,0,0,0)); ImageDraw.Draw(st_).ellipse((5,5,185,185),fill=YEL,outline=WHITE,width=9)
 from PIL import ImageFont; ImageDraw.Draw(st_).text((95,95),'NEW',font=ImageFont.truetype(S+'fonts/lat900.woff',56),fill=RED,anchor='mm')
 paste(T,st_.rotate(14,resample=Image.BICUBIC,expand=True),820,625)
