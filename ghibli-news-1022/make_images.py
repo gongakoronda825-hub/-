@@ -71,8 +71,8 @@ kf(T,'最新ジブリニュース',112,780,YEL,inner=(20,20,20),si=16,so=28,maxw
 chips=[('IMAX上映',GREEN),('千と千尋 舞台',RED),('どんどこ祭り',ORANGE),('展覧会',(70,110,170)),('テレビ',(140,90,160))]
 rows=[chips[:2],chips[2:4],chips[4:]]
 for r_,row in enumerate(rows):
-    fp=fonts(900,76); ws=[tlen(t,fp)+96 for t,_ in row]; tot=sum(ws)+26*(len(row)-1); x=W/2-tot/2
-    for (t,c),w in zip(row,ws): pill(T,x+w/2,985+r_*155,t,76,c,WHITE,48); x+=w+26
+    fp=fonts(900,58); ws=[tlen(t,fp)+80 for t,_ in row]; tot=sum(ws)+26*(len(row)-1); x=W/2-tot/2
+    for (t,c),w in zip(row,ws): pill(T,x+w/2,975+r_*125,t,58,c,WHITE,40); x+=w+26
 C=layer()
 f=BG.copy()
 for Lx in (P,C,T): f.alpha_composite(Lx)
