@@ -61,7 +61,7 @@ for i,(L,C) in enumerate(pages,1):
 cs2=open(S+'imax.py').read(); exec(cs2[cs2.index('def kf('):cs2.index('def chara(')].replace("KF,","S+'fonts/keifont.ttf',"))
 YEL=(255,214,0); NAVY=(30,50,100)
 P=layer()
-for n,fx,cx,cy,r in [('mimi048',.5,295,420,-5),('chihiro011',.72,785,428,5),('totoro019',.57,295,1488,4),('karigurashi033',.5,785,1496,-4)]:
+for n,fx,cx,cy,r in [('mimi048',.5,295,420,-5),('chihiro011',.72,785,428,5),('gp_satsuki',.5,295,1488,4),('karigurashi033',.5,785,1496,-4)]:
     paste(P,still(n,400,252,fx,r),cx,cy)
 T=layer(); d=ImageDraw.Draw(T)
 pill(T,W/2,640,'〜10/22',64,RED,WHITE,56)
