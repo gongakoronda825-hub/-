@@ -27,9 +27,9 @@ def introf(n):
         sw,sh_=int(W*1.12/z),int(H*1.12/z); x=int((IBG.width-sw)*(0.2+0.6*u)); y=(IBG.height-sh_)//2
         b=IBG.crop((x,y,x+sw,y+sh_)).resize((W,H),Image.BILINEAR).convert('RGBA'); b.alpha_composite(IFG); yield np.array(b.convert('RGB'))
 # how-to card
-kb=cover(Image.open(V+'kyo/02.jpg').convert('RGB'),W,H).filter(ImageFilter.GaussianBlur(2)).convert('RGBA')
+k9=Image.open(V+'kyo/08.jpg').convert('RGB'); cw=int(k9.height*W/H); cx=int(k9.width*0.42)-cw//2; kb=cover(k9.crop((cx,0,cx+cw,k9.height)),W,H).filter(ImageFilter.GaussianBlur(2)).convert('RGBA')
 pn=Image.new('RGBA',(W,H),(0,0,0,0)); ImageDraw.Draw(pn).rounded_rectangle((70,250,1010,1650),40,fill=(255,251,245,205)); kb.alpha_composite(pn); L=kb
-ImageDraw.Draw(L).text((540,1700),'南禅寺（京都） Photo: 雷太 / CC BY 2.0',font=ImageFont.truetype(S+'fonts/jp800.woff',24),fill=WHITE,anchor='ms',stroke_width=3,stroke_fill=(0,0,0))
+ImageDraw.Draw(L).text((540,1700),'南禅寺（京都） Photo: Takeshi Kuboki / CC BY 2.0',font=ImageFont.truetype(S+'fonts/jp800.woff',20),fill=WHITE,anchor='ms',stroke_width=3,stroke_fill=(0,0,0))
 exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')].replace("f'cut/","S+f'cut/")); from PIL import ImageOps
 for nm,h,r,x,y in [('majo013',230,-8,150,230),('mimi032',220,7,930,230),('karigurashi012',190,-6,150,1760),('mimi049',200,6,930,1760)]:
     c=chara(nm,h,r); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
