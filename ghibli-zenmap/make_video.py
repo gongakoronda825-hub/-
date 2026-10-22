@@ -48,6 +48,8 @@ for i,t in enumerate(['京都で開催中『禅とジブリ』展のオリジナ
     d.text((170,y+55+i*72),'・'+t,font=fm(36,False),fill=INK,anchor='lm')
 ctext(d,(W/2,1600),'※販売期間などは公式サイトをご確認ください',fm(28,False),SUB)
 HFG=L
+import math
+HC=[(chara(n,h,r),x,y) for n,h,r,x,y in [('majo013',300,-6,230,600),('mimi032',290,6,850,600),('karigurashi012',260,-5,230,1330),('mimi049',270,5,850,1330)]]
 FOLLOW=np.array(Image.open(U+'6a98b9bb-image.jpg').convert('RGB').resize((W,H)))
 # segments: (source, start, dur, [narr...], sfx)
 SEG=[('IMG_0370',0,None,['zb'],'shock1'),('INTRO',0,None,['zi'],'kira1'),('IMG_0372',0.3,None,['z3'],'pa1'),
@@ -89,6 +91,12 @@ for src,st,d_,ns,sfx,t0 in tl:
     else: fr=[{'FOLLOW':FOLLOW}[src]]*n
     for k,f in enumerate(fr):
         g=t0+k/FPS; im=None
+        if src=='IMG_0370':
+            im=Image.fromarray(f).convert('RGBA')
+            for j,(c,x,y) in enumerate(HC):
+                a=8*math.sin(2*math.pi*1.2*g+j*math.pi/2); r=c.rotate(a,Image.BICUBIC,expand=True,center=(c.width/2,c.height))
+                im.alpha_composite(r,(int(x-r.width/2),int(y-r.height/2)))
+            f=np.array(im.convert('RGB')); im=None
         for a,b,T in SUBS:
             if a<=g<b:
                 kk=int((g-a)*FPS); sc=[0.9,1.08,1.03][kk] if a==0 and kk<3 else 1.0
