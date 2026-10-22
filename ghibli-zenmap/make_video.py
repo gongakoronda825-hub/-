@@ -15,11 +15,17 @@ def rd(p):
     return a.reshape(-1,ch).mean(1) if ch>1 else a
 # intro still: screenshot on blurred bg
 sc=Image.open(U+'d94ab764-image.jpg').convert('RGB')
-bg=cover(Image.open(S+'gb/chihiro011.jpg').convert('RGB'),W,H).filter(ImageFilter.GaussianBlur(3)); bg=Image.blend(bg,Image.new('RGB',(W,H),(0,0,0)),0.15)
+IBG=cover(Image.open(S+'gb/chihiro011.jpg').convert('RGB'),int(W*1.12),int(H*1.12)).filter(ImageFilter.GaussianBlur(3)); IBG=Image.blend(IBG,Image.new('RGB',IBG.size,(0,0,0)),0.15)
+bg=Image.new('RGBA',(W,H),(0,0,0,0))
 fg=sc.resize((900,int(sc.height*900/sc.width)),Image.LANCZOS); x0,y0=(W-900)//2-40,(H-fg.height)//2-80
-sh=Image.new('L',(W,H),0); ImageDraw.Draw(sh).rounded_rectangle((x0-6,y0+14,x0+906,y0+fg.height+26),24,fill=150); bg.paste((0,0,0),(0,0),sh.filter(ImageFilter.GaussianBlur(18)))
-ImageDraw.Draw(bg).rounded_rectangle((x0-12,y0-12,x0+912,y0+fg.height+12),26,fill=WHITE); bg.paste(fg,(x0,y0))
-ImageDraw.Draw(bg).text((x0+900,y0+fg.height+60),'© Studio Ghibli',font=ImageFont.truetype(S+'fonts/jp800.woff',28),fill=WHITE,anchor='rs',stroke_width=3,stroke_fill=(0,0,0)); INTRO=np.array(bg)
+sh=Image.new('L',(W,H),0); ImageDraw.Draw(sh).rounded_rectangle((x0-6,y0+14,x0+906,y0+fg.height+26),24,fill=150); bg.paste((0,0,0,255),(0,0),sh.filter(ImageFilter.GaussianBlur(18)))
+ImageDraw.Draw(bg).rounded_rectangle((x0-12,y0-12,x0+912,y0+fg.height+12),26,fill=WHITE+(255,)); bg.paste(fg,(x0,y0))
+ImageDraw.Draw(bg).text((x0+900,y0+fg.height+60),'© Studio Ghibli',font=ImageFont.truetype(S+'fonts/jp800.woff',28),fill=WHITE,anchor='rs',stroke_width=3,stroke_fill=(0,0,0)); IFG=bg
+def introf(n):
+    for k in range(n):
+        u=k/max(n-1,1); z=1.0+0.08*u
+        sw,sh_=int(W*1.12/z),int(H*1.12/z); x=int((IBG.width-sw)*(0.2+0.6*u)); y=(IBG.height-sh_)//2
+        b=IBG.crop((x,y,x+sw,y+sh_)).resize((W,H),Image.BILINEAR).convert('RGBA'); b.alpha_composite(IFG); yield np.array(b.convert('RGB'))
 # how-to card
 kb=cover(Image.open(V+'kyo/02.jpg').convert('RGB'),W,H).filter(ImageFilter.GaussianBlur(2)).convert('RGBA')
 pn=Image.new('RGBA',(W,H),(0,0,0,0)); ImageDraw.Draw(pn).rounded_rectangle((70,250,1010,1650),40,fill=(255,251,245,205)); kb.alpha_composite(pn); L=kb
@@ -78,7 +84,8 @@ for src,st,d_,ns,sfx,t0 in tl:
         p=subprocess.run(['ffmpeg','-v','error','-ss',str(st),'-i',V+src+'.mp4','-t',str(d_),'-f','rawvideo','-pix_fmt','rgb24','-'],capture_output=True).stdout
         fr=list(np.frombuffer(p,np.uint8).reshape(-1,H,W,3)[:n])
         while len(fr)<n: fr.append(fr[-1])
-    else: fr=[{'INTRO':INTRO,'HOW':HOW,'FOLLOW':FOLLOW}[src]]*n
+    elif src=='INTRO': fr=introf(n)
+    else: fr=[{'HOW':HOW,'FOLLOW':FOLLOW}[src]]*n
     for k,f in enumerate(fr):
         g=t0+k/FPS; im=None
         for a,b,T in SUBS:
