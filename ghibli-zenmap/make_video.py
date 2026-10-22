@@ -113,8 +113,8 @@ for src,st,d_,ns,sfx,t0 in tl:
         add(a,t0,0.18)
     tt=t0+0.1
     for n in ns: add(rd(V+f'narr/{n}.wav'),tt,1.0); tt+=wdur(V+f'narr/{n}.wav')+0.25
-    if sfx: add(rd(S+f'labsfx/{sfx}.wav'),t0,0.3)
+    if sfx: add(rd(S+f'labsfx/{sfx}.wav'),t0,0.5)
 mix=mix[:int(TOT*SR)]; mix/=max(1.0,np.abs(mix).max()/0.95)
 with wave.open(V+'a.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((mix*32767).astype(np.int16).tobytes())
-subprocess.run(['ffmpeg','-v','error','-y','-i',V+'v.mp4','-i',V+'a.wav','-c:v','copy','-c:a','aac','-b:a','192k','-shortest',OUTV])
+subprocess.run(['ffmpeg','-v','error','-y','-i',V+'v.mp4','-i',V+'a.wav','-c:v','copy','-af','loudnorm=I=-14:TP=-1.5:LRA=11','-ar','44100','-c:a','aac','-b:a','192k','-shortest',OUTV])
 print('done',round(TOT,1))
