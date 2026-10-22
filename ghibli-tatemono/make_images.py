@@ -43,21 +43,39 @@ def inset(L,g,cx,cy,w=540,rot=3,box=None):
 def credit(L,t='© Studio Ghibli'):
     ImageDraw.Draw(L).text((W-150,1700),t,font=ImageFont.truetype(S+'fonts/jp800.woff',24),fill=WHITE,anchor='rs',stroke_width=3,stroke_fill=(0,0,0))
 
-# (写真, 横位置, 顔[(x,y,高さ)], ロゴ, 場面写真, 場面位置(cx,cy,回転), キャラ[(名前,高さ,回転,cx,cy)])
+def place(L,n,h,cx,by,rot=0,keep=1.0,flip=False):
+    """キャラだけを縁なしで置く（by=足元のy）。keep<1 で下側を切る"""
+    im=cut(n); im.putalpha(im.getchannel('A').point(lambda v:0 if v<110 else v))
+    if keep<1: im=im.crop((0,0,im.width,int(im.height*keep)))
+    if flip: im=im.transpose(Image.FLIP_LEFT_RIGHT)
+    im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS).rotate(rot,resample=Image.BICUBIC,expand=True)
+    sh=Image.new('RGBA',(im.width+60,im.height+60),(0,0,0,0)); a_=im.getchannel('A').point(lambda v:int(v*0.35))
+    sh.paste((0,0,0,255),(36,40),a_); sh=sh.filter(ImageFilter.GaussianBlur(10))
+    L.alpha_composite(sh,(int(cx-im.width/2-30),int(by-im.height-30))); L.alpha_composite(im,(int(cx-im.width/2),int(by-im.height)))
+
+def scene(L,g,cx,cy,w):
+    """風景の場面写真を縁なしで置く"""
+    im=Image.open(S+f'gb/{g}.jpg').convert('RGBA'); im=im.resize((w,int(im.height*w/im.width)),Image.LANCZOS)
+    sh=Image.new('RGBA',(im.width+80,im.height+80),(0,0,0,0)); sh.paste((0,0,0,120),(46,52,46+im.width,52+im.height)); sh=sh.filter(ImageFilter.GaussianBlur(14))
+    L.alpha_composite(sh,(int(cx-im.width/2-40),int(cy-im.height/2-40))); L.alpha_composite(im,(int(cx-im.width/2),int(cy-im.height/2)))
+
+# (写真, 横位置, 顔[(x,y,高さ)], ロゴ, [('c',キャラ,高さ,cx,足元y,回転,残す割合,反転) / ('s',場面,cx,cy,幅)])
 SLIDES=[
- ('e1197088',0.5,[],'となりのトトロ','totoro029',(720,820,4),[('totoro044',300,-4,330,1480)]),
- ('9e55a828',0.3,[(348,1140,96),(434,1222,96),(516,1148,96),(608,1230,88),(670,1248,88),(762,1272,88),(366,1300,80),(888,1174,96)],'千と千尋の神隠し','chihiro027',(700,800,-3),[('chihiro019',520,4,250,1430)]),
- ('7531cbc0',0.5,[],'千と千尋の神隠し','chihiro004',(680,820,3),[('tt_pig',360,-5,320,1460)]),
- ('77f2ed49',0.4,[(783,1087,160),(1092,1077,160)],'となりのトトロ','totoro014',(700,1350,-3),[('c_susu',200,-8,260,980),('c_susu2',150,10,880,560)]),
- ('dd2fa721',0.15,[(296,1435,240)],'もののけ姫','mononoke011',(640,820,3),[('mononoke009',380,-4,820,1460)]),
- ('4dc98609',0.45,[],'となりのトトロ','totoro004',(640,820,-3),[('totoro018',540,0,280,1400),('c_chibitotoro',230,6,820,1520)]),
- ('17a17976',0.5,[],'風立ちぬ','kazetachinu042',(660,1360,3),[('tt_nahoko',560,0,250,820)]),
- ('ec8b4c93',0.5,[],'ハウルの動く城','howl016',(660,780,-3),[('c_calcifer',300,6,280,1500)]),
+ ('e1197088',0.5,[],'となりのトトロ',[('c','totoro044',330,330,1720,0,1.0,False)]),
+ ('9e55a828',0.3,[(348,1140,96),(434,1222,96),(516,1148,96),(608,1230,88),(670,1248,88),(762,1272,88),(366,1300,80),(888,1174,96)],'千と千尋の神隠し',[('c','tc_chihiro027',300,560,1262,0,0.82,False)]),
+ ('7531cbc0',0.5,[],'千と千尋の神隠し',[('c','tc_chihiro004',360,650,1000,0,1.0,False)]),
+ ('77f2ed49',0.4,[(783,1087,160),(1092,1077,160)],'となりのトトロ',[('c','tc_satsuki',400,220,1160,0,1.0,False),('c','c_susu2',80,420,1100,0,1.0,False),('c','c_susu2',70,630,1095,0,1.0,True),('c','c_susu',90,520,860,-10,1.0,False)]),
+ ('dd2fa721',0.15,[(296,1435,240)],'もののけ姫',[('c','mononoke009',640,820,1920,0,1.0,False)]),
+ ('4dc98609',0.45,[],'となりのトトロ',[('c','c_chibitotoro',130,700,1210,0,1.0,False),('c','totoro018',480,800,1700,0,1.0,False)]),
+ ('17a17976',0.5,[],'風立ちぬ',[('s','kazetachinu042',520,1530,760),('c','tt_nahoko',300,330,1105,0,1.0,False)]),
+ ('ec8b4c93',0.5,[],'ハウルの動く城',[('c','tc_pan',420,440,930,0,1.0,False)]),
 ]
 if __name__=='__main__':
-    for i,(f,fx,faces,lg,g,(icx,icy,ir),ch) in enumerate(SLIDES):
-        L=photo(f,fx,faces); inset(L,g,icx,icy,rot=ir)
-        for n,h,r,cx,cy in ch: paste(L,sticker(cut(n),h,r),cx,cy)
+    for i,(f,fx,faces,lg,items) in enumerate(SLIDES):
+        L=photo(f,fx,faces)
+        for it in items:
+            if it[0]=='s': scene(L,*it[1:])
+            else: place(L,*it[1:])
         logo(L,lg); credit(L); L.convert('RGB').save(OUT+f'{i+1:02d}_slide.png')
     Image.open(OUT+'../ghibli-toolkit/assets/follow.jpg').convert('RGB').resize((W,H)).save(OUT+f'{len(SLIDES)+1:02d}_follow.png')
     print('ok')
