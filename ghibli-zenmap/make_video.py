@@ -42,13 +42,17 @@ ctext(d,(W/2,1600),'※販売期間などは公式サイトをご確認くださ
 HOW=np.array(L.convert('RGB'))
 FOLLOW=np.array(Image.open(U+'6a98b9bb-image.jpg').convert('RGB').resize((W,H)))
 # segments: (source, start, dur, [narr...], sfx)
-SEG=[('INTRO',0,None,['z1'],'kira1'),('IMG_0370',0,None,['z2'],'correct2'),('IMG_0372',0.3,None,['z3'],'pa1'),
+SEG=[('IMG_0370',0,None,['zb'],'shock1'),('INTRO',0,None,['zi'],'kira1'),('IMG_0372',0.3,None,['z3'],'pa1'),
 ('IMG_0374',0,None,['z4'],'cute-pose1'),('HOW',0,None,['z5','z6','z7'],'sceneswitch1'),('FOLLOW',0,None,['z8'],'kira1')]
+def bigimg(t):
+    Lx=layer(); ls=t.split('\n')
+    for j,l in enumerate(ls): kf(Lx,l,[70,104][j],H/2+[-70,60][j],[WHITE,(255,214,0)][j],inner=(25,25,25),outer=WHITE,si=14,so=26,cx=W/2,maxw=980)
+    return Lx.crop(Lx.getbbox())
 def subimg(t):
     Lx=layer(); ls=t.split('\n')
     for j,l in enumerate(ls): kf(Lx,l,54,H/2+(j-(len(ls)-1)/2)*78,WHITE,inner=(35,35,35),outer=(35,35,35),si=9,so=9,cx=W/2,maxw=860)
     return Lx.crop(Lx.getbbox())
-SUB={'z1':'ジブリの禅マップが\nセブンで印刷できるらしい！\n行ってみる！','z2':'完成！','z3':'持って帰るよ〜','z4':'こんな感じだった！\n裏には禅の解説も',
+SUB={'zb':'セブンのコピー機から\nジブリが出てきた…!?','zi':'禅とジブリ展の\nオリジナルマップ！\nセブンで印刷できる','z1':'ジブリの禅マップが\nセブンで印刷できるらしい！\n行ってみる！','z2':'完成！','z3':'持って帰るよ〜','z4':'こんな感じだった！\n裏には禅の解説も',
 'z5':None,'z6':None,'z7':None,'z8':None}
 tl=[]; t=0
 for src,st,_,ns,sfx in SEG:
@@ -64,7 +68,7 @@ SUBS=[]
 for src,st,d_,ns,sfx,t0 in tl:
     tt=t0
     for n in ns:
-        if SUB.get(n): SUBS.append((tt,tt+wdur(V+f'narr/{n}.wav')+0.4,subimg(SUB[n])))
+        if SUB.get(n): SUBS.append((0 if tt==0 else tt,tt+wdur(V+f'narr/{n}.wav')+0.4,bigimg(SUB[n]) if n=='zb' else subimg(SUB[n])))
         tt+=wdur(V+f'narr/{n}.wav')+0.25
 for src,st,d_,ns,sfx,t0 in tl:
     n=int(round(d_*FPS))
@@ -77,7 +81,9 @@ for src,st,d_,ns,sfx,t0 in tl:
         g=t0+k/FPS; im=None
         for a,b,T in SUBS:
             if a<=g<b:
-                im=Image.fromarray(f).convert('RGBA'); im.alpha_composite(T,(int(W/2-T.width/2),int(H/2-T.height/2)+0))
+                kk=int((g-a)*FPS); sc=[0.9,1.08,1.03][kk] if a==0 and kk<3 else 1.0
+                TT=T if sc==1.0 else T.resize((int(T.width*sc),int(T.height*sc)),Image.BICUBIC)
+                im=Image.fromarray(f).convert('RGBA'); im.alpha_composite(TT,(int(W/2-TT.width/2),int(H/2-TT.height/2)))
         enc.stdin.write((np.array(im.convert('RGB')) if im else f).tobytes())
 enc.stdin.close(); enc.wait()
 N=int(TOT*SR)+SR; mix=np.zeros(N,np.float32)
