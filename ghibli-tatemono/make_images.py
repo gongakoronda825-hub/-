@@ -76,6 +76,6 @@ if __name__=='__main__':
         for it in items:
             if it[0]=='s': scene(L,*it[1:])
             else: place(L,*it[1:])
-        logo(L,lg); credit(L); L.convert('RGB').save(OUT+f'{i+1:02d}_slide.png')
+        credit(L); L.convert('RGB').save(OUT+f'{i+1:02d}_slide.png')
     Image.open(OUT+'../ghibli-toolkit/assets/follow.jpg').convert('RGB').resize((W,H)).save(OUT+f'{len(SLIDES)+1:02d}_follow.png')
     print('ok')
