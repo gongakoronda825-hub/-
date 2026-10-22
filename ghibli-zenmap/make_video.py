@@ -21,7 +21,9 @@ sh=Image.new('L',(W,H),0); ImageDraw.Draw(sh).rounded_rectangle((x0-6,y0+14,x0+9
 ImageDraw.Draw(bg).rounded_rectangle((x0-12,y0-12,x0+912,y0+fg.height+12),26,fill=WHITE); bg.paste(fg,(x0,y0))
 ImageDraw.Draw(bg).text((x0+900,y0+fg.height+60),'© Studio Ghibli',font=ImageFont.truetype(S+'fonts/jp800.woff',28),fill=WHITE,anchor='rs',stroke_width=3,stroke_fill=(0,0,0)); INTRO=np.array(bg)
 # how-to card
-L=paper()
+kb=cover(Image.open(V+'kyo/02.jpg').convert('RGB'),W,H).filter(ImageFilter.GaussianBlur(2)).convert('RGBA')
+pn=Image.new('RGBA',(W,H),(0,0,0,0)); ImageDraw.Draw(pn).rounded_rectangle((70,250,1010,1650),40,fill=(255,251,245,205)); kb.alpha_composite(pn); L=kb
+ImageDraw.Draw(L).text((540,1700),'南禅寺（京都） Photo: 雷太 / CC BY 2.0',font=ImageFont.truetype(S+'fonts/jp800.woff',24),fill=WHITE,anchor='ms',stroke_width=3,stroke_fill=(0,0,0))
 exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')].replace("f'cut/","S+f'cut/")); from PIL import ImageOps
 for nm,h,r,x,y in [('majo013',230,-8,150,230),('mimi032',220,7,930,230),('karigurashi012',190,-6,150,1760),('mimi049',200,6,930,1760)]:
     c=chara(nm,h,r); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
