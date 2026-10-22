@@ -13,7 +13,7 @@ ITEMS=[('img_catalog','公式グッズ','改訂版 公式図録','3,000'),('kyot
 PAGES=[ITEMS[0:4],ITEMS[4:8],ITEMS[8:12],ITEMS[12:16],ITEMS[16:19],ITEMS[19:22]]
 def head_layer(p):
     L=layer(); pill(L,W/2,330,f'金曜ロードショーとジブリ展 佐賀展グッズ　{p+1}/{len(PAGES)}',32,GREEN,WHITE,36)
-    text(L,'※会場特設ショップは本展入場者のみ利用可',24,800,1610,(110,100,92),6); return L
+    text(L,'※会場特設ショップは本展入場者のみ利用可',24,800,1610,(110,100,92),6); text(L,'© Studio Ghibli',22,800,1650,(110,100,92),6); return L
 CELL=[(285,690),(775,690),(285,1270),(775,1270)]
 def item_layer(k,item,cells=None):
     n,work,name,price=item; L=layer(); cx,cy=(cells or CELL)[k]
@@ -78,8 +78,15 @@ for k,(a,b,c) in enumerate(rows):
     y=720+k*155; pill(L,230,y+20,a,32,ORANGE,WHITE,28); text(L,b,36,900,y,DARK,cx=640,maxw=560); text(L,c,28,800,y+52,(110,100,92),cx=640,maxw=560)
 text(L,'※グッズショップは本展入場者のみ利用可',28,800,1390,(110,100,92),6)
 compose(L).convert('RGB').save(OUT+'01_info.png')
+CORN=[['c_calcifer','c_chibitotoro','c_susu','c_kodama'],['majo006','mimi032','ponyo021','c_teto'],['laputa006','c_susu2','totoro018','c_haedori'],
+['totoro018','c_chibitotoro','mononoke049','c_kodama2'],['mononoke049','chihiro019','c_kodama','chihiro016'],['c_susu','c_calcifer','ponyo021','kimi_aosagi']]
+def corner_layer(p):
+    L=layer()
+    for n,(cx,cy,h,r) in zip(CORN[p],[(115,215,170,-8),(985,215,170,8),(125,1700,200,6),(975,1700,200,-6)]):
+        paste(L,sticker(Image.open(S+f'cut/{n}.png').convert('RGBA'),h,r,ow=9),cx,cy)
+    return L
 for p,pg in enumerate(PAGES):
     cells=CELL if len(pg)>2 else [(285,900),(775,900)]
-    compose(head_layer(p),*[item_layer(k,it,cells) for k,it in enumerate(pg)]).convert('RGB').save(OUT+f'{p+2:02d}_page.png')
+    compose(corner_layer(p),head_layer(p),*[item_layer(k,it,cells) for k,it in enumerate(pg)]).convert('RGB').save(OUT+f'{p+2:02d}_page.png')
 Image.open(U+'6a98b9bb-image.jpg').convert('RGB').resize((W,H)).save(OUT+f'{len(PAGES)+2:02d}_follow.png')
 print('ok')
