@@ -21,14 +21,14 @@ fg=sc.resize((900,int(sc.height*900/sc.width)),Image.LANCZOS); x0,y0=(W-900)//2-
 sh=Image.new('L',(W,H),0); ImageDraw.Draw(sh).rounded_rectangle((x0-6,y0+14,x0+906,y0+fg.height+26),24,fill=150); bg.paste((0,0,0,255),(0,0),sh.filter(ImageFilter.GaussianBlur(18)))
 ImageDraw.Draw(bg).rounded_rectangle((x0-12,y0-12,x0+912,y0+fg.height+12),26,fill=WHITE+(255,)); bg.paste(fg,(x0,y0))
 ImageDraw.Draw(bg).text((x0+900,y0+fg.height+60),'© Studio Ghibli',font=ImageFont.truetype(S+'fonts/jp800.woff',28),fill=WHITE,anchor='rs',stroke_width=3,stroke_fill=(0,0,0)); IFG=bg
-def introf(n):
+def introf(n,IBG=IBG,IFG=IFG):
     for k in range(n):
         u=k/max(n-1,1); z=1.0+0.08*u
         sw,sh_=int(W*1.12/z),int(H*1.12/z); x=int((IBG.width-sw)*(0.2+0.6*u)); y=(IBG.height-sh_)//2
         b=IBG.crop((x,y,x+sw,y+sh_)).resize((W,H),Image.BILINEAR).convert('RGBA'); b.alpha_composite(IFG); yield np.array(b.convert('RGB'))
 # how-to card
-k9=Image.open(V+'kyo/08.jpg').convert('RGB'); cw=int(k9.height*W/H); cx=int(k9.width*0.42)-cw//2; kb=cover(k9.crop((cx,0,cx+cw,k9.height)),W,H).filter(ImageFilter.GaussianBlur(2)).convert('RGBA')
-pn=Image.new('RGBA',(W,H),(0,0,0,0)); ImageDraw.Draw(pn).rounded_rectangle((70,250,1010,1650),40,fill=(255,251,245,205)); kb.alpha_composite(pn); L=kb
+k9=Image.open(V+'kyo/08.jpg').convert('RGB'); cw=int(k9.height*W/H); cx=int(k9.width*0.42)-cw//2; HBG=cover(k9.crop((cx,0,cx+cw,k9.height)),int(W*1.12),int(H*1.12)).filter(ImageFilter.GaussianBlur(2))
+pn=Image.new('RGBA',(W,H),(0,0,0,0)); ImageDraw.Draw(pn).rounded_rectangle((70,250,1010,1650),40,fill=(255,251,245,205)); L=pn
 ImageDraw.Draw(L).text((540,1700),'南禅寺（京都） Photo: Takeshi Kuboki / CC BY 2.0',font=ImageFont.truetype(S+'fonts/jp800.woff',20),fill=WHITE,anchor='ms',stroke_width=3,stroke_fill=(0,0,0))
 exec(cs[cs.index('def chara('):cs.index('from PIL import ImageOps')].replace("f'cut/","S+f'cut/")); from PIL import ImageOps
 for nm,h,r,x,y in [('majo013',230,-8,150,230),('mimi032',220,7,930,230),('karigurashi012',190,-6,150,1760),('mimi049',200,6,930,1760)]:
@@ -47,7 +47,7 @@ for i,t in enumerate(['💡 京都で開催中『禅とジブリ』展のオリ�
 for i,t in enumerate(['京都で開催中『禅とジブリ』展のオリジナル','全国のセブン-イレブンで1枚400円','禅寺をめぐる京都観光マップ（日英表記）']):
     d.text((170,y+55+i*72),'・'+t,font=fm(36,False),fill=INK,anchor='lm')
 ctext(d,(W/2,1600),'※販売期間などは公式サイトをご確認ください',fm(28,False),SUB)
-HOW=np.array(L.convert('RGB'))
+HFG=L
 FOLLOW=np.array(Image.open(U+'6a98b9bb-image.jpg').convert('RGB').resize((W,H)))
 # segments: (source, start, dur, [narr...], sfx)
 SEG=[('IMG_0370',0,None,['zb'],'shock1'),('INTRO',0,None,['zi'],'kira1'),('IMG_0372',0.3,None,['z3'],'pa1'),
@@ -85,7 +85,8 @@ for src,st,d_,ns,sfx,t0 in tl:
         fr=list(np.frombuffer(p,np.uint8).reshape(-1,H,W,3)[:n])
         while len(fr)<n: fr.append(fr[-1])
     elif src=='INTRO': fr=introf(n)
-    else: fr=[{'HOW':HOW,'FOLLOW':FOLLOW}[src]]*n
+    elif src=='HOW': fr=introf(n,HBG,HFG)
+    else: fr=[{'FOLLOW':FOLLOW}[src]]*n
     for k,f in enumerate(fr):
         g=t0+k/FPS; im=None
         for a,b,T in SUBS:
