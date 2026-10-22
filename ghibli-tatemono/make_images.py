@@ -16,7 +16,9 @@ def sticker(im,h,rot=0,ow=10):
 def cut(n): return Image.open(S+f'cut/{n}.png').convert('RGBA')
 def paste(L,img,cx,cy): L.alpha_composite(img,(int(cx-img.width/2),int(cy-img.height/2)))
 
+PRE={'4dc98609':OUT+'src/06_nopole.png'}  # ポールを消した写真（9:16済み）
 def photo(f,fx,faces):
+    if f in PRE: return Image.open(PRE[f]).convert('RGBA')
     im=Image.open(U+f+'-image.jpg').convert('RGBA')
     for x,y,h in faces: paste(im,sticker(cut('c_susu2'),h,0,ow=6),x,y)  # 人の顔はススワタリで隠す
     im=im.resize((int(im.width*H/im.height),H),Image.LANCZOS); x0=int((im.width-W)*fx)
