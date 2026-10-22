@@ -13,7 +13,17 @@ ITEMS=[('img_catalog','公式グッズ','改訂版 公式図録','3,000'),('kyot
 PAGES=[ITEMS[0:4],ITEMS[4:8],ITEMS[8:12],ITEMS[12:16],ITEMS[16:19],ITEMS[19:22]]
 def head_layer(p):
     L=layer(); pill(L,W/2,330,f'金曜ロードショーとジブリ展 佐賀展グッズ　{p+1}/{len(PAGES)}',32,GREEN,WHITE,36)
-    text(L,'※会場特設ショップは本展入場者のみ利用可',24,800,1515,(110,100,92),6); return L
+    text(L,'※会場特設ショップは本展入場者のみ利用可',24,800,1610,(110,100,92),6); return L
+CELL=[(285,690),(775,690),(285,1270),(775,1270)]
+def item_layer(k,item,cells=None):
+    n,work,name,price=item; L=layer(); cx,cy=(cells or CELL)[k]
+    paste(L,photo(n,360,[-3,3,3,-3][k]),cx,cy-90)
+    d=ImageDraw.Draw(L); top=cy+125; lw=470
+    d.rounded_rectangle((cx-lw/2,top,cx+lw/2,top+160),30,fill=(255,255,255,245),outline=GREEN,width=4)
+    text(L,work,24,800,top+30,(110,100,92),cx=cx)
+    text(L,name,34,900,top+78,GREEN,cx=cx,maxw=lw-30)
+    text(L,(price[0]+'¥'+price[1:] if price[0]=='各' else '¥'+price)+'（税込）',32,900,top+126,DARK,cx=cx)
+    return L
 def photo_card(path,w,rot,r=30,pad=14):
     im=Image.open(path).convert('RGB'); s=w/im.width; im=im.resize((w,int(im.height*s)),Image.LANCZOS).convert('RGBA'); h=im.height
     im.putalpha(rmask(w,h,r)); card=Image.new('RGBA',(w+2*pad+40,h+2*pad+40),(0,0,0,0))
@@ -69,7 +79,7 @@ for k,(a,b,c) in enumerate(rows):
 text(L,'※グッズショップは本展入場者のみ利用可',28,800,1390,(110,100,92),6)
 compose(L).convert('RGB').save(OUT+'01_info.png')
 for p,pg in enumerate(PAGES):
-    cells=CELL if len(pg)>2 else [(290,900),(760,900)]
+    cells=CELL if len(pg)>2 else [(285,900),(775,900)]
     compose(head_layer(p),*[item_layer(k,it,cells) for k,it in enumerate(pg)]).convert('RGB').save(OUT+f'{p+2:02d}_page.png')
 Image.open(U+'6a98b9bb-image.jpg').convert('RGB').resize((W,H)).save(OUT+f'{len(PAGES)+2:02d}_follow.png')
 print('ok')
