@@ -5,7 +5,7 @@ from PIL import Image,ImageDraw,ImageFont,ImageFilter
 S=sys.argv[1].rstrip('/')+'/'; NR=sys.argv[2].rstrip('/')+'/'
 HERE=os.path.dirname(os.path.abspath(__file__))+'/'; TK=HERE+'../ghibli-toolkit/assets/'
 UP='/root/.claude/uploads/e8d6fde2-cc10-5a5b-97f9-6bcb99a3b93e/'; POSTER=UP+'43b67aa6-image.jpg'
-MIMI_POSTER=None  # 『耳をすませば』IMAXポスター（まだ受け取っていない）
+MIMI_POSTER='b3968fea-image.jpg'  # 『耳をすませば』IMAXポスター
 OUTV=HERE+'ghibli_events_1023.mp4'
 W,H=1080,1920; FPS=30; SR=44100; DX=40; CX=W/2-DX
 WHITE=(255,255,255); INK=(45,40,36); GREEN=(46,125,62); ORANGE=(236,128,60); RED=(206,72,80); NAVY=(30,58,110); GRAY=(110,100,92)
