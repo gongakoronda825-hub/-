@@ -79,7 +79,9 @@ def zoomed(B,u):
     z=1.0+0.08*u; sw,sh=B.width/z,B.height/z; x=(B.width-sw)*(0.3+0.4*u); y=(B.height-sh)/2
     return B.resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh))
 GRID=Image.open(TK+'bg_grid_brown.jpg').convert('RGB').resize((W,H))   # 最後のまとめ
-LEAVES=Image.open(TK+'bg_autumn_leaves.jpg').convert('RGB').resize((W,H),Image.LANCZOS)   # サムネ（つかみ）：落ち葉、9:16
+def cover(img,w,h):
+    s_=max(w/img.width,h/img.height); im=img.resize((int(img.width*s_+0.5),int(img.height*s_+0.5)),Image.LANCZOS); x=(im.width-w)//2; y=(im.height-h)//2; return im.crop((x,y,x+w,y+h))
+LEAVES=cover(Image.open(os.environ.get('THUMB_BG',TK+'bg_autumn_leaves.jpg')).convert('RGB'),W,H)   # サムネ（つかみ）：落ち葉、9:16
 
 # ---------- 商品ページ ----------
 #   (ナレーション, 作品名, 商品名, 価格, 写真, 背景の場面写真, キャラ(左下,右下), 字幕)
@@ -199,7 +201,7 @@ if len(sys.argv)>5 and sys.argv[5]=='stills':
     for j,(kind,t0,d_,i) in enumerate(tl):
         if kind=='fol': continue
         n=int(d_*FPS); fr=list(frames(kind,n,i)); fr[min(n-1,int(2.5*FPS))].save(NR+f'../still{j:02d}.jpg',quality=85)
-        if kind=='hook': fr[0].save(HERE+'thumbnail.png')
+        if kind=='hook': fr[0].save(os.environ.get('THUMB_OUT',HERE+'thumbnail.png'))
     sys.exit()
 enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-','-c:v','libx264','-crf','20','-pix_fmt','yuv420p',NR+'../v.mp4'],stdin=subprocess.PIPE)
 for kind,t0,d_,i in tl:
