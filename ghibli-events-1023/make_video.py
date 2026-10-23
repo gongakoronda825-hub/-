@@ -126,6 +126,32 @@ def ev7():
     text(L,'※ジブリ作品の展示ではありません',28,CX,y+376,RED)
     info(L,y+530,'2026.12.17（木）〜2027.1.11（月・祝）',[('京都市京セラ美術館 新館 東山キューブ',34,INK)],'出典：スタジオジブリ公式',cr=False); return L
 
+# ---------- キャラ（場面写真の切り抜き＝cutout.py の cut/） ----------
+def chara(name,h,ow=10):
+    im=Image.open(S+f'cut/{name}.png').convert('RGBA'); im.putalpha(im.getchannel('A').point(lambda v:0 if v<50 else v))
+    im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS)
+    pad=ow*3; big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
+    A=big.getchannel('A').point(lambda v:255 if v>90 else 0); o=A.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
+    out=Image.new('RGBA',big.size,(0,0,0,0)); sh=Image.new('RGBA',big.size,(0,0,0,0)); sh.putalpha(o.filter(ImageFilter.GaussianBlur(10)).point(lambda v:int(v*0.35)))
+    out.alpha_composite(sh); w=Image.new('RGBA',big.size,(255,255,255,0)); w.putalpha(o); out.alpha_composite(w); out.alpha_composite(big); return out
+# カードの四すみ（左上・右上・左下・右下）。カードの後ろに置いて、すみからのぞかせる
+CORN=[(CARD[0]+20,CARD[1]-95,0),(CARD[2]-20,CARD[1]-95,0),(CARD[0]+20,CARD[3]+85,1),(CARD[2]-20,CARD[3]+85,1)]
+def corner_set(names,h=230):
+    out=[]
+    for j,(n,(x,y,_)) in enumerate(zip(names,CORN)):
+        c=chara(n,h); out.append((c,x,y,j))
+    return out
+def chars_layer(cs,g):
+    L=layer()
+    for c,x,y,j in cs:
+        a=3*math.sin(2*math.pi*0.6*g+j*1.7); r=c.rotate(a,Image.BICUBIC,expand=True,center=(c.width/2,c.height))
+        L.alpha_composite(r,(int(x-r.width/2),int(y-r.height/2)))
+    return L
+CHS=[[('totoro018',230,95,620),('chihiro019',230,985,640),('karigurashi033',220,95,1080),('majo011',150,990,1080)],
+['totoro018','totoro044','totoro004','majo018'],['chihiro019','chihiro022','chihiro016','chihiro045'],['mimi032','mimi015','karigurashi033','mimi002'],
+['majo011','majo018','mononoke015','mononoke029'],['kimitachi027','kimitachi018','kimitachi047','kimitachi031'],['totoro004','chihiro019','majo018','mimi032'],[],[],[]]
+CHS=[[(chara(n,h),x,y,j) for j,(n,h,x,y) in enumerate(c)] if i==0 else corner_set(c) for i,c in enumerate(CHS)]
+
 # ---------- つかみ・まとめ ----------
 def hook_layer():
     L=layer()
@@ -177,7 +203,7 @@ TOT=t; print('total',round(TOT,2))
 if len(sys.argv)>3 and sys.argv[3]=='stills':
     for i,(t0,d_,kind,B,F,ns,sfx) in enumerate(tl):
         if F is None: continue
-        b=(NAVYBG.convert('RGBA') if B=='navy' else next(bg_frames(B,1))); b.alpha_composite(F)
+        b=(NAVYBG.convert('RGBA') if B=='navy' else next(bg_frames(B,1))); b.alpha_composite(chars_layer(CHS[i],0)); b.alpha_composite(F)
         if ns[0] in SUB: b.alpha_composite(sub_layer(SUB[ns[0]]))
         if kind=='end': b.alpha_composite(QL)
         b.convert('RGB').save(S+f'../ev/still{i:02d}.jpg',quality=85)
@@ -189,7 +215,7 @@ def popped(F,k):
     s=POP[k]; bb=F.getbbox(); c=F.crop(bb); c=c.resize((max(1,int(c.width*s)),max(1,int(c.height*s))),Image.BICUBIC)
     o=layer(); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o,0,0
 enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-','-c:v','libx264','-crf','20','-pix_fmt','yuv420p',NR+'../v.mp4'],stdin=subprocess.PIPE)
-for t0,d_,kind,B,F,ns,sfx in tl:
+for si,(t0,d_,kind,B,F,ns,sfx) in enumerate(tl):
     n=int(round((t0+d_)*FPS))-int(round(t0*FPS))
     if kind=='fol':
         for _ in range(n): enc.stdin.write(np.asarray(FOLLOW).tobytes())
@@ -198,7 +224,9 @@ for t0,d_,kind,B,F,ns,sfx in tl:
     for k in ns: subs.append((tt,tt+wdur(k)+GAP,k)); tt+=wdur(k)+GAP
     BG=(b for b in iter(lambda:NAVYBG.convert('RGBA'),None)) if B=='navy' else bg_frames(B,n)
     for k in range(n):
-        g=k/FPS; im=next(BG); fr,_,_=popped(F,k); im.alpha_composite(fr)
+        g=k/FPS; im=next(BG)
+        if CHS[si]: cl,_,_=popped(chars_layer(CHS[si],g),k); im.alpha_composite(cl)
+        fr,_,_=popped(F,k); im.alpha_composite(fr)
         for a,b_,key in subs:
             if a<=g<b_:
                 if key in SUB: im.alpha_composite(sub_layer(SUB[key]))
