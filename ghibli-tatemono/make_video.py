@@ -34,9 +34,9 @@ def layer(): return Image.new('RGBA',(W,H),(0,0,0,0))
 
 # ---------- 素材 ----------
 def big(img): return img.convert('RGB').resize((int(W*1.08),int(H*1.08)),Image.LANCZOS)
-def zoomed(B,u):
+def zoomed(B,u,pan=(0.3,0.4)):
     # ゆっくりズーム（約8%）＋少し横パン。切り取りは小数座標
-    z=1.0+0.08*u; sw,sh=min(W*1.08/z,B.width),min(H*1.08/z,B.height); x=(B.width-sw)*(0.3+0.4*u); y=(B.height-sh)/2
+    z=1.0+0.08*u; sw,sh=min(W*1.08/z,B.width),min(H*1.08/z,B.height); x=(B.width-sw)*(pan[0]+pan[1]*u); y=(B.height-sh)/2
     return B.resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh))
 def pieces(name):
     # キャラ部分（差分マスク）を塊ごとに分けて、ポンッと出せるようにする
@@ -50,9 +50,20 @@ def pieces(name):
         m=np.where(lab[y:y+h,x:x+w]==i,A[y:y+h,x:x+w],0).astype(np.uint8)
         p=C.crop((x,y,x+w,y+h)); p.putalpha(Image.fromarray(m)); out.append((p,x+w/2,y+h/2))
     return out
-SCENES=[('drawers','武居三省堂（文具店）'),('izakaya','鍵屋（居酒屋）'),('sento','子宝湯（銭湯）'),('engawa','縁側'),('bus','ボンネットバス'),('garden','縁側から見た庭'),('doma','農家の土間'),('gate','木の門')]
+def prep_kokuriko():
+    # 大和屋本店：元写真と合成画像（make_kokuriko.py）は同じ座標なので、そのまま差分でキャラを抜く。9:16は上下をぼかしで埋める
+    def canvas(img):
+        img=img.convert('RGB'); fg=img.resize((W,int(img.height*W/img.width)),Image.LANCZOS)
+        bg=img.resize((int(img.width*H/img.height),H),Image.LANCZOS); x=(bg.width-W)//2; bg=bg.crop((x,0,x+W,H)).filter(ImageFilter.GaussianBlur(18))
+        bg=Image.blend(bg,Image.new('RGB',bg.size,(0,0,0)),0.25); bg.paste(fg,(0,(H-fg.height)//2)); return bg
+    b=canvas(Image.open(UP+'084e440f-image.jpg').resize((1206,1612),Image.LANCZOS)); a=canvas(Image.open(HERE+'kokuriko_yamatoya.png'))
+    b.save(AL+'kokuriko_before.jpg',quality=95); a.save(AL+'kokuriko_after.jpg',quality=95)
+    dd=np.abs(np.asarray(a,np.int16)-np.asarray(b,np.int16)).max(2); m=Image.fromarray(((dd>18)*255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(3))
+    c=a.convert('RGBA'); c.putalpha(m); c.save(AL+'kokuriko_chars.png')
+prep_kokuriko()
+SCENES=[('izakaya','鍵屋（居酒屋）'),('kokuriko','大和屋本店（乾物屋）'),('drawers','武居三省堂（文具店）'),('sento','子宝湯（銭湯）'),('engawa','縁側'),('bus','ボンネットバス'),('garden','縁側から見た庭'),('doma','農家の土間'),('gate','木の門')]
 SUB={'hook':'東京に、ジブリの世界\nそのままの場所があるって\n知ってた？','drawers':'壁一面の引き出しは\n釜爺のボイラー室にそっくり！','izakaya':'千尋のお父さんとお母さんが\n夢中で食べてそう','sento':'まるで油屋の大浴場！',
-'engawa':'サツキとメイが走り回った\nあの家みたい','bus':'となりでトトロが\n雨宿りしてそう','garden':'カオナシもひと休み','doma':'もののけ姫の世界','gate':'門の奥には\nこだまやトトロが…？',
+'engawa':'サツキとメイが走り回った\nあの家みたい','bus':'となりでトトロが\n雨宿りしてそう','garden':'カオナシもひと休み','doma':'もののけ姫の世界\nジコ坊の雑炊が食べたくなる','kokuriko':'俊と海がコロッケを買った\nあの商店街みたい！','garden':'カオナシもひと休み\n夏休みのおばあちゃんちみたい','gate':'門の奥には\nこだまやトトロが…？',
 'q':'あなたはどの場所に\n行きたい？','cta':'入場料は一般400円\n保存して行くときの参考に！'}
 def sub_layer(t):
     L=layer(); ls=t.split('\n')
@@ -66,16 +77,23 @@ def wdur(k):
 def rd(p):
     with wave.open(p) as w: a=np.frombuffer(w.readframes(w.getnframes()),np.int16).astype(np.float32)/32768; ch=w.getnchannels()
     return a.reshape(-1,ch).mean(1) if ch>1 else a
-REVEAL=1.4; MIN=5.5
+REVEAL=1.4; MIN=4.5
 tl=[]; t=0
 d_=0.15+wdur('hook')+0.6; tl.append(('hook',t,d_)); t+=d_
 for n,_ in SCENES:
-    d_=max(0.2+wdur(n)+0.6,MIN); tl.append((n,t,d_)); t+=d_
+    d_=max(0.2+wdur(n)+0.45,MIN); tl.append((n,t,d_)); t+=d_
 d_=0.15+wdur('q')+0.25+wdur('cta')+0.6; tl.append(('end',t,d_)); t+=d_
 d_=0.1+wdur('fol')+0.5; tl.append(('fol',t,d_)); t+=d_
 TOT=t; print('total',round(TOT,2))
 
-HOOK=big(Image.open(UP+'eaca8b03-image.jpg'))
+MONT=[big(Image.open(AL+k+'_after.jpg')) for k in ('bus','kokuriko','izakaya','sento','drawers','doma','engawa')]
+def thumb_layer():
+    # サムネ＝最初のフレーム。見出しの型（＼○○／小さめ黒＋大きい緑＋オレンジ帯）、中央そろえ・y=240〜1680の内側
+    L=layer(); INK=(40,36,32)
+    text(L,'\\ 東京にあった /',70,W/2,770,INK,stw=12)
+    text(L,'ジブリの世界',150,W/2,905,GREEN,stw=20)
+    pill(L,W/2,1065,'江戸東京たてもの園',72,ORANGE,pad=44,h=120); return L
+THUMB=thumb_layer()
 ENDBG=big(Image.open(UP+'eaca8b03-image.jpg').crop((0,900,1206,2144))).filter(ImageFilter.GaussianBlur(6))
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
 POP=[0.6,0.9,1.08,1.03]
@@ -84,7 +102,13 @@ def frames(kind,n):
         for _ in range(n): yield FOLLOW
         return
     if kind in ('hook','end'):
-        B=HOOK if kind=='hook' else ENDBG
+        if kind=='hook':
+            for k in range(n):
+                g=k/FPS; i=int(g/0.35); B=MONT[i%len(MONT)]; im=zoomed(B,min(1,(g-i*0.35)/0.35)*0.5).convert('RGBA')
+                if i>0 and g-i*0.35<2/FPS: im=Image.blend(im,Image.new('RGBA',im.size,(255,255,255,255)),0.5)
+                im.alpha_composite(THUMB); yield im.convert('RGB')
+            return
+        B=ENDBG
         q0=0.15; qd=wdur('q')+0.25
         for k in range(n):
             g=k/FPS; im=zoomed(B,k/max(n-1,1)).convert('RGBA')
@@ -97,23 +121,23 @@ def frames(kind,n):
             yield im.convert('RGB')
         return
     Bb=big(Image.open(AL+kind+'_before.jpg')); Ba=big(Image.open(AL+kind+'_after.jpg')); P=pieces(kind)
-    LB=label_layer(dict(SCENES)[kind]); ST=sub_layer(SUB[kind])
+    LB=label_layer(dict(SCENES)[kind]); ST=sub_layer(SUB[kind]); PAN=(0.15,0.0) if kind=='kokuriko' else (0.3,0.4)
     for k in range(n):
         g=k/FPS; u=k/max(n-1,1); kk=int((g-REVEAL)*FPS)
         if g<REVEAL:
-            im=zoomed(Bb,u).convert('RGBA')
+            im=zoomed(Bb,u,PAN).convert('RGBA')
         elif kk<len(POP):
             # 元写真の上に、キャラを塊ごとにポンッと出す
-            base=zoomed(Bb,u).convert('RGBA'); s=POP[kk]; L=layer()
+            base=zoomed(Bb,u,PAN).convert('RGBA'); s=POP[kk]; L=layer()
             for p,cx,cy in P:
                 c=p.resize((max(1,int(p.width*s)),max(1,int(p.height*s))),Image.BICUBIC); L.alpha_composite(c,(int(cx-c.width/2),int(cy-c.height/2)))
             # レイヤーにも同じズームをかける
-            z=1.0+0.08*u; sw,sh=W*1.08/z,H*1.08/z; x=(W*1.08-sw)*(0.3+0.4*u); y=(H*1.08-sh)/2
+            z=1.0+0.08*u; sw,sh=W*1.08/z,H*1.08/z; x=(W*1.08-sw)*(PAN[0]+PAN[1]*u); y=(H*1.08-sh)/2
             L=L.resize((int(W*1.08),int(H*1.08)),Image.BILINEAR).resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh))
             base.alpha_composite(L); im=base
             if kk==0: im=Image.blend(im,Image.new('RGBA',im.size,(255,255,255,255)),0.35)
         else:
-            im=zoomed(Ba,u).convert('RGBA')
+            im=zoomed(Ba,u,PAN).convert('RGBA')
         im.alpha_composite(LB); im.alpha_composite(CR)
         if 0.2<=g<0.2+wdur(kind)+0.4: im.alpha_composite(ST)
         yield im.convert('RGB')
@@ -122,6 +146,7 @@ if len(sys.argv)>4 and sys.argv[4]=='stills':
     for i,(kind,t0,d_) in enumerate(tl):
         if kind=='fol': continue
         n=int(d_*FPS); fr=list(frames(kind,n)); fr[min(n-1,int(4.5*FPS))].save(S+f'../tv/still{i:02d}.jpg',quality=85)
+        if kind=='hook': fr[0].save(HERE+'thumbnail.png')
         if kind=='drawers': fr[int(0.6*FPS)].save(S+'../tv/still_before.jpg',quality=85); fr[int((REVEAL+0.07)*FPS)].save(S+'../tv/still_pop.jpg',quality=85)
     sys.exit()
 enc=subprocess.Popen(['ffmpeg','-v','error','-y','-f','rawvideo','-pix_fmt','rgb24','-s',f'{W}x{H}','-r',str(FPS),'-i','-','-c:v','libx264','-crf','20','-pix_fmt','yuv420p',NR+'../v.mp4'],stdin=subprocess.PIPE)
