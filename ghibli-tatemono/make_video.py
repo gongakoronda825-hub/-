@@ -22,8 +22,8 @@ def segs(t):
         else: out.append([k,ch])
     return out
 def tlen(t,sz,w=900): return sum(font(w,sz,k).getlength(s) for k,s in segs(t))
-def text(L,t,sz,cx,cy,fill,w=900,stw=0,stc=WHITE):
-    d=ImageDraw.Draw(L); x=cx-tlen(t,sz,w)/2
+def text(L,t,sz,cx,cy,fill,w=900,stw=0,stc=WHITE,anchor='m'):
+    d=ImageDraw.Draw(L); x={'m':cx-tlen(t,sz,w)/2,'l':cx,'r':cx-tlen(t,sz,w)}[anchor]
     for k,s in segs(t):
         d.text((x,cy),s,font=font(w,sz,k),fill=fill,anchor='lm',stroke_width=stw,stroke_fill=stc); x+=font(w,sz,k).getlength(s)
 def pill(L,cx,cy,t,sz,bg,fg=WHITE,pad=30,h=None):
@@ -61,6 +61,15 @@ def prep_kokuriko():
     dd=np.abs(np.asarray(a,np.int16)-np.asarray(b,np.int16)).max(2); m=Image.fromarray(((dd>18)*255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(3))
     c=a.convert('RGBA'); c.putalpha(m); c.save(AL+'kokuriko_chars.png')
 prep_kokuriko()
+def prep_sento():
+    # 銭湯は合成画像の人にモザイクがあるので、元写真もキャラ以外は合成画像の画素を使う（最初からモザイクあり）
+    b=Image.open(AL+'sento_before.jpg').convert('RGB'); a=Image.open(AL+'sento_after.jpg').convert('RGB')
+    m=Image.open(AL+'sento_chars.png').getchannel('A').point(lambda v:255 if v>100 else 0)
+    o=Image.composite(b,a,m)
+    for bx in [(176,1050,266,1160)]:   # 合成ではキャラに隠れていた人の顔
+        r=o.crop(bx); r=r.resize((max(1,r.width//16),max(1,r.height//16)),Image.BILINEAR).resize(r.size,Image.NEAREST); o.paste(r,bx[:2])
+    o.save(AL+'sento_before_mosaic.jpg',quality=95)
+prep_sento()
 SCENES=[('drawers','武居三省堂（文具店）'),('izakaya','鍵屋（居酒屋）'),('kokuriko','大和屋本店（乾物屋）'),('sento','子宝湯（銭湯）'),('engawa','縁側'),('bus','ボンネットバス'),('garden','縁側から見た庭'),('doma','農家の土間'),('gate','木の門')]
 SUB={'hook':'東京に、ジブリの世界\nそのままの場所があるって\n知ってた？','drawers':'壁一面の引き出しは\n釜爺のボイラー室にそっくり！','izakaya':'千尋のお父さんとお母さんが\n夢中で食べてそう','sento':'まるで油屋の大浴場！',
 'engawa':'サツキとメイが走り回った\nあの家みたい','bus':'となりでトトロが\n雨宿りしてそう','garden':'カオナシもひと休み','doma':'もののけ姫の世界\nジコ坊の雑炊が食べたくなる','kokuriko':'俊と海がコロッケを買った\nあの商店街みたい！','garden':'カオナシもひと休み\n夏休みのおばあちゃんちみたい','gate':'門の奥には\nこだまやトトロが…？',
@@ -82,7 +91,7 @@ tl=[]; t=0
 d_=0.15+wdur('hook')+0.6; tl.append(('hook',t,d_)); t+=d_
 for n,_ in SCENES:
     d_=max(0.2+wdur(n)+0.45,MIN); tl.append((n,t,d_)); t+=d_
-d_=0.15+wdur('q')+0.25+wdur('cta')+0.6; tl.append(('end',t,d_)); t+=d_
+d_=0.15+wdur('cta')+0.25+wdur('q')+0.8; tl.append(('end',t,d_)); t+=d_
 d_=0.1+wdur('fol')+0.5; tl.append(('fol',t,d_)); t+=d_
 TOT=t; print('total',round(TOT,2))
 
@@ -94,6 +103,34 @@ def thumb_layer():
     text(L,'ジブリの世界',150,W/2,905,GREEN,stw=20)
     pill(L,W/2,1065,'江戸東京たてもの園',72,ORANGE,pad=44,h=120); return L
 THUMB=thumb_layer()
+def sticker(name,h,ow=10):
+    im=Image.open(S+f'cut/{name}.png').convert('RGBA'); im.putalpha(im.getchannel('A').point(lambda v:0 if v<50 else v))
+    im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS); pad=ow*3
+    big_=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big_.alpha_composite(im,(pad,pad))
+    A=big_.getchannel('A').point(lambda v:255 if v>90 else 0); o=A.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
+    out=Image.new('RGBA',big_.size,(0,0,0,0)); w_=Image.new('RGBA',big_.size,(255,255,255,0)); w_.putalpha(o); out.alpha_composite(w_); out.alpha_composite(big_); return out
+def fee_layer():
+    # 最後：観覧料を表にしたカード
+    L=layer(); d=ImageDraw.Draw(L); X0,X1,Y0,Y1=CX-450,CX+450,330,1400; INK=(45,40,36); GRAY=(120,110,100); RED=(206,72,80)
+    sh=layer(); ImageDraw.Draw(sh).rounded_rectangle((X0+4,Y0+16,X1+4,Y1+16),44,fill=(0,0,0,130)); L.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)))
+    d.rounded_rectangle((X0,Y0,X1,Y1),44,fill=(255,252,246,255),outline=WHITE,width=10)
+    pill(L,CX,Y0,'江戸東京たてもの園',46,ORANGE,pad=40,h=84)
+    text(L,'個人観覧料',72,CX,Y0+130,GREEN); text(L,'（通常）',30,CX,Y0+196,GRAY)
+    text(L,'料金',28,CX+170,Y0+262,GRAY,anchor='r'); text(L,'団体',28,X1-50,Y0+262,GRAY,anchor='r')
+    rows=[('一般（大人）','400円','320円'),('大学生・専修・各種学校','320円','250円'),('高校生','200円','160円'),('65歳以上','200円','160円'),('中学生以下','無料',None)]
+    for j,(a,b,c) in enumerate(rows):
+        y=Y0+300+j*140; d.rounded_rectangle((X0+36,y,X1-36,y+120),28,fill=(242,235,224,255))
+        text(L,a,38 if len(a)<8 else 32,X0+66,y+60,INK,anchor='l')
+        if c: text(L,b,52,CX+170,y+60,ORANGE,anchor='r'); text(L,c,32,X1-66,y+60,GRAY,anchor='r')
+        else: pill(L,CX+150,y+60,'無料！',46,RED,pad=40,h=82)
+    text(L,'出典：江戸東京たてもの園 公式サイト',22,CX,Y1-34,GRAY,w=800)
+    # カードのすみにキャラ（カードの後ろ）
+    B=layer()
+    for n,h,x,y in [('totoro044',230,X1-60,Y0-70),('totoro018',260,X0+40,Y1+90),('chihiro019',280,X1-40,Y1+100)]:
+        c=sticker(n,h); B.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
+    B.alpha_composite(L); return B
+FEE=fee_layer()
+QL=layer(); pill(QL,CX,1530,'あなたはどの場所に行きたい？',48,GREEN,pad=40,h=92)
 ENDBG=big(Image.open(UP+'eaca8b03-image.jpg').crop((0,900,1206,2144))).filter(ImageFilter.GaussianBlur(6))
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
 POP=[0.6,0.9,1.08,1.03]
@@ -109,18 +146,18 @@ def frames(kind,n):
                 im.alpha_composite(THUMB); yield im.convert('RGB')
             return
         B=ENDBG
-        q0=0.15; qd=wdur('q')+0.25
+        q0=0.15+wdur('cta')+0.25
+        def popl(T,kk):
+            if kk>=len(POP): return T
+            s=POP[kk]; bb=T.getbbox(); c=T.crop(bb).resize((int((bb[2]-bb[0])*s),int((bb[3]-bb[1])*s)),Image.BICUBIC); o=layer(); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o
         for k in range(n):
             g=k/FPS; im=zoomed(B,k/max(n-1,1)).convert('RGBA')
-            if kind=='end':
-                im=Image.blend(im,Image.new('RGBA',im.size,(0,0,0,255)),0.25)
-                key='q' if g<q0+qd else 'cta'; T=sub_layer(SUB[key]); kk=int((g-(q0 if key=='q' else q0+qd))*FPS)
-                if kk<len(POP):
-                    s=POP[kk]; bb=T.getbbox(); c=T.crop(bb).resize((int((bb[2]-bb[0])*s),int((bb[3]-bb[1])*s)),Image.BICUBIC); T=layer(); T.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2)))
-                im.alpha_composite(T)
+            im=Image.blend(im,Image.new('RGBA',im.size,(0,0,0,255)),0.3)
+            im.alpha_composite(popl(FEE,k))
+            if g>=q0: im.alpha_composite(popl(QL,int((g-q0)*FPS)))
             yield im.convert('RGB')
         return
-    Bb=big(Image.open(AL+kind+'_before.jpg')); Ba=big(Image.open(AL+kind+'_after.jpg')); P=pieces(kind)
+    Bb=big(Image.open(AL+kind+('_before_mosaic.jpg' if kind=='sento' else '_before.jpg'))); Ba=big(Image.open(AL+kind+'_after.jpg')); P=pieces(kind)
     LB=label_layer(dict(SCENES)[kind]); ST=sub_layer(SUB[kind]); PAN=(0.15,0.0) if kind=='kokuriko' else (0.3,0.4)
     for k in range(n):
         g=k/FPS; u=k/max(n-1,1); kk=int((g-REVEAL)*FPS)
@@ -159,7 +196,7 @@ def add(a,t,g):
     i=int(t*SR); a=a[:N-i]; mix[i:i+len(a)]+=a*g
 for kind,t0,d_ in tl:
     if kind=='hook': add(rd(NR+'hook.wav'),t0+0.15,1.0); add(rd(S+'labsfx/kira1.wav'),t0,0.45)
-    elif kind=='end': add(rd(NR+'q.wav'),t0+0.15,1.0); add(rd(NR+'cta.wav'),t0+0.15+wdur('q')+0.25,1.0); add(rd(S+'labsfx/shine2.wav'),t0,0.4)
+    elif kind=='end': add(rd(NR+'cta.wav'),t0+0.15,1.0); add(rd(NR+'q.wav'),t0+0.15+wdur('cta')+0.25,1.0); add(rd(S+'labsfx/shine2.wav'),t0,0.4); add(rd(S+'labsfx/pa1.wav'),t0+0.15+wdur('cta')+0.25,0.4)
     elif kind=='fol': add(rd(NR+'fol.wav'),t0+0.1,1.0)
     else: add(rd(NR+kind+'.wav'),t0+0.2,1.0); add(rd(S+'labsfx/sceneswitch1.wav'),t0,0.35); add(rd(S+'labsfx/pa1.wav'),t0+REVEAL,0.5)
 mix=mix[:int(TOT*SR)]; mix/=max(1.0,np.abs(mix).max()/0.95)
