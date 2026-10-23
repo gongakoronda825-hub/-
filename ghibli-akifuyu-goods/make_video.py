@@ -167,8 +167,10 @@ tl=[]; t=0
 d_=0.3+wdur('hook')+0.5; tl.append(('hook',t,d_,None)); t+=d_
 for i,pg in enumerate(PAGES):
     d_=max(0.25+wdur(pg[0])+TAIL,MIN); tl.append(('page',t,d_,i)); t+=d_
-d_=0.2+wdur('q')+0.25+wdur('cta')+0.6; tl.append(('end',t,d_,None)); t+=d_
-d_=0.1+wdur('fol')+0.4; tl.append(('fol',t,d_,None)); t+=d_
+TARGET=61.0   # 全体の尺（秒）。まとめの余白で合わせる
+fd=0.1+wdur('fol')+0.4
+d_=max(0.2+wdur('q')+0.25+wdur('cta')+0.6,TARGET-fd-t); tl.append(('end',t,d_,None)); t+=d_
+d_=fd; tl.append(('fol',t,d_,None)); t+=d_
 TOT=t; print('total',round(TOT,2))
 
 POP=[0.6,0.9,1.08,1.03]
@@ -180,7 +182,8 @@ def popped(L,k,delay=0):
     o=layer(); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
 ENDL=end_layer()
-ENDC=[sway_item(chara('totoro044',250),150,1600),sway_item(chara('majo018',260),830,1600)]   # 最後のキャラ（ゆらゆら）
+_cb=chara('totoro044',210)   # ネコバスは横長なので、画面からはみ出ないよう左端から置く
+ENDC=[sway_item(_cb,_cb.width/2+15,1610),sway_item(chara('majo018',260),830,1600)]   # 最後のキャラ（ゆらゆら）
 def frames(kind,n,i):
     if kind=='fol':
         for _ in range(n): yield FOLLOW
