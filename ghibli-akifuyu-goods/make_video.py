@@ -78,10 +78,12 @@ def scene_bg(n):
 def zoomed(B,u):
     z=1.0+0.08*u; sw,sh=B.width/z,B.height/z; x=(B.width-sw)*(0.3+0.4*u); y=(B.height-sh)/2
     return B.resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh))
-GRID=Image.open(TK+'bg_grid_brown.jpg').convert('RGB').resize((W,H))   # 最後のまとめ
+GRID=Image.open(TK+'bg_autumn_leaves.jpg').convert('RGB').resize((W,H),Image.LANCZOS)   # 最後のまとめ：石畳の落ち葉
+GREENGRID=Image.open(TK+'bg_grid.jpg').convert('RGB').resize((W,H))   # まとめカードの地：いつもの緑の方眼
 def cover(img,w,h):
     s_=max(w/img.width,h/img.height); im=img.resize((int(img.width*s_+0.5),int(img.height*s_+0.5)),Image.LANCZOS); x=(im.width-w)//2; y=(im.height-h)//2; return im.crop((x,y,x+w,y+h))
-LEAVES=cover(Image.open(os.environ.get('THUMB_BG',TK+'bg_autumn_leaves.jpg')).convert('RGB'),W,H)   # サムネ（つかみ）：落ち葉、9:16
+LEAVES=cover(Image.open(os.environ.get('THUMB_BG',TK+'bg_autumn_leaves2.jpg')).convert('RGB'),W,H)
+LEAVES=Image.blend(LEAVES,Image.new('RGB',(W,H),(0,0,0)),0.22)   # 商品と見出しが浮くよう少し暗く   # サムネ（つかみ）：落ち葉、9:16
 
 # ---------- 商品ページ ----------
 #   (ナレーション, 作品名, 商品名, 価格, 写真, 背景の場面写真, キャラ(左下,右下), 字幕)
@@ -125,7 +127,11 @@ def thumb_layers():
     x,tw=text(T,'どんぐり共和国で買える！',70,W/2,795,DARK,stw=12)
     d=ImageDraw.Draw(T)
     for sx,ex in ((x-66,x-32),(x+tw+66,x+tw+32)): d.line((sx,758,ex,832),fill=WHITE,width=21); d.line((sx,758,ex,832),fill=DARK,width=9)
-    text(T,'ジブリの秋冬グッズ紹介',92,W/2,925,GREEN,stw=18,maxw=1000)
+    # 「秋冬」だけ紅葉色で少し大きく
+    parts=[('ジブリの',92,GREEN),('秋冬',112,(214,78,24)),('グッズ紹介',92,GREEN)]
+    x=W/2-sum(tlen(t,z) for t,z,_ in parts)/2
+    for t,z,c in parts:
+        text(T,t,z,x+tlen(t,z)/2,925,c,stw=18); x+=tlen(t,z)
     pill(T,W/2,1062,'vol.1',58,ORANGE,pad=60,h=100)
     return CH,P,T
 TCH,TP,TT=thumb_layers(); TPL=swayed(TP,0,amp=0)   # サムネの商品は動かさない
@@ -133,14 +139,19 @@ TCH,TP,TT=thumb_layers(); TPL=swayed(TP,0,amp=0)   # サムネの商品は動か
 # ---------- 最後：まとめ ----------
 def end_layer():
     L=layer(); d=ImageDraw.Draw(L)
-    d.rounded_rectangle((CX-440,390,CX+440,1340),44,fill=(255,252,246,255),outline=WHITE,width=10)
-    text(L,'ジブリの秋冬グッズ',58,CX,470,GREEN)
+    X0,Y0,X1,Y1=int(CX-440),390,int(CX+440),1340
+    sh=layer(); ImageDraw.Draw(sh).rounded_rectangle((X0+4,Y0+16,X1+4,Y1+16),44,fill=(0,0,0,140)); L.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)))
+    g=GREENGRID.crop((X0,Y0,X1,Y1)).convert('RGBA'); g.putalpha(rmask(X1-X0,Y1-Y0,44)); L.alpha_composite(g,(X0,Y0))
+    d.rounded_rectangle((X0,Y0,X1,Y1),44,outline=WHITE,width=10)
+    for j in range(8):   # 商品名・価格が方眼に埋もれないよう白い札を敷く
+        x=CX-330+(j%4)*220; y=640+(j//4)*330; d.rounded_rectangle((x-104,y+100,x+104,y+170),16,fill=(255,255,255,235))
+    text(L,'ジブリの秋冬グッズ',58,CX,470,GREEN,stw=12)
     for j,pg in enumerate(PAGES):
         x=CX-330+(j%4)*220; y=640+(j//4)*330
         im=Image.open(A+pg[4][0]+'.jpg').convert('RGB'); m=min(im.size); im=im.crop(((im.width-m)//2,(im.height-m)//2,(im.width+m)//2,(im.height+m)//2)).resize((190,190),Image.LANCZOS).convert('RGBA'); im.putalpha(rmask(190,190,20))
         paste(L,im,x,y); d.ellipse((x-100,y-110,x-50,y-60),fill=ORANGE); text(L,str(j+1),30,x-75,y-85,WHITE)
         text(L,pg[2].split('「')[0],22,x,y+120,INK,maxw=205); text(L,pg[3],24,x,y+152,ORANGE)
-    text(L,'画像：どんぐり共和国　© Studio Ghibli',20,CX,1305,GRAY,w=800)
+    text(L,'画像：どんぐり共和国　© Studio Ghibli',20,CX,1305,GRAY,w=800,stw=4)
     return L
 QL=layer(); pill(QL,CX,1450,'あなたはどれが欲しい？',50,ORANGE,pad=40,h=92)
 CTAL=layer(); pill(CTAL,CX,1570,'保存して冬じたくの参考に！',46,GREEN,pad=40,h=86)
