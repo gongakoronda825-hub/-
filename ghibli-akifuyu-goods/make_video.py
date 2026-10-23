@@ -78,7 +78,8 @@ def scene_bg(n):
 def zoomed(B,u):
     z=1.0+0.08*u; sw,sh=B.width/z,B.height/z; x=(B.width-sw)*(0.3+0.4*u); y=(B.height-sh)/2
     return B.resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh))
-GRID=Image.open(TK+'bg_grid_brown.jpg').convert('RGB').resize((W,H))
+GRID=Image.open(TK+'bg_grid_brown.jpg').convert('RGB').resize((W,H))   # 最後のまとめ
+LEAVES=Image.open(TK+'bg_autumn_leaves.jpg').convert('RGB').resize((W,H),Image.LANCZOS)   # サムネ（つかみ）：落ち葉、9:16
 
 # ---------- 商品ページ ----------
 #   (ナレーション, 作品名, 商品名, 価格, 写真, 背景の場面写真, キャラ(左下,右下), 字幕)
@@ -121,7 +122,7 @@ def thumb_layers():
     T=layer()
     x,tw=text(T,'どんぐり共和国で買える！',70,W/2,795,DARK,stw=12)
     d=ImageDraw.Draw(T)
-    for sx,ex in ((x-66,x-32),(x+tw+66,x+tw+32)): d.line((sx,758,ex,832),fill=DARK,width=9)
+    for sx,ex in ((x-66,x-32),(x+tw+66,x+tw+32)): d.line((sx,758,ex,832),fill=WHITE,width=21); d.line((sx,758,ex,832),fill=DARK,width=9)
     text(T,'ジブリの秋冬グッズ紹介',92,W/2,925,GREEN,stw=18,maxw=1000)
     pill(T,W/2,1062,'vol.1',58,ORANGE,pad=60,h=100)
     return CH,P,T
@@ -172,9 +173,9 @@ def frames(kind,n,i):
         for _ in range(n): yield FOLLOW
         return
     if kind=='hook':
-        # 最初のフレーム＝サムネ。商品は止めたまま、見出しは0.35秒後に「ポンッ」と弾む
+        # 最初のフレーム＝サムネ。商品はゆらゆら、見出しは0.35秒後に「ポンッ」と弾む
         for k in range(n):
-            im=GRID.convert('RGBA'); im.alpha_composite(TCH); im.alpha_composite(TPL)
+            im=LEAVES.convert('RGBA'); im.alpha_composite(TCH); im.alpha_composite(swayed(TP,k/FPS))
             im.alpha_composite(TT if k<int(0.35*FPS) else popped(TT,k,int(0.35*FPS))); yield im.convert('RGB')
         return
     if kind=='end':
