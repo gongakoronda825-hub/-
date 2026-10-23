@@ -86,13 +86,13 @@ def wdur(k):
 def rd(p):
     with wave.open(p) as w: a=np.frombuffer(w.readframes(w.getnframes()),np.int16).astype(np.float32)/32768; ch=w.getnchannels()
     return a.reshape(-1,ch).mean(1) if ch>1 else a
-REVEAL=1.4; MIN=4.5
+REVEAL=1.4; MIN=3.9; TAIL=0.3   # 1場面の最短秒数・読み終わりの間（ちょうど1分に合わせて詰めた）
 tl=[]; t=0
-d_=0.15+wdur('hook')+0.6; tl.append(('hook',t,d_)); t+=d_
+d_=0.15+wdur('hook')+0.35; tl.append(('hook',t,d_)); t+=d_
 for n,_ in SCENES:
-    d_=max(0.2+wdur(n)+0.45,MIN); tl.append((n,t,d_)); t+=d_
-d_=0.15+wdur('cta')+0.25+wdur('q')+0.8; tl.append(('end',t,d_)); t+=d_
-d_=0.1+wdur('fol')+0.5; tl.append(('fol',t,d_)); t+=d_
+    d_=max(0.2+wdur(n)+TAIL,MIN); tl.append((n,t,d_)); t+=d_
+d_=0.15+wdur('cta')+0.25+wdur('q')+0.6; tl.append(('end',t,d_)); t+=d_
+d_=0.1+wdur('fol')+0.35; tl.append(('fol',t,d_)); t+=d_
 TOT=t; print('total',round(TOT,2))
 
 MONT=[big(Image.open(AL+k+'_after.jpg')) for k in ('bus','engawa','izakaya','sento')]
