@@ -85,6 +85,27 @@ def cover(img,w,h):
 LEAVES=cover(Image.open(os.environ.get('THUMB_BG',TK+'bg_autumn_leaves2.jpg')).convert('RGB'),W,H)
 LEAVES=Image.blend(LEAVES,Image.new('RGB',(W,H),(0,0,0)),0.22)   # 商品と見出しが浮くよう少し暗く   # サムネ（つかみ）：落ち葉、9:16
 
+# ---------- 枯葉（商品ページで右上→左下に落とす。cut_leaves.py の切り抜き） ----------
+LV=os.environ.get('LEAVES_DIR',NR+'../leaves/')
+LEAF=[Image.open(LV+f'leaf{k}.png').convert('RGBA') for k in (1,3,6,7,0,4)]
+import random
+_rnd=random.Random(3)
+FALL=[dict(img=LEAF[j%len(LEAF)],s=_rnd.uniform(1.0,1.5),off=j/7+_rnd.uniform(-0.04,0.04),per=_rnd.uniform(4.2,5.6),
+          x0=_rnd.uniform(650,1250),y0=_rnd.uniform(-250,250),amp=_rnd.uniform(25,55),rot0=_rnd.uniform(0,360),spin=_rnd.uniform(-90,90)*(1 if j%2 else -1)) for j in range(7)]
+_lc={}
+def leaves_layer(g):
+    L=layer()
+    for j,f in enumerate(FALL):
+        u=(g/f['per']+f['off'])%1.0                       # 0→1 で右上から左下へ
+        x=f['x0']-1150*u+f['amp']*math.sin(2*math.pi*(1.6*u+j*0.3)); y=f['y0']+2100*u
+        a=f['rot0']+f['spin']*u*f['per']+12*math.sin(2*math.pi*2*u)
+        key=(j,int(a)%360)
+        if key not in _lc:
+            im=f['img']; im=im.resize((int(im.width*f['s']),int(im.height*f['s'])),Image.LANCZOS)
+            _lc[key]=im.rotate(key[1],Image.BICUBIC,expand=True)
+        r=_lc[key]; L.alpha_composite(r,(int(x-r.width/2),int(y-r.height/2))) if -200<x<W+200 and -200<y<H+200 else None
+    return L
+
 # ---------- 商品ページ ----------
 #   (ナレーション, 作品名, 商品名, 価格, 写真, 背景の場面写真, キャラ(左下,右下), 字幕)
 PAGES=[('p1','となりのトトロ／魔女の宅急便','ボタン付ストール','各5,280円',['1_2','2_1'],'totoro040',['totoro018','majo018'],'ボタンで留めれば\nポンチョみたいに羽織れる！'),
@@ -204,6 +225,7 @@ def frames(kind,n,i):
     pg=PAGES[i]; B=scene_bg(pg[5]); C,P,R,CR=page_layers(i,pg); ST=sub_layer(pg[7]); nd=wdur(pg[0])
     for k in range(n):
         g=k/FPS; im=zoomed(B,k/max(n-1,1)).convert('RGBA')
+        im.alpha_composite(leaves_layer(g+i*1.7))   # 枯葉は背景の上・キャラや商品の後ろ
         c=popped(swayed(C,g),k,3); im.alpha_composite(c) if c else None
         im.alpha_composite(popped(P,k))
         r=popped(R,k,int(0.5*FPS)); im.alpha_composite(r) if r else None
