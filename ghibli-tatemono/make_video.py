@@ -100,7 +100,7 @@ def thumb_layer():
     # サムネ＝最初のフレーム。見出しの型（＼○○／小さめ黒＋大きい緑＋オレンジ帯）、中央そろえ・y=240〜1680の内側
     L=layer(); INK=(40,36,32)
     text(L,'\\ 東京にあった /',70,W/2,770,INK,stw=12)
-    text(L,'ジブリの世界',150,W/2,905,GREEN,stw=20)
+    text(L,'ジブリを感じる場所',112,W/2,905,GREEN,stw=18)
     pill(L,W/2,1065,'江戸東京たてもの園',72,ORANGE,pad=44,h=120); return L
 THUMB=thumb_layer()
 def sticker(name,h,ow=10):
