@@ -216,5 +216,5 @@ for t0,d_,kind,B,F,ns,sfx in tl:
     if sfx: add(rd(S+f'labsfx/{sfx}.wav'),t0,0.45)
 mix=mix[:int(TOT*SR)]; mix/=max(1.0,np.abs(mix).max()/0.95)
 with wave.open(NR+'../a.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((mix*32767).astype(np.int16).tobytes())
-subprocess.run(['ffmpeg','-v','error','-y','-i',NR+'../v.mp4','-i',NR+'../a.wav','-c:v','copy','-af','loudnorm=I=-14:TP=-1.5:LRA=11,volume=1.8dB,alimiter=limit=0.84','-ar','44100','-c:a','aac','-b:a','192k','-shortest',OUTV])
+subprocess.run(['ffmpeg','-v','error','-y','-i',NR+'../v.mp4','-i',NR+'../a.wav','-c:v','copy','-af','loudnorm=I=-14:TP=-1.5:LRA=11,volume=1.8dB,alimiter=limit=0.8:level=0','-ar','44100','-c:a','aac','-b:a','192k','-shortest',OUTV])
 print('done',OUTV)
