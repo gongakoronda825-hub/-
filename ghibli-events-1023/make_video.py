@@ -4,7 +4,7 @@ import sys,os,math,wave,subprocess,numpy as np
 from PIL import Image,ImageDraw,ImageFont,ImageFilter
 S=sys.argv[1].rstrip('/')+'/'; NR=sys.argv[2].rstrip('/')+'/'
 HERE=os.path.dirname(os.path.abspath(__file__))+'/'; TK=HERE+'../ghibli-toolkit/assets/'
-POSTER='/root/.claude/uploads/e8d6fde2-cc10-5a5b-97f9-6bcb99a3b93e/43b67aa6-image.jpg'
+UP='/root/.claude/uploads/e8d6fde2-cc10-5a5b-97f9-6bcb99a3b93e/'; POSTER=UP+'43b67aa6-image.jpg'
 OUTV=HERE+'ghibli_events_1023.mp4'
 W,H=1080,1920; FPS=30; SR=44100; DX=40; CX=W/2-DX
 WHITE=(255,255,255); INK=(45,40,36); GREEN=(46,125,62); ORANGE=(236,128,60); RED=(206,72,80); NAVY=(30,58,110); GRAY=(110,100,92)
@@ -42,7 +42,9 @@ def photo(img,w,h,fx=0.5,fy=0.5,r=22):
 def gb(n):
     w=n.rstrip('0123456789'); return Image.open(S+f'gb/{w}{int(n[len(w):]):03d}.jpg').convert('RGB')
 def framed(L,img,cx,cy,pad=10,rot=0):
-    o=Image.new('RGBA',(img.width+2*pad,img.height+2*pad),(0,0,0,0)); wb=Image.new('RGBA',o.size,WHITE+(255,)); wb.putalpha(rmask(*o.size,28)); o.alpha_composite(wb); o.alpha_composite(img,(pad,pad))
+    o=Image.new('RGBA',(img.width+2*pad,img.height+2*pad),(0,0,0,0))
+    if pad: wb=Image.new('RGBA',o.size,WHITE+(255,)); wb.putalpha(rmask(*o.size,28)); o.alpha_composite(wb)
+    o.alpha_composite(img,(pad,pad))
     if rot: o=o.rotate(rot,Image.BICUBIC,expand=True)
     sh=Image.new('RGBA',(o.width+60,o.height+60),(0,0,0,0)); m=Image.new('L',sh.size,0); m.paste(o.getchannel('A'),(30,38)); sh.putalpha(m.filter(ImageFilter.GaussianBlur(12)).point(lambda v:int(v*0.35)))
     L.alpha_composite(sh,(int(cx-sh.width/2),int(cy-sh.height/2))); L.alpha_composite(o,(int(cx-o.width/2),int(cy-o.height/2)))
@@ -127,13 +129,14 @@ def ev7():
 # ---------- つかみ・まとめ ----------
 def hook_layer():
     L=layer()
-    for n,(x,y,r) in zip(['totoro29','chihiro32','majo11','mimi47'],[(270,400,-5),(810,420,5),(270,1500,4),(810,1480,-4)]):
-        framed(L,photo(gb(n),430,290),x,y,rot=r)
+    # 各イベントの公式ポスター（白フチなし・影だけ）
+    for f,(x,y,h,r) in zip(['064c96c3-image.webp','18d69da3-image.jpg','f48da2b0-image.jpg','ac81aad3-image.webp'],[(280,440,390,-4),(800,440,390,4),(280,1440,450,3),(800,1440,450,-3)]):
+        P=Image.open(UP+f).convert('RGB'); framed(L,photo(P,int(h*P.width/P.height),h,r=12),x,y,pad=0,rot=r)
     pill(L,540,690,'2026年10月〜2027年 決定分',38,NAVY,pad=34,h=70)
     text(L,'これから行ける',84,540,830,INK,stw=12)
     text(L,'ジブリイベント',112,540,965,GREEN,stw=16)
     pill(L,540,1110,'全部まとめた！',72,ORANGE,pad=44,h=118)
-    text(L,'© Studio Ghibli',22,540,1680,WHITE,w=800,stw=3,stc=(0,0,0)); return L
+    text(L,'画像：各公式ポスター　© Studio Ghibli',22,540,1700,WHITE,w=800,stw=3,stc=(0,0,0)); return L
 EVLIST=[('1','ジブリパーク展 横須賀展','2027.2.11〜5.14'),('2','舞台『千と千尋の神隠し』','2027.3〜8 全国5都市'),('3','耳をすませば・アリエッティ IMAX','10.23〜／全国10.30〜'),
 ('4','ジブリパーク 秋のどんどこ祭り','10.30〜11.22'),('5','「禅とジブリ」京都展','〜12.6'),('6','金曜ロードショーとジブリ展 佐賀','11.3〜2027.2.14'),('7','『白隠さんの禅』京都','12.17〜2027.1.11')]
 def list_layer():
