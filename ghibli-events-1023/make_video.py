@@ -5,6 +5,7 @@ from PIL import Image,ImageDraw,ImageFont,ImageFilter
 S=sys.argv[1].rstrip('/')+'/'; NR=sys.argv[2].rstrip('/')+'/'
 HERE=os.path.dirname(os.path.abspath(__file__))+'/'; TK=HERE+'../ghibli-toolkit/assets/'
 UP='/root/.claude/uploads/e8d6fde2-cc10-5a5b-97f9-6bcb99a3b93e/'; POSTER=UP+'43b67aa6-image.jpg'
+MIMI_POSTER=None  # 『耳をすませば』IMAXポスター（まだ受け取っていない）
 OUTV=HERE+'ghibli_events_1023.mp4'
 W,H=1080,1920; FPS=30; SR=44100; DX=40; CX=W/2-DX
 WHITE=(255,255,255); INK=(45,40,36); GREEN=(46,125,62); ORANGE=(236,128,60); RED=(206,72,80); NAVY=(30,58,110); GRAY=(110,100,92)
@@ -82,10 +83,21 @@ def info(L,y0,date,lines,src,cr=True):
     text(L,src,22,CX,CARD[3]-58,GRAY,w=800,maxw=820)
     if cr: text(L,'© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800)
 
+def poster_side(L,y,f,rows,pw=330):
+    # 左に公式ポスター、右に情報の行（見出し＝オレンジ、中身＝黒。中身は\nで2行）
+    P=Image.open(UP+f).convert('RGB'); po=photo(P,pw,int(pw*P.height/P.width),r=16); framed(L,po,CX-215,y+60+po.height/2)
+    d=ImageDraw.Draw(L); X=CX-20; yy=y+60
+    for lab,val in rows:
+        ls=val.split('\n'); h=40+46*len(ls); d.rounded_rectangle((X,yy,X+460,yy+h),20,fill=(240,233,222,255))
+        text(L,lab,28,X+18,yy+26,ORANGE,anchor='l')
+        for k,l in enumerate(ls): text(L,l,32,X+18,yy+66+k*46,INK,anchor='l',maxw=424)
+        yy+=h+16
+    return y+60+po.height
 def ev1():
-    L,y=card_base(1,'神奈川','ジブリパーク展\n横須賀展');
-    framed(L,photo(gb('totoro18'),780,400,0.5,0.4),CX,y+290)
-    info(L,y+560,'2027.2.11（木・祝）〜5.14（金）',[('会場：横須賀美術館',40,INK),('休館日 3/1（月）・4/5（月）',32,GRAY)],'出典：横須賀美術館・スタジオジブリ公式'); return L
+    L,y=card_base(1,'神奈川','ジブリパーク展\n横須賀展')
+    b=poster_side(L,y,'18d69da3-image.jpg',[('会場','横須賀美術館'),('休館日','3/1（月）・4/5（月）')])
+    pill(L,CX,b+80,'2027.2.11（木・祝）〜5.14（金）',44,ORANGE,pad=34,h=78)
+    text(L,'出典：横須賀美術館・スタジオジブリ公式',22,CX,CARD[3]-58,GRAY,w=800); text(L,'画像：公式ポスター　© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800); return L
 def ev2():
     L,y=card_base(2,'全国ツアー','舞台『千と千尋の神隠し』'); P=Image.open(POSTER).convert('RGB')
     po=photo(P,330,int(330*P.height/P.width),r=16); framed(L,po,CX-215,y+290)
@@ -99,20 +111,25 @@ def ev2():
     text(L,'※公演日の詳細は今後発表',24,CX,y+766,GRAY)
     text(L,'出典：東宝『千と千尋』公式・ぴあ　画像：東宝',22,CX,CARD[3]-36,GRAY,w=800); return L
 def ev3():
-    L,y=card_base(3,'全国の映画館','『耳をすませば』\n『借りぐらしのアリエッティ』');
-    framed(L,photo(gb('mimi47'),380,300,0.5,0.4),CX-200,y+235,rot=3); framed(L,photo(gb('karigurashi33'),380,300,0.5,0.5),CX+200,y+250,rot=-3)
-    pill(L,CX,y+450,'4K・IMAX上映　10.23（金）〜11.2（月）',36,ORANGE,pad=30,h=72)
-    pill(L,CX,y+540,'全国拡大上映　10.30（金）〜11.12（木）',36,NAVY,pad=30,h=72)
-    text(L,'IMAX劇場では入場者プレゼント',34,CX,y+630,INK); text(L,'（A3ポスター）',30,CX,y+676,GRAY)
-    text(L,'出典：MOVIE WALKER PRESS',22,CX,CARD[3]-58,GRAY,w=800); text(L,'© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800); return L
+    L,y=card_base(3,'全国の映画館','『耳をすませば』\n『借りぐらしのアリエッティ』')
+    for k,(src,rot) in enumerate([(MIMI_POSTER,3),('ac81aad3-image.webp',-3)]):
+        if src: P=Image.open(UP+src).convert('RGB'); po=photo(P,290,int(290*P.height/P.width),r=14)
+        else: po=photo(gb('mimi47'),290,410,0.5,0.4,r=14)
+        framed(L,po,CX+(-170 if k==0 else 170),y+250,pad=0,rot=rot)
+    pill(L,CX,y+520,'4K・IMAX上映　10.23（金）〜11.2（月）',36,ORANGE,pad=30,h=72)
+    pill(L,CX,y+604,'全国拡大上映　10.30（金）〜11.12（木）',36,NAVY,pad=30,h=72)
+    text(L,'IMAX劇場では入場者プレゼント（A3ポスター）',30,CX,y+680,INK)
+    text(L,'出典：MOVIE WALKER PRESS',22,CX,CARD[3]-58,GRAY,w=800); text(L,'画像：公式ポスター　© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800); return L
 def ev4():
     L,y=card_base(4,'愛知・長久手','ジブリパーク\n秋のどんどこ祭り')
     framed(L,photo(gb('majo11'),380,280,0.5,0.5),CX-200,y+210,rot=3); framed(L,photo(gb('mononoke24'),380,280,0.5,0.5),CX+200,y+225,rot=-3)
     info(L,y+430,'2026.10.30（金）〜11.22（日）',[('10/30〜 魔女の谷・もののけの里',34,INK),('夜7時まで営業＆イルミネーション開始',32,INK),('※日程はイベントごとに異なります',26,GRAY),('※チケット・事前申込が必要なものあり',26,GRAY)],'出典：ジブリパーク公式'); return L
 def ev5():
-    L,y=card_base(5,'京都','「禅とジブリ」京都展'); framed(L,photo(gb('kimitachi34'),780,420,0.5,0.5),CX,y+290)
-    pill(L,CX+300,CARD[1]+78,'開催中！',34,RED,pad=24)
-    info(L,y+550,'〜2026.12.6（日）',[('京都市京セラ美術館 新館 東山キューブ',34,INK),('一般・大学生 1,900円',36,INK),('『君たちはどう生きるか』の世界観が中心',28,GRAY)],'出典：スタジオジブリ公式'); return L
+    L,y=card_base(5,'京都','「禅とジブリ」京都展'); pill(L,CX+300,CARD[1]+78,'開催中！',34,RED,pad=24)
+    b=poster_side(L,y,'064c96c3-image.webp',[('会場','京都市京セラ美術館\n新館 東山キューブ'),('料金','一般・大学生 1,900円')])
+    pill(L,CX,b+70,'〜2026.12.6（日）',44,ORANGE,pad=34,h=78)
+    text(L,'『君たちはどう生きるか』の世界観が中心',28,CX,b+150,GRAY)
+    text(L,'出典：スタジオジブリ公式',22,CX,CARD[3]-58,GRAY,w=800); text(L,'画像：公式ポスター　© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800); return L
 def ev6():
     L,y=card_base(6,'佐賀','金曜ロードショーとジブリ展')
     for j,(n,fx) in enumerate([('totoro29',0.5),('majo40',0.5),('chihiro20',0.5),('mimi32',0.5)]):
