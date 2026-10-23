@@ -144,10 +144,9 @@ def corner_set(names,h=230):
 def chars_layer(cs,g):
     L=layer()
     for c,x,y,j in cs:
-        a=3*math.sin(2*math.pi*0.6*g+j*1.7); r=c.rotate(a,Image.BICUBIC,expand=True,center=(c.width/2,c.height))
-        L.alpha_composite(r,(int(x-r.width/2),int(y-r.height/2)))
+        L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
     return L
-CHS=[[('totoro018',230,95,620),('chihiro019',230,985,640),('karigurashi033',220,95,1080),('majo011',150,990,1080)],
+CHS=[[('totoro018',260,100,900),('chihiro019',260,980,900)],
 ['totoro018','totoro044','totoro004','majo018'],['chihiro019','chihiro022','chihiro016','chihiro045'],['mimi032','mimi015','karigurashi033','mimi002'],
 ['majo011','majo018','mononoke015','mononoke029'],['kimitachi027','kimitachi018','kimitachi047','kimitachi031'],['totoro004','chihiro019','majo018','mimi032'],[],[],[]]
 CHS=[[(chara(n,h),x,y,j) for j,(n,h,x,y) in enumerate(c)] if i==0 else corner_set(c) for i,c in enumerate(CHS)]
