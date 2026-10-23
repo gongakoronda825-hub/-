@@ -26,4 +26,12 @@ for k,txt in L:
     with wave.open(p) as w: sr=w.getframerate(); a=np.frombuffer(w.readframes(w.getnframes()),np.int16)
     nz=np.where(np.abs(a)>300)[0]; a=a[max(0,nz[0]-400):nz[-1]+2000]
     with wave.open(p,'wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(a.tobytes())
+    # 話している部分を目立たせるため、アクセント句ごとの読み始め・終わり（秒）を保存
+    lead=max(0,nz[0]-400)/sr; tt=q['prePhonemeLength']/q['speedScale']-lead; ph=[]
+    for ap in q['accent_phrases']:
+        st=tt
+        for m in ap['moras']: tt+=((m.get('consonant_length') or 0)+m['vowel_length'])/q['speedScale']
+        ph.append([''.join(m['text'] for m in ap['moras']),round(st,3),round(tt,3)])
+        if ap.get('pause_mora'): tt+=ap['pause_mora']['vowel_length']/q['speedScale']
+    json.dump(ph,open(f'{V}narr/{k}.json','w'),ensure_ascii=False)
     print(k,round(len(a)/sr,2),q.get('kana'))

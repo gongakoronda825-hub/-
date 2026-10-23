@@ -1,6 +1,6 @@
 # 今決まっているジブリイベントまとめ（2026/10/23時点）ナレーション動画
 # 使い方: python3 make_video.py <作業フォルダ(setup.shのW)> <ナレーションwavのフォルダ>
-import sys,os,math,wave,subprocess,numpy as np
+import json,sys,os,math,wave,subprocess,numpy as np
 from PIL import Image,ImageDraw,ImageFont,ImageFilter
 S=sys.argv[1].rstrip('/')+'/'; NR=sys.argv[2].rstrip('/')+'/'
 HERE=os.path.dirname(os.path.abspath(__file__))+'/'; TK=HERE+'../ghibli-toolkit/assets/'
@@ -24,14 +24,18 @@ def segs(t):
         else: out.append([k,ch])
     return out
 def tlen(t,sz,w=900): return sum(font(w,sz,k).getlength(s) for k,s in segs(t))
-def text(L,t,sz,cx,cy,fill,w=900,stw=0,stc=WHITE,anchor='m',maxw=None):
+BOX={}   # 話している部分を目立たせる枠の位置（カード座標）
+def addbox(key,bb):
+    if key: o=BOX.get(key); BOX[key]=bb if not o else (min(o[0],bb[0]),min(o[1],bb[1]),max(o[2],bb[2]),max(o[3],bb[3]))
+def text(L,t,sz,cx,cy,fill,w=900,stw=0,stc=WHITE,anchor='m',maxw=None,key=None):
     while maxw and tlen(t,sz,w)>maxw: sz-=2
     d=ImageDraw.Draw(L); x=cx-tlen(t,sz,w)/2 if anchor=='m' else cx
+    addbox(key,(x-14,cy-sz*0.75,x+tlen(t,sz,w)+14,cy+sz*0.75))
     for k,s in segs(t):
         d.text((x,cy),s,font=font(w,sz,k),fill=fill,anchor='lm',stroke_width=stw,stroke_fill=stc); x+=font(w,sz,k).getlength(s)
-def pill(L,cx,cy,t,sz,bg,fg=WHITE,pad=30,h=None,maxw=800):
+def pill(L,cx,cy,t,sz,bg,fg=WHITE,pad=30,h=None,maxw=800,key=None):
     while tlen(t,sz)>maxw: sz-=2
-    tw=tlen(t,sz); h=h or sz*1.55
+    tw=tlen(t,sz); h=h or sz*1.55; addbox(key,(cx-tw/2-pad,cy-h/2,cx+tw/2+pad,cy+h/2))
     ImageDraw.Draw(L).rounded_rectangle((cx-tw/2-pad,cy-h/2,cx+tw/2+pad,cy+h/2),h/2,fill=bg)
     text(L,t,sz,cx,cy,fg)
 def layer(): return Image.new('RGBA',(W,H),(0,0,0,0))
@@ -69,45 +73,46 @@ def bg_frames(B,n):
 # ---------- イベントカード ----------
 CARD=(CX-440,410,CX+440,1470)  # 上のTikTokボタンを避けて下寄せ
 def card_base(num,area,title):
+    K=f'e{num}:title'
     L=layer(); d=ImageDraw.Draw(L)
     sh=layer(); ImageDraw.Draw(sh).rounded_rectangle((CARD[0]+4,CARD[1]+16,CARD[2]+4,CARD[3]+16),44,fill=(0,0,0,120)); L.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)))
     d.rounded_rectangle(CARD,44,fill=(255,252,246,255),outline=WHITE,width=10)
     d.ellipse((CARD[0]+30,CARD[1]+28,CARD[0]+130,CARD[1]+128),fill=ORANGE,outline=WHITE,width=5); text(L,str(num),62,CARD[0]+80,CARD[1]+80,WHITE)
     pill(L,CARD[0]+150+tlen(area,34)/2+28,CARD[1]+78,area,34,NAVY,pad=28)
     ls=title.split('\n')
-    for j,l in enumerate(ls): text(L,l,62 if len(ls)==1 else 56,CX,CARD[1]+190+j*74,GREEN,stw=0,maxw=820)
+    for j,l in enumerate(ls): text(L,l,62 if len(ls)==1 else 56,CX,CARD[1]+190+j*74,GREEN,stw=0,maxw=820,key=K)
     return L,CARD[1]+190+(len(ls)-1)*74
-def info(L,y0,date,lines,src,cr=True):
-    pill(L,CX,y0,date,44,ORANGE,pad=34,h=78)
-    for j,(t,sz,col) in enumerate(lines): text(L,t,sz,CX,y0+86+j*58,col,maxw=820)
+def info(L,y0,date,lines,src,cr=True,k=None):
+    pill(L,CX,y0,date,44,ORANGE,pad=34,h=78,key=k and k+':date')
+    for j,(t,sz,col) in enumerate(lines): text(L,t,sz,CX,y0+86+j*58,col,maxw=820,key=k and f'{k}:l{j}')
     text(L,src,22,CX,CARD[3]-58,GRAY,w=800,maxw=820)
     if cr: text(L,'© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800)
 
-def poster_side(L,y,f,rows,pw=330):
+def poster_side(L,y,f,rows,pw=330,k=None):
     # 左に公式ポスター、右に情報の行（見出し＝オレンジ、中身＝黒。中身は\nで2行）
     P=Image.open(UP+f).convert('RGB'); po=photo(P,pw,int(pw*P.height/P.width),r=16); framed(L,po,CX-215,y+60+po.height/2)
     d=ImageDraw.Draw(L); X=CX-20; yy=y+60
     for lab,val in rows:
-        ls=val.split('\n'); h=40+46*len(ls); d.rounded_rectangle((X,yy,X+460,yy+h),20,fill=(240,233,222,255))
+        ls=val.split('\n'); h=40+46*len(ls); d.rounded_rectangle((X,yy,X+460,yy+h),20,fill=(240,233,222,255)); addbox(k and f'{k}:{lab}',(X,yy,X+460,yy+h))
         text(L,lab,28,X+18,yy+26,ORANGE,anchor='l')
         for k,l in enumerate(ls): text(L,l,32,X+18,yy+66+k*46,INK,anchor='l',maxw=424)
         yy+=h+16
     return y+60+po.height
 def ev1():
     L,y=card_base(1,'神奈川','ジブリパーク展\n横須賀展')
-    b=poster_side(L,y,'18d69da3-image.jpg',[('会場','横須賀美術館'),('休館日','3/1（月）・4/5（月）')])
-    pill(L,CX,b+80,'2027.2.11（木・祝）〜5.14（金）',44,ORANGE,pad=34,h=78)
+    b=poster_side(L,y,'18d69da3-image.jpg',[('会場','横須賀美術館'),('休館日','3/1（月）・4/5（月）')],k='e1')
+    pill(L,CX,b+80,'2027.2.11（木・祝）〜5.14（金）',44,ORANGE,pad=34,h=78,key='e1:date')
     text(L,'出典：横須賀美術館・スタジオジブリ公式',22,CX,CARD[3]-58,GRAY,w=800); text(L,'画像：公式ポスター　© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800); return L
 def ev2():
     L,y=card_base(2,'全国ツアー','舞台『千と千尋の神隠し』'); P=Image.open(POSTER).convert('RGB')
     po=photo(P,330,int(330*P.height/P.width),r=16); framed(L,po,CX-215,y+290)
     d=ImageDraw.Draw(L); X=CX-20; rows=[('2027.3〜5','東京・明治座'),('6','愛知・御園座'),('6〜7','大阪・梅田芸術劇場'),('7〜8','福岡・博多座'),('8','北海道・hitaru')]
     for j,(m,p) in enumerate(rows):
-        yy=y+80+j*92; d.rounded_rectangle((X,yy,X+460,yy+76),20,fill=(240,233,222,255))
+        yy=y+80+j*92; d.rounded_rectangle((X,yy,X+460,yy+76),20,fill=(240,233,222,255)); addbox(f'e2:r{j}',(X,yy,X+460,yy+76))
         text(L,m+'月',28,X+18,yy+24,ORANGE,anchor='l'); text(L,p,30,X+18,yy+56,INK,anchor='l',maxw=420)
-    pill(L,CX,y+590,'千尋役は7人！',44,RED,pad=34,h=78)
-    text(L,'橋本環奈・上白石萌音・福地桃子・森莉那',28,CX,y+676,INK)
-    text(L,'井上和・豊嶋花・平澤宏々路',28,CX,y+720,INK)
+    pill(L,CX,y+590,'千尋役は7人！',44,RED,pad=34,h=78,key='e2:7')
+    text(L,'橋本環奈・上白石萌音・福地桃子・森莉那',28,CX,y+676,INK,key='e2:7')
+    text(L,'井上和・豊嶋花・平澤宏々路',28,CX,y+720,INK,key='e2:7')
     text(L,'※公演日の詳細は今後発表',24,CX,y+766,GRAY)
     text(L,'出典：東宝『千と千尋』公式・ぴあ　画像：東宝',22,CX,CARD[3]-36,GRAY,w=800); return L
 def ev3():
@@ -116,32 +121,32 @@ def ev3():
         if src: P=Image.open(UP+src).convert('RGB'); po=photo(P,290,int(290*P.height/P.width),r=14)
         else: po=photo(gb('mimi47'),290,410,0.5,0.4,r=14)
         framed(L,po,CX+(-170 if k==0 else 170),y+250,pad=0,rot=rot)
-    pill(L,CX,y+520,'4K・IMAX上映　10.23（金）〜11.2（月）',36,ORANGE,pad=30,h=72)
-    pill(L,CX,y+604,'全国拡大上映　10.30（金）〜11.12（木）',36,NAVY,pad=30,h=72)
+    pill(L,CX,y+520,'4K・IMAX上映　10.23（金）〜11.2（月）',36,ORANGE,pad=30,h=72,key='e3:imax')
+    pill(L,CX,y+604,'全国拡大上映　10.30（金）〜11.12（木）',36,NAVY,pad=30,h=72,key='e3:zen')
     text(L,'IMAX劇場では入場者プレゼント（A3ポスター）',30,CX,y+680,INK)
     text(L,'出典：MOVIE WALKER PRESS',22,CX,CARD[3]-58,GRAY,w=800); text(L,'画像：公式ポスター　© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800); return L
 def ev4():
     L,y=card_base(4,'愛知・長久手','ジブリパーク\n秋のどんどこ祭り')
     framed(L,photo(gb('majo11'),380,280,0.5,0.5),CX-200,y+210,rot=3); framed(L,photo(gb('mononoke24'),380,280,0.5,0.5),CX+200,y+225,rot=-3)
-    info(L,y+430,'2026.10.30（金）〜11.22（日）',[('10/30〜 魔女の谷・もののけの里',34,INK),('夜7時まで営業＆イルミネーション開始',32,INK),('※日程はイベントごとに異なります',26,GRAY),('※チケット・事前申込が必要なものあり',26,GRAY)],'出典：ジブリパーク公式'); return L
+    info(L,y+430,'2026.10.30（金）〜11.22（日）',[('10/30〜 魔女の谷・もののけの里',34,INK),('夜7時まで営業＆イルミネーション開始',32,INK),('※日程はイベントごとに異なります',26,GRAY),('※チケット・事前申込が必要なものあり',26,GRAY)],'出典：ジブリパーク公式',k='e4'); return L
 def ev5():
     L,y=card_base(5,'京都','「禅とジブリ」京都展'); pill(L,CX+300,CARD[1]+78,'開催中！',34,RED,pad=24)
-    b=poster_side(L,y,'064c96c3-image.webp',[('会場','京都市京セラ美術館\n新館 東山キューブ'),('料金','一般・大学生 1,900円')])
-    pill(L,CX,b+70,'〜2026.12.6（日）',44,ORANGE,pad=34,h=78)
-    text(L,'『君たちはどう生きるか』の世界観が中心',28,CX,b+150,GRAY)
+    b=poster_side(L,y,'064c96c3-image.webp',[('会場','京都市京セラ美術館\n新館 東山キューブ'),('料金','一般・大学生 1,900円')],k='e5')
+    pill(L,CX,b+70,'〜2026.12.6（日）',44,ORANGE,pad=34,h=78,key='e5:date')
+    text(L,'『君たちはどう生きるか』の世界観が中心',28,CX,b+150,GRAY,key='e5:kimi')
     text(L,'出典：スタジオジブリ公式',22,CX,CARD[3]-58,GRAY,w=800); text(L,'画像：公式ポスター　© Studio Ghibli',22,CX,CARD[3]-28,GRAY,w=800); return L
 def ev6():
     L,y=card_base(6,'佐賀','金曜ロードショーとジブリ展')
     for j,(n,fx) in enumerate([('totoro29',0.5),('majo40',0.5),('chihiro20',0.5),('mimi32',0.5)]):
         framed(L,photo(gb(n),370,210,fx),CX+(-195 if j%2==0 else 195),y+150+(j//2)*240,pad=8)
-    pill(L,CX+300,CARD[1]+78,'佐賀初！',34,RED,pad=24)
-    info(L,y+570,'2026.11.3（火・祝）〜2027.2.14（日）',[('佐賀県立美術館・博物館',38,INK),('一般 1,900円',36,INK)],'出典：佐賀展実行委員会・ローチケ'); return L
+    pill(L,CX+300,CARD[1]+78,'佐賀初！',34,RED,pad=24,key='e6:first')
+    info(L,y+570,'2026.11.3（火・祝）〜2027.2.14（日）',[('佐賀県立美術館・博物館',38,INK),('一般 1,900円',36,INK)],'出典：佐賀展実行委員会・ローチケ',k='e6'); return L
 def ev7():
     L,y=card_base(7,'京都','スタジオジブリ企画制作\n『白隠さんの禅』')
-    d=ImageDraw.Draw(L); d.rounded_rectangle((CX-390,y+90,CX+390,y+430),30,fill=(240,233,222,255))
+    d=ImageDraw.Draw(L); d.rounded_rectangle((CX-390,y+90,CX+390,y+430),30,fill=(240,233,222,255)); addbox('e7:box',(CX-390,y+90,CX+390,y+430))
     text(L,'禅とジブリの後期展',40,CX,y+160,GREEN); text(L,'禅僧・白隠の作品を',36,CX,y+240,INK); text(L,'映像とともに展示する美術展',36,CX,y+296,INK)
     text(L,'※ジブリ作品の展示ではありません',28,CX,y+376,RED)
-    info(L,y+530,'2026.12.17（木）〜2027.1.11（月・祝）',[('京都市京セラ美術館 新館 東山キューブ',34,INK)],'出典：スタジオジブリ公式',cr=False); return L
+    info(L,y+530,'2026.12.17（木）〜2027.1.11（月・祝）',[('京都市京セラ美術館 新館 東山キューブ',34,INK)],'出典：スタジオジブリ公式',cr=False,k='e7'); return L
 
 # ---------- キャラ（場面写真の切り抜き＝cutout.py の cut/） ----------
 def chara(name,h,ow=10):
@@ -209,6 +214,30 @@ def sub_layer(t):
     for j,l in enumerate(ls): text(L,l,46,CX,1600+(j-(len(ls)-1)/2)*64,WHITE,stw=8,stc=(20,20,20))
     _sl[t]=safe(L); return _sl[t]
 
+# ---------- 話している部分を黄色い枠で囲む ----------
+HL={'e1':[(2,'e1:title'),(3,'e1:date'),(9,'e1:会場')],
+'e2':[(0,'e2:title'),(7,'e2:r0'),(9,'e2:r1'),(10,'e2:r2'),(11,'e2:r3'),(12,'e2:r4'),(13,'e2:7')],
+'e3':[(0,'e3:imax'),(8,'e3:zen')],
+'e4':[(0,'e4:title'),(1,'e4:date'),(5,'e4:l0'),(9,'e4:l1')],
+'e5':[(1,'e5:title'),(3,'e5:date'),(5,'e5:kimi')],
+'e6':[(0,'e6:first'),(2,'e6:title'),(5,'e6:date')],
+'e7':[(1,'e7:date'),(4,'e7:title'),(6,'e7:box')]}
+YEL=(255,214,0)
+_hl={}
+def hl_layer(key):
+    if key not in _hl:
+        x0,y0,x1,y1=BOX[key]; L=layer(); p=12
+        ImageDraw.Draw(L).rounded_rectangle((x0-p,y0-p,x1+p,y1+p),26,outline=(255,255,255,255),width=14)
+        ImageDraw.Draw(L).rounded_rectangle((x0-p+3,y0-p+3,x1+p-3,y1+p-3),24,outline=YEL+(255,),width=8)
+        _hl[key]=safe(L)
+    return _hl[key]
+def hl_windows(k,t0,end):
+    ph=json.load(open(NR+k+'.json')); w=[]
+    for j,(i,key) in enumerate(HL.get(k,[])):
+        a=t0+max(0,ph[i][1]); b=t0+ph[HL[k][j+1][0]][1] if j+1<len(HL[k]) else end
+        w.append((a,b,key))
+    return w
+
 # ---------- タイムライン ----------
 def wdur(k):
     with wave.open(NR+k+'.wav') as w: return w.getnframes()/w.getframerate()
@@ -245,7 +274,8 @@ for si,(t0,d_,kind,B,F,ns,sfx) in enumerate(tl):
         for _ in range(n): enc.stdin.write(np.asarray(FOLLOW).tobytes())
         continue
     subs=[]; tt=0.15
-    for k in ns: subs.append((tt,tt+wdur(k)+GAP,k)); tt+=wdur(k)+GAP
+    HLW={}
+    for k in ns: subs.append((tt,tt+wdur(k)+GAP,k)); HLW[k]=hl_windows(k,tt,tt+wdur(k)+0.3) if k in HL else []; tt+=wdur(k)+GAP
     BG=(b for b in iter(lambda:NAVYBG.convert('RGBA'),None)) if B=='navy' else bg_frames(B,n)
     for k in range(n):
         g=k/FPS; im=next(BG)
@@ -254,6 +284,8 @@ for si,(t0,d_,kind,B,F,ns,sfx) in enumerate(tl):
         for a,b_,key in subs:
             if a<=g<b_:
                 if key in SUB: im.alpha_composite(sub_layer(SUB[key]))
+                for ha,hb,hk in HLW.get(key,[]):
+                    if ha<=g<hb: im.alpha_composite(hl_layer(hk))
                 if key in ('q','cta'):
                     P=QL if key=='q' else CTAL; pp,_,_=popped(P,int((g-a)*FPS)); im.alpha_composite(pp)
         enc.stdin.write(np.asarray(im.convert('RGB')).tobytes())
