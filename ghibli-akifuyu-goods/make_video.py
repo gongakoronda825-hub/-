@@ -1,6 +1,6 @@
 # ジブリの秋冬グッズ紹介 vol.1（ナレーション動画）
 # 使い方: python3 make_video.py <作業フォルダ(setup.shのW)> <商品画像フォルダ(shop/alt)> <切り抜きフォルダ(akf/cut)> <ナレーションwavのフォルダ> [stills]
-import sys,os,wave,subprocess,numpy as np
+import sys,os,math,wave,subprocess,numpy as np
 from PIL import Image,ImageDraw,ImageFont,ImageFilter
 S,A,CUT,NR=[a.rstrip('/')+'/' for a in sys.argv[1:5]]
 HERE=os.path.dirname(os.path.abspath(__file__))+'/'; TK=HERE+'../ghibli-toolkit/assets/'
@@ -55,7 +55,22 @@ def sticker(path,bw,bh,rot=0,ow=10):
     out=Image.new('RGBA',big.size,(0,0,0,0)); sh=Image.new('RGBA',big.size,(0,0,0,0)); sh.putalpha(o.filter(ImageFilter.GaussianBlur(10)).point(lambda v:int(v*0.35)))
     out.alpha_composite(sh,(4,8)); w_=Image.new('RGBA',big.size,(255,255,255,0)); w_.putalpha(o); out.alpha_composite(w_); out.alpha_composite(big)
     return out.rotate(rot,Image.BICUBIC,expand=True) if rot else out
-def chara(n,h,rot=0): return sticker(S+f'cut/{n}.png',900,h,rot)
+def chara(n,h,rot=0,ow=10):
+    if ow: return sticker(S+f'cut/{n}.png',900,h,rot,ow)
+    im=Image.open(S+f'cut/{n}.png').convert('RGBA'); im.putalpha(im.getchannel('A').point(lambda v:0 if v<40 else v))   # 白フチなし
+    return im.resize((int(im.width*h/im.height),h),Image.LANCZOS)
+def pivot(img):
+    # 下のまん中を支点に回せるよう、支点がキャンバスの中心に来るように置く
+    c=Image.new('RGBA',(img.width+80,img.height*2+40),(0,0,0,0)); c.alpha_composite(img,(40,20+0)); return c,img.height+20
+def swayed(items,g,amp=3,hz=0.5):
+    # items=[(pivot画像,支点の位置,x,y下端)]：下を支点に±amp°でゆらゆら
+    L=layer()
+    for j,(c,cy0,x,yb) in enumerate(items):
+        a=amp*math.sin(2*math.pi*hz*g+j*1.9); r=c.rotate(a,Image.BICUBIC,center=(c.width/2,cy0))
+        L.alpha_composite(r,(int(x-c.width/2),int(yb-cy0)))
+    return L
+def sway_item(img,x,cy):
+    c,cy0=pivot(img); return (c,cy0,x,cy+img.height/2)
 def scene_bg(n):
     im=Image.open(S+f'gb/{n}.jpg').convert('RGB'); cw=int(im.height*W/H); x=(im.width-cw)//2
     b=im.crop((x,0,x+cw,im.height)).resize((int(W*1.1),int(H*1.1)),Image.LANCZOS).filter(ImageFilter.GaussianBlur(3))
@@ -63,7 +78,7 @@ def scene_bg(n):
 def zoomed(B,u):
     z=1.0+0.08*u; sw,sh=B.width/z,B.height/z; x=(B.width-sw)*(0.3+0.4*u); y=(B.height-sh)/2
     return B.resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh))
-GRID=Image.open(TK+'bg_grid.jpg').convert('RGB').resize((W,H))
+GRID=Image.open(TK+'bg_grid_brown.jpg').convert('RGB').resize((W,H))
 
 # ---------- 商品ページ ----------
 #   (ナレーション, 作品名, 商品名, 価格, 写真, 背景の場面写真, キャラ(左下,右下), 字幕)
@@ -77,8 +92,7 @@ PAGES=[('p1','となりのトトロ／魔女の宅急便','ボタン付ストー
 ('p8','となりのトトロ／魔女の宅急便','毛布ソックス','各1,650円',['43_2','44_2'],'majo040',['totoro018','majo018'],'丈が長くて\n色々な履き方ができる')]
 def page_layers(i,pg):
     k,work,name,price,photos,bg,chs,_=pg
-    C=layer()   # キャラ（いちばん後ろ）
-    for j,n in enumerate(chs): paste(C,chara(n,250),[150,820][j],1560)
+    C=[sway_item(chara(n,250),[150,820][j],1560) for j,n in enumerate(chs)]   # キャラ（いちばん後ろ・ゆらゆら）
     P=layer()   # 見出し＋写真
     d=ImageDraw.Draw(P); d.ellipse((CX-430,385,CX-330,485),fill=ORANGE,outline=WHITE,width=6); text(P,f'{i+1:02d}',50,CX-380,435,WHITE)
     pill(P,CX+40,435,work,32,NAVY,pad=26,h=62)
@@ -99,18 +113,19 @@ def sub_layer(t):
 
 # ---------- サムネ（つかみの最初のフレーム） ----------
 def thumb_layers():
-    P=layer(); xs=[200,435,670,900]
+    xs=[200,435,670,900]
     top=[('65_8',-7),('1_8',5),('55_1',-5),('67_8',7)]; bot=[('37_1',6),('4_7',-5),('64_8',5),('44_4',-7)]
-    for k,(n,r) in enumerate(top): paste(P,sticker(CUT+n+'.png',250,330,r),xs[k],520+(30 if k%2 else 0))
-    for k,(n,r) in enumerate(bot): paste(P,sticker(CUT+n+'.png',250,330,r),xs[k],1350-(30 if k%2 else 0))
+    P=[sway_item(sticker(CUT+n+'.png',250,330,r),xs[k],520+(30 if k%2 else 0)) for k,(n,r) in enumerate(top)]
+    P+=[sway_item(sticker(CUT+n+'.png',250,330,r),xs[k],1350-(30 if k%2 else 0)) for k,(n,r) in enumerate(bot)]
+    CH=layer(); paste(CH,chara('totoro018',290,ow=0),105,395); paste(CH,chara('majo018',300,ow=0),930,1520)   # 左上・右下のキャラ（白フチなし）
     T=layer()
     x,tw=text(T,'どんぐり共和国で買える！',70,W/2,795,DARK,stw=12)
     d=ImageDraw.Draw(T)
     for sx,ex in ((x-66,x-32),(x+tw+66,x+tw+32)): d.line((sx,758,ex,832),fill=DARK,width=9)
     text(T,'ジブリの秋冬グッズ紹介',92,W/2,925,GREEN,stw=18,maxw=1000)
     pill(T,W/2,1062,'vol.1',58,ORANGE,pad=60,h=100)
-    return P,T
-TP,TT=thumb_layers()
+    return CH,P,T
+TCH,TP,TT=thumb_layers(); TPL=swayed(TP,0,amp=0)   # サムネの商品は動かさない
 
 # ---------- 最後：まとめ ----------
 def end_layer():
@@ -151,20 +166,20 @@ def popped(L,k,delay=0):
     o=layer(); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
 ENDL=end_layer()
+ENDC=[sway_item(chara('totoro044',250),150,1600),sway_item(chara('majo018',260),830,1600)]   # 最後のキャラ（ゆらゆら）
 def frames(kind,n,i):
     if kind=='fol':
         for _ in range(n): yield FOLLOW
         return
     if kind=='hook':
-        base=GRID.convert('RGBA'); base.alpha_composite(TP); base.alpha_composite(TT); first=base.convert('RGB')
-        # 最初のフレーム＝サムネ。そのあと見出しが「ポンッ」と弾む
+        # 最初のフレーム＝サムネ。商品は止めたまま、見出しは0.35秒後に「ポンッ」と弾む
         for k in range(n):
-            if k==0 or k<int(0.35*FPS): yield first; continue
-            im=GRID.convert('RGBA'); im.alpha_composite(TP); im.alpha_composite(popped(TT,k,int(0.35*FPS))); yield im.convert('RGB')
+            im=GRID.convert('RGBA'); im.alpha_composite(TCH); im.alpha_composite(TPL)
+            im.alpha_composite(TT if k<int(0.35*FPS) else popped(TT,k,int(0.35*FPS))); yield im.convert('RGB')
         return
     if kind=='end':
         for k in range(n):
-            im=GRID.convert('RGBA'); im.alpha_composite(popped(ENDL,k))
+            im=GRID.convert('RGBA'); im.alpha_composite(swayed(ENDC,k/FPS)); im.alpha_composite(popped(ENDL,k))
             g=k/FPS; tq=0.2; tc=tq+wdur('q')+0.25
             if g>=tq: im.alpha_composite(popped(QL,int((g-tq)*FPS)))
             if g>=tc: im.alpha_composite(popped(CTAL,int((g-tc)*FPS)))
@@ -173,7 +188,7 @@ def frames(kind,n,i):
     pg=PAGES[i]; B=scene_bg(pg[5]); C,P,R,CR=page_layers(i,pg); ST=sub_layer(pg[7]); nd=wdur(pg[0])
     for k in range(n):
         g=k/FPS; im=zoomed(B,k/max(n-1,1)).convert('RGBA')
-        c=popped(C,k,3); im.alpha_composite(c) if c else None
+        c=popped(swayed(C,g),k,3); im.alpha_composite(c) if c else None
         im.alpha_composite(popped(P,k))
         r=popped(R,k,int(0.5*FPS)); im.alpha_composite(r) if r else None
         if 0.25<=g<0.25+nd+0.3: im.alpha_composite(ST)
