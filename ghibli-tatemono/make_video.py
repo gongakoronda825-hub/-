@@ -86,7 +86,7 @@ d_=0.15+wdur('q')+0.25+wdur('cta')+0.6; tl.append(('end',t,d_)); t+=d_
 d_=0.1+wdur('fol')+0.5; tl.append(('fol',t,d_)); t+=d_
 TOT=t; print('total',round(TOT,2))
 
-MONT=[big(Image.open(AL+k+'_after.jpg')) for k in ('bus','kokuriko','izakaya','sento','drawers','doma','engawa')]
+MONT=[big(Image.open(AL+k+'_after.jpg')) for k in ('bus','kokuriko','izakaya','sento')]
 def thumb_layer():
     # サムネ＝最初のフレーム。見出しの型（＼○○／小さめ黒＋大きい緑＋オレンジ帯）、中央そろえ・y=240〜1680の内側
     L=layer(); INK=(40,36,32)
@@ -104,8 +104,8 @@ def frames(kind,n):
     if kind in ('hook','end'):
         if kind=='hook':
             for k in range(n):
-                g=k/FPS; i=int(g/0.35); B=MONT[i%len(MONT)]; im=zoomed(B,min(1,(g-i*0.35)/0.35)*0.5).convert('RGBA')
-                if i>0 and g-i*0.35<2/FPS: im=Image.blend(im,Image.new('RGBA',im.size,(255,255,255,255)),0.5)
+                g=k/FPS; HI=n/FPS/len(MONT); i=min(int(g/HI),len(MONT)-1); B=MONT[i]; im=zoomed(B,min(1,(g-i*HI)/HI)*0.5).convert('RGBA')
+                if i>0 and g-i*HI<2/FPS: im=Image.blend(im,Image.new('RGBA',im.size,(255,255,255,255)),0.5)
                 im.alpha_composite(THUMB); yield im.convert('RGB')
             return
         B=ENDBG
