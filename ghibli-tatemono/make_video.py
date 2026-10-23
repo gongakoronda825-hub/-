@@ -61,7 +61,7 @@ def prep_kokuriko():
     dd=np.abs(np.asarray(a,np.int16)-np.asarray(b,np.int16)).max(2); m=Image.fromarray(((dd>18)*255).astype(np.uint8)).filter(ImageFilter.MaxFilter(5)).filter(ImageFilter.MinFilter(3))
     c=a.convert('RGBA'); c.putalpha(m); c.save(AL+'kokuriko_chars.png')
 prep_kokuriko()
-SCENES=[('izakaya','鍵屋（居酒屋）'),('kokuriko','大和屋本店（乾物屋）'),('drawers','武居三省堂（文具店）'),('sento','子宝湯（銭湯）'),('engawa','縁側'),('bus','ボンネットバス'),('garden','縁側から見た庭'),('doma','農家の土間'),('gate','木の門')]
+SCENES=[('drawers','武居三省堂（文具店）'),('izakaya','鍵屋（居酒屋）'),('kokuriko','大和屋本店（乾物屋）'),('sento','子宝湯（銭湯）'),('engawa','縁側'),('bus','ボンネットバス'),('garden','縁側から見た庭'),('doma','農家の土間'),('gate','木の門')]
 SUB={'hook':'東京に、ジブリの世界\nそのままの場所があるって\n知ってた？','drawers':'壁一面の引き出しは\n釜爺のボイラー室にそっくり！','izakaya':'千尋のお父さんとお母さんが\n夢中で食べてそう','sento':'まるで油屋の大浴場！',
 'engawa':'サツキとメイが走り回った\nあの家みたい','bus':'となりでトトロが\n雨宿りしてそう','garden':'カオナシもひと休み','doma':'もののけ姫の世界\nジコ坊の雑炊が食べたくなる','kokuriko':'俊と海がコロッケを買った\nあの商店街みたい！','garden':'カオナシもひと休み\n夏休みのおばあちゃんちみたい','gate':'門の奥には\nこだまやトトロが…？',
 'q':'あなたはどの場所に\n行きたい？','cta':'入場料は一般400円\n保存して行くときの参考に！'}
