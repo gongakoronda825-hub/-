@@ -67,7 +67,7 @@ def bg_frames(B,n):
         yield B.resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh)).convert('RGBA')
 
 # ---------- イベントカード ----------
-CARD=(CX-440,260,CX+440,1320)
+CARD=(CX-440,410,CX+440,1470)  # 上のTikTokボタンを避けて下寄せ
 def card_base(num,area,title):
     L=layer(); d=ImageDraw.Draw(L)
     sh=layer(); ImageDraw.Draw(sh).rounded_rectangle((CARD[0]+4,CARD[1]+16,CARD[2]+4,CARD[3]+16),44,fill=(0,0,0,120)); L.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)))
@@ -183,22 +183,22 @@ EVLIST=[('1','ジブリパーク展 横須賀展','2027.2.11〜5.14'),('2','舞�
 ('4','ジブリパーク 秋のどんどこ祭り','10.30〜11.22'),('5','「禅とジブリ」京都展','〜12.6'),('6','金曜ロードショーとジブリ展 佐賀','11.3〜2027.2.14'),('7','『白隠さんの禅』京都','12.17〜2027.1.11')]
 def list_layer():
     L=layer(); d=ImageDraw.Draw(L)
-    d.rounded_rectangle((CX-450,260,CX+450,1380),44,fill=(255,252,246,255),outline=WHITE,width=10)
-    text(L,'ジブリイベント予定表',62,CX,350,GREEN); text(L,'2026年10月23日時点',28,CX,415,GRAY)
+    d.rounded_rectangle((CX-450,410,CX+450,1530),44,fill=(255,252,246,255),outline=WHITE,width=10)
+    text(L,'ジブリイベント予定表',62,CX,500,GREEN); text(L,'2026年10月23日時点',28,CX,565,GRAY)
     for j,(n,t,dt) in enumerate(EVLIST):
-        y=470+j*128; d.rounded_rectangle((CX-410,y,CX+410,y+110),26,fill=(240,233,222,255))
+        y=620+j*128; d.rounded_rectangle((CX-410,y,CX+410,y+110),26,fill=(240,233,222,255))
         d.ellipse((CX-390,y+25,CX-330,y+85),fill=ORANGE); text(L,n,36,CX-360,y+55,WHITE)
         text(L,t,34,CX-305,y+36,INK,anchor='l',maxw=700); text(L,dt,30,CX-305,y+80,ORANGE,anchor='l')
     return L
-QL=layer(); pill(QL,CX,1470,'あなたはどれに行く？',54,ORANGE,pad=40,h=96)
-CTAL=layer(); pill(CTAL,CX,1470,'一緒に行く人に送ってね！',54,GREEN,pad=40,h=96)
+QL=layer(); pill(QL,CX,1640,'あなたはどれに行く？',54,ORANGE,pad=40,h=96)
+CTAL=layer(); pill(CTAL,CX,1640,'一緒に行く人に送ってね！',54,GREEN,pad=40,h=96)
 
 # ---------- 字幕 ----------
 SUB={'e1':'まずは横須賀！\nジブリパーク展が来年開催','e2':'舞台『千と千尋』が\n全国ツアー！','e3':'今日から耳すま＆アリエッティが\nIMAXに！','e4':'ジブリパークは\n秋のどんどこ祭り','e5':'京都の「禅とジブリ」展は\n12月6日まで',
 'e6':'佐賀で初めての\n金曜ロードショーとジブリ展','e7':'12月17日からは\n『白隠さんの禅』'}
 def sub_layer(t):
     L=layer(); ls=t.split('\n')
-    for j,l in enumerate(ls): text(L,l,46,CX,1440+(j-(len(ls)-1)/2)*64,WHITE,stw=8,stc=(20,20,20))
+    for j,l in enumerate(ls): text(L,l,46,CX,1600+(j-(len(ls)-1)/2)*64,WHITE,stw=8,stc=(20,20,20))
     return L
 
 # ---------- タイムライン ----------
