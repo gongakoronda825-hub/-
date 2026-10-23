@@ -109,21 +109,42 @@ def sticker(name,h,ow=10):
     big_=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big_.alpha_composite(im,(pad,pad))
     A=big_.getchannel('A').point(lambda v:255 if v>90 else 0); o=A.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
     out=Image.new('RGBA',big_.size,(0,0,0,0)); w_=Image.new('RGBA',big_.size,(255,255,255,0)); w_.putalpha(o); out.alpha_composite(w_); out.alpha_composite(big_); return out
+def sky_card(w,h,r=44):
+    # 料金表の地：青空＋雲＋下に草の生えた地面
+    import random; rnd=random.Random(7)
+    sky=np.zeros((h,w,3),np.float32); t=np.linspace(0,1,h)[:,None]
+    sky[:]=(np.array([96,178,236])*(1-t)+np.array([200,234,250])*t)[:,None,:].reshape(h,1,3)
+    C=Image.fromarray(sky.astype(np.uint8)).convert('RGBA')
+    cl=Image.new('RGBA',(w,h),(0,0,0,0)); dc=ImageDraw.Draw(cl)
+    for cx,cy,sc in [(140,120,1.0),(720,90,1.2),(470,230,0.8),(820,420,0.9),(90,520,0.8),(600,640,1.0),(250,820,0.9)]:
+        for dx,dy,rx,ry in [(-60,10,55,38),(-15,-15,60,48),(40,0,58,42),(85,15,45,32),(10,20,90,30)]:
+            dc.ellipse((cx+dx*sc-rx*sc,cy+dy*sc-ry*sc,cx+dx*sc+rx*sc,cy+dy*sc+ry*sc),fill=(255,255,255,235))
+    C.alpha_composite(cl.filter(ImageFilter.GaussianBlur(2)))
+    gr=Image.new('RGBA',(w,h),(0,0,0,0)); dg=ImageDraw.Draw(gr); top=h-190
+    pts=[(x,top+18*math.sin(x/90)+10*math.sin(x/37)) for x in range(0,w+1,6)]
+    dg.polygon(pts+[(w,h),(0,h)],fill=(110,184,72,255))
+    dg.polygon([(x,y+45) for x,y in pts]+[(w,h),(0,h)],fill=(86,160,58,255))
+    for _ in range(420):
+        x=rnd.uniform(0,w); y0=top+18*math.sin(x/90)+10*math.sin(x/37)+rnd.uniform(-2,90); hgt=rnd.uniform(14,34); lean=rnd.uniform(-8,8)
+        col=rnd.choice([(70,140,50,255),(130,200,85,255),(96,170,64,255)])
+        dg.line((x,y0,x+lean,y0-hgt),fill=col,width=3)
+    C.alpha_composite(gr)
+    m=Image.new('L',(w,h),0); ImageDraw.Draw(m).rounded_rectangle((0,0,w-1,h-1),r,fill=255); C.putalpha(m); return C
 def fee_layer():
     # 最後：観覧料を表にしたカード
     L=layer(); d=ImageDraw.Draw(L); X0,X1,Y0,Y1=CX-450,CX+450,330,1400; INK=(45,40,36); GRAY=(120,110,100); RED=(206,72,80)
     sh=layer(); ImageDraw.Draw(sh).rounded_rectangle((X0+4,Y0+16,X1+4,Y1+16),44,fill=(0,0,0,130)); L.alpha_composite(sh.filter(ImageFilter.GaussianBlur(14)))
-    d.rounded_rectangle((X0,Y0,X1,Y1),44,fill=(255,252,246,255),outline=WHITE,width=10)
+    L.alpha_composite(sky_card(int(X1-X0),int(Y1-Y0)),(int(X0),int(Y0))); d=ImageDraw.Draw(L); d.rounded_rectangle((X0,Y0,X1,Y1),44,outline=WHITE,width=10)
     pill(L,CX,Y0,'江戸東京たてもの園',46,ORANGE,pad=40,h=84)
-    text(L,'個人観覧料',72,CX,Y0+130,GREEN); text(L,'（通常）',30,CX,Y0+196,GRAY)
-    text(L,'料金',28,CX+170,Y0+262,GRAY,anchor='r'); text(L,'団体',28,X1-50,Y0+262,GRAY,anchor='r')
+    text(L,'個人観覧料',72,CX,Y0+130,GREEN,stw=12); text(L,'（通常）',30,CX,Y0+196,INK,stw=6)
+    text(L,'料金',28,CX+170,Y0+262,INK,anchor='r',stw=6); text(L,'団体',28,X1-50,Y0+262,INK,anchor='r',stw=6)
     rows=[('一般（大人）','400円','320円'),('大学生・専修・各種学校','320円','250円'),('高校生','200円','160円'),('65歳以上','200円','160円'),('中学生以下','無料',None)]
     for j,(a,b,c) in enumerate(rows):
-        y=Y0+300+j*140; d.rounded_rectangle((X0+36,y,X1-36,y+120),28,fill=(242,235,224,255))
+        y=Y0+300+j*140; R_=layer(); ImageDraw.Draw(R_).rounded_rectangle((X0+36,y,X1-36,y+120),28,fill=(255,252,246,210)); L.alpha_composite(R_)
         text(L,a,38 if len(a)<8 else 32,X0+66,y+60,INK,anchor='l')
         if c: text(L,b,52,CX+170,y+60,ORANGE,anchor='r'); text(L,c,32,X1-66,y+60,GRAY,anchor='r')
         else: pill(L,CX+150,y+60,'無料！',46,RED,pad=40,h=82)
-    text(L,'出典：江戸東京たてもの園 公式サイト',22,CX,Y1-34,GRAY,w=800)
+    text(L,'出典：江戸東京たてもの園 公式サイト',22,CX,Y1-34,WHITE,w=800,stw=4,stc=(40,80,30))
     # カードのすみにキャラ（カードの後ろ）
     B=layer()
     for n,h,x,y in [('totoro044',230,X1-60,Y0-70),('totoro018',260,X0+40,Y1+90),('chihiro019',280,X1-40,Y1+100)]:
