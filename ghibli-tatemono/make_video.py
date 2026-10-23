@@ -95,7 +95,7 @@ d_=0.15+wdur('cta')+0.25+wdur('q')+0.8; tl.append(('end',t,d_)); t+=d_
 d_=0.1+wdur('fol')+0.5; tl.append(('fol',t,d_)); t+=d_
 TOT=t; print('total',round(TOT,2))
 
-MONT=[big(Image.open(AL+k+'_after.jpg')) for k in ('bus','kokuriko','izakaya','sento')]
+MONT=[big(Image.open(AL+k+'_after.jpg')) for k in ('bus','engawa','izakaya','sento')]
 def thumb_layer():
     # サムネ＝最初のフレーム。見出しの型（＼○○／小さめ黒＋大きい緑＋オレンジ帯）、中央そろえ・y=240〜1680の内側
     L=layer(); INK=(40,36,32)
