@@ -158,11 +158,17 @@ def corner_set(names,h=230):
     for j,(n,(x,y,_)) in enumerate(zip(names,CORN)):
         c=chara(n,h); out.append((c,x,y,j))
     return out
+def safe(L,s=0.9,x0=10,y0=410):
+    # 右のいいね・コメントのボタンを避ける：前景を0.9倍にして左へ寄せる（上端 y0 は固定）
+    o=layer(); o.alpha_composite(L.resize((int(W*s),int(H*s)),Image.LANCZOS),(x0,int(y0-y0*s))); return o
+_cl={}
 def chars_layer(cs,g):
-    L=layer()
-    for c,x,y,j in cs:
-        L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
-    return L
+    k=id(cs)
+    if k not in _cl:
+        L=layer()
+        for c,x,y,j in cs: L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
+        _cl[k]=L if cs is CHS[0] else safe(L)
+    return _cl[k]
 CHS=[[('totoro018',260,100,900),('chihiro019',260,980,900)],
 ['totoro018','totoro044','totoro004','majo018'],['chihiro019','chihiro022','chihiro016','chihiro045'],['mimi032','mimi015','karigurashi033','mimi002'],
 ['majo011','majo018','mononoke015','mononoke029'],['kimitachi027','kimitachi018','kimitachi047','kimitachi031'],['totoro004','chihiro019','majo018','mimi032'],[],[],[]]
@@ -190,16 +196,18 @@ def list_layer():
         d.ellipse((CX-390,y+25,CX-330,y+85),fill=ORANGE); text(L,n,36,CX-360,y+55,WHITE)
         text(L,t,34,CX-305,y+36,INK,anchor='l',maxw=700); text(L,dt,30,CX-305,y+80,ORANGE,anchor='l')
     return L
-QL=layer(); pill(QL,CX,1640,'あなたはどれに行く？',54,ORANGE,pad=40,h=96)
-CTAL=layer(); pill(CTAL,CX,1640,'一緒に行く人に送ってね！',54,GREEN,pad=40,h=96)
+QL=layer(); pill(QL,CX,1640,'あなたはどれに行く？',54,ORANGE,pad=40,h=96); QL=safe(QL)
+CTAL=layer(); pill(CTAL,CX,1640,'一緒に行く人に送ってね！',54,GREEN,pad=40,h=96); CTAL=safe(CTAL)
 
 # ---------- 字幕 ----------
-SUB={'e1':'まずは横須賀！\nジブリパーク展が来年開催','e2':'舞台『千と千尋』が\n全国ツアー！','e3':'今日から耳すま＆アリエッティが\nIMAXに！','e4':'ジブリパークは\n秋のどんどこ祭り','e5':'京都の「禅とジブリ」展は\n12月6日まで',
+SUB={'e1':'まずは横須賀！\nジブリパーク展が来年開催','e2':'舞台『千と千尋』が\n全国ツアー！','e3':'10月23日から耳すま＆アリエッティが\nIMAXに！','e4':'ジブリパークは\n秋のどんどこ祭り','e5':'京都の「禅とジブリ」展は\n12月6日まで',
 'e6':'佐賀で初めての\n金曜ロードショーとジブリ展','e7':'12月17日からは\n『白隠さんの禅』'}
+_sl={}
 def sub_layer(t):
+    if t in _sl: return _sl[t]
     L=layer(); ls=t.split('\n')
     for j,l in enumerate(ls): text(L,l,46,CX,1600+(j-(len(ls)-1)/2)*64,WHITE,stw=8,stc=(20,20,20))
-    return L
+    _sl[t]=safe(L); return _sl[t]
 
 # ---------- タイムライン ----------
 def wdur(k):
@@ -209,9 +217,9 @@ def rd(p):
     return a.reshape(-1,ch).mean(1) if ch>1 else a
 #   (種類, 背景, 前景, ナレーション, 効果音)
 SEG=[('hook','navy',hook_layer(),['hook'],'kira1'),
-('ev',scene_bg('totoro40'),ev1(),['e1'],'sceneswitch1'),('ev',scene_bg('chihiro32',0.3),ev2(),['e2'],'sceneswitch1'),('ev',scene_bg('mimi33'),ev3(),['e3'],'sceneswitch1'),
-('ev',scene_bg('majo2'),ev4(),['e4'],'sceneswitch1'),('ev',scene_bg('kimitachi46'),ev5(),['e5'],'sceneswitch1'),('ev',scene_bg('totoro1',0.3),ev6(),['e6'],'sceneswitch1'),
-('ev','navy',ev7(),['e7'],'sceneswitch1'),('end','navy',list_layer(),['q','cta'],'shine2'),('fol',None,None,['fol'],None)]
+('ev',scene_bg('totoro40'),safe(ev1()),['e1'],'sceneswitch1'),('ev',scene_bg('chihiro32',0.3),safe(ev2()),['e2'],'sceneswitch1'),('ev',scene_bg('mimi33'),safe(ev3()),['e3'],'sceneswitch1'),
+('ev',scene_bg('majo2'),safe(ev4()),['e4'],'sceneswitch1'),('ev',scene_bg('kimitachi46'),safe(ev5()),['e5'],'sceneswitch1'),('ev',scene_bg('totoro1',0.3),safe(ev6()),['e6'],'sceneswitch1'),
+('ev','navy',safe(ev7()),['e7'],'sceneswitch1'),('end','navy',safe(list_layer()),['q','cta'],'shine2'),('fol',None,None,['fol'],None)]
 GAP=0.25; tl=[]; t=0
 for s in SEG:
     d_=0.15+sum(wdur(k)+GAP for k in s[3])+0.45; tl.append((t,d_)+s); t+=d_
