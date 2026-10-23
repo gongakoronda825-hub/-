@@ -89,7 +89,7 @@ LEAVES=Image.blend(LEAVES,Image.new('RGB',(W,H),(0,0,0)),0.22)   # 商品と見�
 #   (ナレーション, 作品名, 商品名, 価格, 写真, 背景の場面写真, キャラ(左下,右下), 字幕)
 PAGES=[('p1','となりのトトロ／魔女の宅急便','ボタン付ストール','各5,280円',['1_2','2_1'],'totoro040',['totoro018','majo018'],'ボタンで留めれば\nポンチョみたいに羽織れる！'),
 ('p2','となりのトトロ／ハウルの動く城','ちいさな加湿器','各5,280円',['65_2','67_2'],'howl016',['totoro044','howl035'],'オカリナやフライパンから\nミストが出てくる！'),
-('p3','となりのトトロ','カーディガン 夜空','13,200円',['64_1','64_3'],'totoro001',['totoro004','totoro018'],'背中には\nコマで夜空を飛ぶトトロ'),
+('p3','となりのトトロ','シルエットひざ掛け','各3,300円',['12_1','13_2'],'totoro001',['totoro004','totoro018'],'オフィスでもおうちでも\n使いやすいシルエット柄'),
 ('p4','魔女の宅急便','ウルスラのブランケット','16,500円',['20_2','20_7'],'majo002',['majo011','majo044'],'ウール100％の\nハーフ毛布'),
 ('p5','となりのトトロ','ひざ掛け「星夜の音」','3,300円',['4_1'],'totoro029',['totoro044','totoro018'],'星空の下で\nオカリナを吹くトトロたち'),
 ('p6','となりのトトロ','大トトロ ふわふわトート','5,280円',['55_1','55_8'],'totoro044',['totoro044','totoro004'],'荷物を入れると\nまんまるに！'),
@@ -119,10 +119,10 @@ def sub_layer(t):
 # ---------- サムネ（つかみの最初のフレーム） ----------
 def thumb_layers():
     xs=[200,435,670,900]
-    top=[('65_8',-7),('1_8',5),('55_1',-5),('67_8',7)]; bot=[('37_1',6),('4_7',-5),('64_8',5),('44_4',-7)]
+    top=[('65_8',-7),('1_8',5),('55_1',-5),('67_8',7)]; bot=[('37_1',6),('4_7',-5),('13_3',5),('44_4',-7)]
     P=[sway_item(sticker(CUT+n+'.png',250,330,r),xs[k],520+(30 if k%2 else 0)) for k,(n,r) in enumerate(top)]
     P+=[sway_item(sticker(CUT+n+'.png',250,330,r),xs[k],1350-(30 if k%2 else 0)) for k,(n,r) in enumerate(bot)]
-    CH=layer(); paste(CH,chara('totoro018',290,ow=0),105,395); paste(CH,chara('majo018',300,ow=0),930,1520)   # 左上・右下のキャラ（白フチなし）
+    CH=layer(); paste(CH,chara('totoro018',490,ow=0),140,255); paste(CH,chara('majo018',400,ow=0),905,1725)   # 左上・右下のキャラ（白フチなし）
     T=layer()
     x,tw=text(T,'どんぐり共和国で買える！',70,W/2,795,DARK,stw=12)
     d=ImageDraw.Draw(T)
@@ -182,8 +182,7 @@ def popped(L,k,delay=0):
     o=layer(); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
 ENDL=end_layer()
-_cb=chara('totoro044',210)   # ネコバスは横長なので、画面からはみ出ないよう左端から置く
-ENDC=[sway_item(_cb,_cb.width/2+15,1610),sway_item(chara('majo018',260),830,1600)]   # 最後のキャラ（ゆらゆら）
+ENDC=[sway_item(chara('totoro018',240),150,1600),sway_item(chara('majo018',260),830,1600)]   # 最後のキャラ（ゆらゆら）
 def frames(kind,n,i):
     if kind=='fol':
         for _ in range(n): yield FOLLOW
