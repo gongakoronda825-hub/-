@@ -122,7 +122,7 @@ def thumb_layers():
     top=[('65_8',-7),('1_8',5),('55_1',-5),('67_8',7)]; bot=[('37_1',6),('4_7',-5),('13_3',5),('44_4',-7)]
     P=[sway_item(sticker(CUT+n+'.png',250,330,r),xs[k],520+(30 if k%2 else 0)) for k,(n,r) in enumerate(top)]
     P+=[sway_item(sticker(CUT+n+'.png',250,330,r),xs[k],1350-(30 if k%2 else 0)) for k,(n,r) in enumerate(bot)]
-    CH=layer(); paste(CH,chara('totoro018',490,ow=0),140,255); paste(CH,chara('majo018',400,ow=0),905,1725)   # 左上・右下のキャラ（白フチなし）
+    CH=layer(); paste(CH,chara('totoro018',490,ow=0),140,255); paste(CH,chara('majo018',560,ow=0),860,1650)   # 左上・右下のキャラ（白フチなし）
     T=layer()
     x,tw=text(T,'どんぐり共和国で買える！',70,W/2,795,DARK,stw=12)
     d=ImageDraw.Draw(T)
