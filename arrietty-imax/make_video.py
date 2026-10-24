@@ -101,7 +101,7 @@ CUTS={
 'c4':dict(lab='CHANGE 02',ttl='音',ph=40,fx=0.7,bg=18,ch=None,rows=[('t','[横と上]にもスピーカー',0),('t','雨、風、虫の声が、まわりから',0.28),('q','普段は気にしない音がずっと聞こえてた\n[ニーヤのゴロゴロ]まで',0.62)]),
 'c5':dict(lab='CHANGE 03',ttl='画質',ph=32,fx=0.4,bg=3,ch=(33,'r'),rows=[('t','ジブリ監修の[4Kリマスター版]',0),('s','昔の映像を、今の高画質で作り直したもの',0.1),('t','レーザー映写で[明るく、色が深い]',0.3),('q','[水のつぶ]や[花の色]まで見えた',0.75)]),
 'c6':dict(lab='SONG',ttl='歌',ph=24,fx=0.6,bg=1,ch=(12,'l'),rows=[('t','[セシル・コルベル]の歌声も',0),('t','IMAXの音響で聴ける',0.3),('s','これ目当てでもいいと思う',0.6)]),
-'c7':dict(lab='AFTER',ttl='観たあと',ph=37,fx=0.4,bg=48,ch=(48,'r'),rows=[('q','アリエッティの側で観てたはずが\n「自分は[翔の側]なんだよな」',0),('s','って気づいて、ちょっとしんどい',0.3),('t','でも、[小さい世界]ってきれいなんだな',0.6)]),
+'c7':dict(lab='AFTER',ttl='観たあと',ph=37,fx=0.4,bg=48,ch=(48,'r'),rows=[('q','アリエッティの側で観てたはずが\n「自分は[翔の側]なんだよな」',0),('s','って気づいて、ちょっとしんどい',0.3),('t','でも、[小さい世界]ってきれいなんだな',0.6),('s','って声も',0.85)]),
 'c8':dict(lab='SCHEDULE',ttl='上映期間',ph=47,fx=0.5,bg=2,ch=(12,'l'),rows=[])}
 
 def head(L,lab,ttl):
@@ -134,19 +134,20 @@ def build(k):
         scr=[Screen(gb(c['ph']),CX,SCR['cy'],SCR['w'],SCR['h'],c.get('fx',0.5))]; y=SCR['cy']+SCR['h']/2+70
     rows=[]
     for r in c['rows']:
-        L,h=row_layer(r); o=layer(); o.alpha_composite(L,(0,int(y))); rows.append((o,r[2])); y+=h
+        L,h=row_layer(r); o=layer(); o.alpha_composite(L,(0,int(y))); rows.append((o,r[2])); y+=h if r[1]!='って声も' else 0
     if k=='c8': rows=c8_rows(y)
     return dict(base=base,scr=scr,ch=(CH[c['ch'][0]],c['ch'][1]) if c['ch'] else None,rows=rows)
 def c8_rows(y):
-    out=[]
-    for j,(lab,dt) in enumerate([('IMAX上映','〜11/2（月）'),('全国の拡大上映','10/30（金）〜11/12（木）')]):
-        L=layer(); yy=y+j*120; d=ImageDraw.Draw(L)
-        d.rounded_rectangle((CX-460,yy,CX+460,yy+100),28,fill=(255,255,255,235),outline=(GOLD if j==0 else DIM)+(255,),width=4)
-        text(L,lab,32,CX-300,yy+50,GOLD,w='Black',maxw=280); text(L,dt,46,CX+130,yy+50,INK,w='Black',maxw=560,shadow=False); out.append((L,0.0 if j==0 else 0.3))
-    L=layer(); t='拡大上映はIMAXではありません（通常の上映）'; w=tlen(t,34)+60
-    ImageDraw.Draw(L).rounded_rectangle((CX-w/2,y+232,CX+w/2,y+292),30,fill=RED); text(L,t,34,CX,y+262,WHITE,w='Black',shadow=False); out.append((L,0.4))
-    L=layer(); text(L,'[迷ってる人]に送ってあげて',54,CX,y+350,INK,w='Black'); out.append((L,0.78))
-    L=layer(); text(L,'※劇場によって設備が違います（レーザーでない劇場、2K上映の劇場あり）',24,CX,y+425,DIM,w='Bold'); out.append((L,0.0))
+    out=[]; L=layer(); d=ImageDraw.Draw(L)
+    d.rounded_rectangle((CX-470,y,CX+470,y+140),40,fill=RED,outline=WHITE,width=6)
+    text(L,'IMAX上映',40,CX-290,y+70,WHITE,w='Black',shadow=False); text(L,'〜11/2（月）',72,CX+130,y+70,WHITE,w='Black',shadow=False,maxw=560)
+    out.append((L,0.0,'pulse'))
+    L=layer(); yy=y+170; d=ImageDraw.Draw(L)
+    d.rounded_rectangle((CX-400,yy,CX+400,yy+84),26,fill=(255,255,255,235),outline=DIM+(255,),width=3)
+    text(L,'全国の拡大上映',28,CX-260,yy+42,SUBC,w='Black',maxw=240,shadow=False); text(L,'10/30（金）〜11/12（木）',36,CX+110,yy+42,SUBC,w='Bold',maxw=500,shadow=False); out.append((L,0.3))
+    L=layer(); text(L,'※拡大上映は[IMAXではありません]（通常の上映）',30,CX,yy+125,SUBC,w='Black'); out.append((L,0.4))
+    L=layer(); text(L,'[迷ってる人]に送ってあげて',52,CX,yy+215,INK,w='Black'); out.append((L,0.78))
+    L=layer(); text(L,'※劇場によって設備が違います（レーザーでない劇場、2K上映の劇場あり）',22,CX,yy+285,DIM,w='Bold'); out.append((L,0.0))
     return out
 def hook():
     L=layer(); sc=Screen(gb(33),540,640,1000,500,0.55)
@@ -197,7 +198,7 @@ def fx_screen(k,i,g,T):
         return dict(w=480*sc,h=520*sc),(lambda im:ImageEnhance.Brightness(im).enhance(0.45)) if off else None
     if k=='c3':
         # 小さくて平らなスクリーン →「大きくて、ゆるく湾曲」でぐわっと広がる
-        x=back((g-T(0)-0.35)/0.9); return dict(w=640+460*x,h=380+190*x,sag=2+44*min(x,1.1)),None
+        u=min(max((g-T(0)-0.2)/2.6,0),1); x=u*u*(3-2*u); return dict(w=640+460*x,h=380+150*x,sag=2+44*x),None
     if k=='c4': return dict(w=700,h=420,cy=800),None
     if k=='c5':
         x0=T(0.1); p=ease((g-x0)/1.1); bright=ease((g-T(0.3))/0.6)
@@ -211,11 +212,11 @@ def fx_screen(k,i,g,T):
 def fx_front(k,L,g,T,G):
     cx,cy,w,h=G['cx'],G['cy'],G['w'],G['h']
     if k=='c3' and g>T(0)+0.3:
-        al=max(0,1-abs(g-T(0)-0.9)/0.6)
+        al=min(1,max(0,(g-T(0)-0.3)/0.3))*max(0,min(1,(T(0)+2.9-g)/0.4))
         if al>0:
             o=layer(); d=ImageDraw.Draw(o)
             for sgn in (-1,1):
-                x=cx+sgn*(w/2-60+30*ease((g-T(0)-0.3)/0.6)); pts=[(x+sgn*34,cy),(x-sgn*20,cy-40),(x-sgn*20,cy+40)]
+                x=cx+sgn*(w/2-60); pts=[(x+sgn*34,cy),(x-sgn*20,cy-40),(x-sgn*20,cy+40)]
                 d.polygon(pts,fill=GOLD+(255,),outline=WHITE+(255,),width=6)
             o.putalpha(o.getchannel('A').point(lambda v:int(v*al))); L.alpha_composite(o)
     if k=='c4':
@@ -264,14 +265,22 @@ def popped(F,j):
     if j>=len(POP): return F
     s=POP[j]; bb=F.getbbox(); c=F.crop(bb); c=c.resize((max(1,int(c.width*s)),max(1,int(c.height*s))),Image.BICUBIC)
     o=layer(); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o
+_bb={}
+def scaled(F,s):
+    k=id(F)
+    if k not in _bb: _bb[k]=F.getbbox()
+    bb=_bb[k]; c=F.crop(bb).resize((int((bb[2]-bb[0])*s),int((bb[3]-bb[1])*s)),Image.BICUBIC)
+    o=layer(); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o
 def frame(k,P,bg,j,n,dur):
     g=j/FPS; im=bg; T=lambda fr:0.15+fr*wdur(k)
     for i,s in enumerate(P['scr']): a,post=fx_screen(k,i,g,T); G=s.draw(im,j/max(n-1,1),a,post)
     if P['ch']:
         ch,side=P['ch']; cx=G['cx']+(G['w']/2-60 if side=='r' else -G['w']/2+60); im.alpha_composite(ch,(int(cx-ch.width/2),int(G['cy']-G['h']/2-ch.height+70)))
     im.alpha_composite(P['base']); fx_front(k,im,g,T,G)
-    for L,fr in P['rows']:
-        a=int((g-(0.15+fr*wdur(k)))*FPS); p=popped(L,a)
+    for r in P['rows']:
+        L,fr=r[0],r[1]; a=int((g-(0.15+fr*wdur(k)))*FPS)
+        if len(r)>2 and a>=len(POP): p=scaled(L,1+0.035*np.sin(np.pi*(a-len(POP))/FPS*1.6)**2)   # 一番伝えたい帯だけゆっくり脈打つ
+        else: p=popped(L,a)
         if p is not None: im.alpha_composite(p)
     return im
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
