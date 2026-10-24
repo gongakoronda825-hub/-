@@ -158,39 +158,36 @@ def rd(p):
 T_HOOK=0.25+wdur('hook')+0.15       # つかみを止めて見せる（「生まれた年から」で流れ始める）
 WIN_START=STRIP_H-H                  # 画面の上端が帯のどこにあるか（最初はいちばん下＝つかみ）
 WIN_END=CEN[2023]-700               # 2023年が y=700 あたりで止まる
-# 解説する年は、話し始めにちょうど画面のまん中（少し上）に来るよう、速さを区間ごとに変える
-NY=(1984,1986,1988,1989,1997,2001,2004,2008,2013,2023)
-T_END=0.3+wdur('end')+0.5; T_FOL=0.1+wdur('fol')+0.4; TARGET=61.0
-def plan(G):
-    narr=[('hook',0.25),('hook2',T_HOOK)]; key=[(T_HOOK,WIN_START)]; e=T_HOOK+wdur('hook2')+G
-    for yr in NY:
-        narr.append((f'n{yr}',e)); key.append((e-0.3,CEN[yr]-H*0.42)); e+=wdur(f'n{yr}')+G
-    tend=max(e-G+0.3,key[-1][0]+0.8); key.append((tend,min(WIN_END,key[-1][1]-40)))
-    narr+=[('end',tend),('fol',tend+T_END+0.1)]
-    return narr,key,tend,tend+T_END+T_FOL
-lo,hi=0.0,4.0
+# 一定の速さで流し、その年がまん中に来たときに話せる解説だけを選ぶ（重なるものは入れない）
+CAND=(1984,1986,1988,1989,1992,1995,1997,2001,2004,2008,2010,2013,2016,2023)
+T_END=0.3+wdur('end')+0.5; T_FOL=0.1+wdur('fol')+0.4; TARGET=61.0; GAPN=0.5
+def plan(SC):
+    V=(WIN_START-WIN_END)/SC; tc=lambda yr: T_HOOK+(WIN_START-(CEN[yr]-H*0.45))/V
+    sel=[]; e=T_HOOK+wdur('hook2')+GAPN
+    for yr in CAND:
+        t0=tc(yr)-0.4
+        if yr==2023:
+            while sel and t0<sel[-1][1]+wdur(f'n{sel[-1][0]}')+GAPN: sel.pop()
+            t0=max(t0,sel[-1][1]+wdur(f'n{sel[-1][0]}')+GAPN if sel else e)
+        elif t0<e: continue
+        sel.append((yr,t0)); e=t0+wdur(f'n{yr}')+GAPN
+    tend=max(T_HOOK+SC+0.3,e-GAPN+0.3)
+    narr=[('hook',0.25),('hook2',T_HOOK)]+[(f'n{yr}',t0) for yr,t0 in sel]+[('end',tend),('fol',tend+T_END+0.1)]
+    return narr,V,tend,tend+T_END+T_FOL
+lo,hi=30.0,80.0
 for _ in range(40):
-    G=(lo+hi)/2
-    if plan(G)[3]>TARGET: hi=G
-    else: lo=G
-NARR,KEY,_tend,TOT=plan(lo); SCROLL=_tend-T_HOOK; print('total',round(TOT,2),'gap',round(lo,2))
-_kt=np.array([k[0] for k in KEY]); _kp=np.array([k[1] for k in KEY])
-def pchip(x,y,xq):
-    # 単調な3次補間：キーの位置は必ず通り、速さの切り替えだけなめらかに
-    h=np.diff(x); dl=np.diff(y)/h; d=np.zeros_like(y)
-    for i in range(1,len(y)-1):
-        if dl[i-1]*dl[i]>0: w1=2*h[i]+h[i-1]; w2=h[i]+2*h[i-1]; d[i]=(w1+w2)/(w1/dl[i-1]+w2/dl[i])
-    d[0]=0; d[-1]=0
-    i=np.clip(np.searchsorted(x,xq)-1,0,len(x)-2); t=(xq-x[i])/h[i]; t=np.clip(t,0,1)
-    h00=2*t**3-3*t**2+1; h10=t**3-2*t**2+t; h01=-2*t**3+3*t**2; h11=t**3-t**2
-    return h00*y[i]+h10*h[i]*d[i]+h01*y[i+1]+h11*h[i]*d[i+1]
-_tt=np.arange(0,TOT+1,1/FPS); _pp=pchip(_kt,_kp,np.clip(_tt,_kt[0],_kt[-1]))
-def win(t): return float(np.interp(t,_tt,_pp))
-def t_at_center(yr): return float(np.interp(-(CEN[yr]-H/2),-_kp,_kt))
+    SCROLL=(lo+hi)/2
+    if plan(SCROLL)[3]>TARGET: hi=SCROLL
+    else: lo=SCROLL
+SCROLL=lo; NARR,V,_tend,TOT=plan(SCROLL); print('total',round(TOT,2),'scroll',round(SCROLL,1),'narr',[k for k,_ in NARR])
+def win(t):
+    if t<T_HOOK: return WIN_START
+    return max(WIN_END,WIN_START-V*(t-T_HOOK))
+def t_at_center(yr): return T_HOOK+(WIN_START-(CEN[yr]-H/2))/V
 SUB={'hook2':'生まれた年から\n探してみてください','n1984':'ナウシカは\nジブリ誕生前の作品','n1986':'ジブリ最初の作品が\nラピュタ','n1988':'トトロと火垂るの墓は\n2本立てで公開',
 'n1989':'キキの声は\n高山みなみさん','n1997':'もののけ姫は\n当時の興行記録を塗り替えた','n2001':'千と千尋は19年間\n興行収入1位だった',
 'n2004':'ハウルの声は\n木村拓哉さん','n2008':'ポニョの歌は\n大橋のぞみちゃんと藤岡藤巻','n2013':'風立ちぬは\n引退作と言われた',
-'n2023':'君たちはどう生きるかは\nアカデミー賞を受賞'}
+'n2023':'君たちはどう生きるかは\nアカデミー賞を受賞','n1992':'紅の豚の主人公は\nブタになった飛行機乗り','n1995':'耳をすませばの監督は\n近藤喜文さん','n2010':'アリエッティは\n米林宏昌さんの初監督作品','n2016':'レッドタートルは\n海外の監督と組んだ作品'}
 def sub_layer(t):
     L=Image.new('RGBA',(W,H),(0,0,0,0)); ls=t.split('\n'); d=ImageDraw.Draw(L)
     wmax=max(tlen(l,42) for l in ls); h=len(ls)*60+40; cy=1560
