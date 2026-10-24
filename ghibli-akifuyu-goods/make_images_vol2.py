@@ -78,7 +78,7 @@ def item_layer(k,it,base):
     return L
 def head_layer(p):
     L=layer(); pill(L,W/2,330,f'ジブリの秋冬グッズ vol.2　{p+1}/{len(PAGES)}',36,GREEN,pad=40,h=70)
-    text(L,CREDIT,24,W/2,1590,GRAY,w=800,stw=6); return L
+    text(L,CREDIT,24,W/2,1590,WHITE,w=800,stw=5,stc=(0,0,0)); return L
 def chars_layer(p):
     L=layer()
     for n,cx in zip(PAGE_CHARS[p],(215,905)):
@@ -109,7 +109,7 @@ def thumbnail():
 
 if __name__=='__main__':
     thumbnail().save(OUT+'00_thumbnail.png')
-    BG=Image.open(TK+'bg_grid_brown.jpg').convert('RGBA').resize((W,H))
+    BG=Image.open(TK+'bg_autumn_leaves.jpg').convert('RGBA').resize((W,H),Image.LANCZOS)   # 紹介ページ：石畳の落ち葉
     for p,pg in enumerate(PAGES):
         f=BG.copy()
         for L in (head_layer(p),chars_layer(p),*[item_layer(k,it,p*4) for k,it in enumerate(pg)]): f.alpha_composite(shifted(L))
