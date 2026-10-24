@@ -11,14 +11,14 @@ WHITE=(255,255,255); ORANGE=(236,128,60); YEL=(255,214,0); GREEN=(46,125,62); DA
 # ---------- 年表（公開年：ジブリ公式／出来事：いま20〜30代の女性が懐かしい話題。言い回しはやわらかく） ----------
 #   (年, [ジブリ作品], 場面写真, その年の出来事)
 TL=[(1984,['風の谷のナウシカ'],'nausicaa010','福沢諭吉の\n一万円札が出た'),(1986,['天空の城ラピュタ'],'laputa005','ドラクエが\n出た'),
-(1988,['となりのトトロ','火垂るの墓'],'totoro002','東京ドームが\nできた'),(1989,['魔女の宅急便'],'majo001','ゲームボーイが\n出た年'),
+(1988,['となりのトトロ','火垂るの墓'],'totoro002','東京ドームが\nできた'),(1989,['魔女の宅急便'],'majo001','ゲームボーイが\n出た'),
 (1991,['おもひでぽろぽろ'],'omoide003','ジュリアナ東京が\nオープン'),(1992,['紅の豚'],'porco002','セーラームーンが\n始まった'),
 (1994,['平成狸合戦ぽんぽこ'],'tanuki010','プレステが\n出た'),(1995,['耳をすませば'],'mimi005','プリクラが\n登場'),
 (1996,[],None,'たまごっち、ポケモン赤緑ブーム'),(1997,['もののけ姫'],'mononoke003','アニメの\nポケモンが\n始まった'),
 (1998,[],None,'さくらちゃん、モー娘。デビュー'),(1999,['ホーホケキョ となりの山田くん'],'yamada009','おジャ魔女どれみが\n始まった'),
 (2000,[],None,'ハム太郎が始まった'),(2001,['千と千尋の神隠し'],'chihiro003','USJと\nディズニーシーが\nできた'),
 (2002,['猫の恩返し'],'baron002','東京ミュウミュウが\n始まった'),(2004,['ハウルの動く城'],'howl010','プリキュア、\nラブベリ登場'),
-(2005,[],None,'ニンテンドッグスで犬を育ててた'),(2006,['ゲド戦記'],'ged007','Wii が\n出た年'),
+(2005,[],None,'ニンテンドッグスで犬を育ててた'),(2006,['ゲド戦記'],'ged007','Wii が\n出た'),
 (2008,['崖の上のポニョ'],'ponyo006','iPhone が\n日本に上陸'),(2010,['借りぐらしのアリエッティ'],'karigurashi002','AKBの\nヘビロテが\nはやった'),
 (2011,['コクリコ坂から'],'kokurikozaka003','LINE が\n始まった'),(2012,[],None,'スカイツリーができた'),
 (2013,['風立ちぬ','かぐや姫の物語'],'kazetachinu002','「今でしょ」「じぇじぇじぇ」がはやった'),(2014,['思い出のマーニー'],'marnie006','アナ雪と\n妖怪ウォッチ'),
@@ -61,21 +61,32 @@ def still(n,w,h):
 
 # ---------- 年表の帯（上が新しい年。下から上へ積む） ----------
 # いつものデザイン：方眼の背景＋縦の年表の線＋ジブリの年は白いカード（緑フチ）、ほかの年は白い札
-AX=250; XC=290; XR=900       # 年表の線・内容の左端・右端（右のいいね等を避ける）
+AX=250; XC=290; XR=830       # 年表の線・内容の左端・右端（右のいいね等を避ける）
 LINE=(46,125,62); INK=(45,40,36); SUBG=(120,110,100)
 def card_shadow(L,box,r=30,a=110):
     sh=Image.new('RGBA',L.size,(0,0,0,0)); ImageDraw.Draw(sh).rounded_rectangle((box[0]+4,box[1]+10,box[2]+4,box[3]+10),r,fill=(0,0,0,a)); L.alpha_composite(sh.filter(ImageFilter.GaussianBlur(10)))
+def chara(n,h):
+    im=Image.open(S+f'cut/{n}.png').convert('RGBA'); im.putalpha(im.getchannel('A').point(lambda v:0 if v<40 else v))
+    im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS); ow=10; pad=30
+    big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
+    A_=big.getchannel('A').point(lambda v:255 if v>90 else 0); o=A_.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
+    out=Image.new('RGBA',big.size,(0,0,0,0)); w_=Image.new('RGBA',big.size,(255,255,255,0)); w_.putalpha(o); out.alpha_composite(w_); out.alpha_composite(big); return out
+FCH={1984:'nausicaa007',1986:'laputa005',1988:'totoro018',1989:'majo018',1991:'omoide002',1992:'porco010',1994:'tanuki010',1995:'mimi032',
+1997:'mononoke003',1999:'yamada010',2001:'chihiro019',2002:'baron002',2004:'howl035',2008:'ponyo003_c',2010:'karigurashi033',2011:'kok_shunumi',
+2013:'kaguyahime009',2014:'marnie001_c',2023:'kimitachi027'}   # 映画の年のキャラ（場面写真の切り抜き）
 def row(y_,films,stl,ev):
     ev=ev.replace('\n','')
     if films:
         h=470; L=Image.new('RGBA',(W,h),(0,0,0,0)); d=ImageDraw.Draw(L); box=(XC,14,XR,h-14)
+        if y_ in FCH:   # その映画のキャラをカードの右うしろに
+            c=chara(FCH[y_],250); L.alpha_composite(c,(int(XR+95-c.width/2),int(h-8-c.height)))
         card_shadow(L,box); d.rounded_rectangle(box,30,fill=(255,253,248,255),outline=GREEN,width=5)
         text(L,'／'.join(films),46,(XC+XR)/2,72,GREEN,anchor='m',maxw=XR-XC-50)
         if y_ in SECOND:
-            sw,sh_=300,168; L.alpha_composite(still(stl,sw,sh_),(XC+22,114)); L.alpha_composite(still(SECOND[y_],sw,sh_),(XR-22-sw-12,114))
+            sw,sh_=250,140; L.alpha_composite(still(stl,sw,sh_),(XC+22,114)); L.alpha_composite(still(SECOND[y_],sw,sh_),(XR-22-sw-12,114))
         else:
-            sw,sh_=520,270; L.alpha_composite(still(stl,sw,sh_),(int((XC+XR)/2-(sw+12)/2),108))
-        pill(L,(XC+XR)/2,h-58,'この年 ▶ '+ev,30,(250,236,214),fg=INK,pad=24,h=56,anchor='m',maxw=XR-XC-40)
+            sw,sh_=480,250; L.alpha_composite(still(stl,sw,sh_),(int((XC+XR)/2-(sw+12)/2),108))
+        pill(L,(XC+XR)/2,h-58,ev,30,(250,236,214),fg=INK,pad=24,h=56,anchor='m',maxw=XR-XC-40)
         d.ellipse((AX-26,h/2-26,AX+26,h/2+26),fill=ORANGE,outline=WHITE,width=6)
         text(L,str(y_),58,AX-40,h/2,ORANGE,stw=10,stc=WHITE,anchor='r')
         return L
@@ -113,14 +124,6 @@ STRIP=STRIP.crop((DX,0,W,STRIP_H)); _t=Image.new('RGBA',(W,STRIP_H),(0,0,0,0)); 
 
 # ---------- 背景：いつもの緑の方眼。すみのキャラは年代で入れ替え ----------
 GRID=Image.open(TK+'bg_grid.jpg').convert('RGB').resize((W,H))
-def chara(n,h):
-    im=Image.open(S+f'cut/{n}.png').convert('RGBA'); im.putalpha(im.getchannel('A').point(lambda v:0 if v<40 else v))
-    im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS); ow=10; pad=30
-    big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
-    A_=big.getchannel('A').point(lambda v:255 if v>90 else 0); o=A_.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
-    out=Image.new('RGBA',big.size,(0,0,0,0)); w_=Image.new('RGBA',big.size,(255,255,255,0)); w_.putalpha(o); out.alpha_composite(w_); out.alpha_composite(big); return out
-ERA=[(1984,'totoro018'),(1995,'mimi032'),(2001,'chihiro019'),(2004,'howl035'),(2014,'kimitachi027')]
-ERAC={n:chara(n,300) for _,n in ERA}
 # ---------- タイムライン ----------
 def wdur(k):
     with wave.open(NR+k+'.wav') as w: return w.getnframes()/w.getframerate()
@@ -157,10 +160,6 @@ def popped(L,k):
 def frame(t):
     if t>=T_HOOK+SCROLL+T_END: return FOLLOW
     top=win(t); im=GRID.convert('RGBA')
-    if t>=T_HOOK:
-        cy=top+H/2; cur=max([yr for yr,*_ in TL if CEN[yr]>=cy],default=1984)   # まん中を通りすぎた最新の年
-        c=ERAC[[n for y0,n in ERA if y0<=cur][-1]]; a=3*math.sin(2*math.pi*0.5*t); r=c.rotate(a,Image.BICUBIC,expand=True)
-        im.alpha_composite(r,(int(980-r.width/2),int(1750-r.height)))   # 右下（カードの後ろ）
     im.alpha_composite(STRIP.crop((0,int(top),W,int(top)+H)))
     for k,t0 in NARR:
         if k in SUBL and t0<=t<t0+wdur(k)+0.4: im.alpha_composite(SUBL[k])
