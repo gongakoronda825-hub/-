@@ -158,8 +158,8 @@ def rd(p):
 T_HOOK=0.25+wdur('hook')+0.15       # つかみを止めて見せる（「生まれた年から」で流れ始める）
 WIN_START=STRIP_H-H                  # 画面の上端が帯のどこにあるか（最初はいちばん下＝つかみ）
 WIN_END=CEN[2023]-700               # 2023年が y=700 あたりで止まる
-SCROLL=float(os.environ.get('SCROLL','46')); V=(WIN_START-WIN_END)/SCROLL
-T_END=0.3+wdur('end')+1.2; T_FOL=0.1+wdur('fol')+0.4
+SCROLL=float(os.environ.get('SCROLL','48.1')); V=(WIN_START-WIN_END)/SCROLL
+T_END=0.3+wdur('end')+0.5; T_FOL=0.1+wdur('fol')+0.4
 TOT=T_HOOK+SCROLL+T_END+T_FOL; print('total',round(TOT,2))
 def win(t):
     if t<T_HOOK: return WIN_START
@@ -170,7 +170,7 @@ _e=T_HOOK+wdur('hook2')+0.3
 for yr in (1984,1986,1988,1989,1997,2001,2004,2008,2013,2023):   # その年が画面のまん中あたりに来たら話す（前と重なるときはずらす）
     t0=max(t_at_center(yr)-0.6,_e); NARR.append((f'n{yr}',t0)); _e=t0+wdur(f'n{yr}')+0.3
 LATE=_e-(T_HOOK+SCROLL)
-T_END+=max(0,LATE); T_END+=max(0,61.0-(T_HOOK+SCROLL+T_END+T_FOL)); TOT=T_HOOK+SCROLL+T_END+T_FOL;   # ちょうど61秒に print('total',round(TOT,2))   # 最後の解説が長いぶん、締めを延ばす
+T_END+=max(0,LATE); TOT=T_HOOK+SCROLL+T_END+T_FOL;   # ちょうど61秒に print('total',round(TOT,2))   # 最後の解説が長いぶん、締めを延ばす
 NARR+=[('end',max(T_HOOK+SCROLL+0.3,_e)),('fol',T_HOOK+SCROLL+T_END+0.1)]
 SUB={'hook2':'生まれた年から\n探してみてください','n1984':'ナウシカは\nジブリ誕生前の作品','n1986':'ジブリ最初の作品が\nラピュタ','n1988':'トトロと火垂るの墓は\n2本立てで公開',
 'n1989':'キキの声は\n高山みなみさん','n1997':'もののけ姫は\n当時の興行記録を塗り替えた','n2001':'千と千尋は19年間\n興行収入1位だった',
