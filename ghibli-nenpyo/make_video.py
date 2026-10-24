@@ -85,12 +85,13 @@ def still_path(p,w,h):
     im=Image.open(p).convert('RGB'); s_=max(w/im.width,h/im.height); im=im.resize((int(im.width*s_)+1,int(im.height*s_)+1),Image.LANCZOS)
     x=(im.width-w)//2; y=(im.height-h)//2; c=im.crop((x,y,x+w,y+h)).convert('RGBA'); c.putalpha(rmask(w,h,16))
     o=Image.new('RGBA',(w+12,h+12),(0,0,0,0)); wb=Image.new('RGBA',o.size,WHITE+(255,)); wb.putalpha(rmask(w+12,h+12,20)); o.alpha_composite(wb); o.alpha_composite(c,(6,6)); return o.rotate(5,Image.BICUBIC,expand=True)
+ROWCH={}
 def row(y_,films,stl,ev):
     ev=ev.replace('\n','')
     if films:
         h=470; L=Image.new('RGBA',(W,h),(0,0,0,0)); d=ImageDraw.Draw(L); box=(XC,14,XR,h-14)
         if y_ in FCH:   # その映画のキャラをカードの右うしろに
-            c=chara(FCH[y_],250); L.alpha_composite(c,(int(XR+95-c.width/2),int(h-8-c.height)))
+            c=chara(FCH[y_],250); ROWCH[y_]=(c,XR+95,h-8)   # 帯には描かず、流れる間ゆっくりゆらゆら
         card_shadow(L,box); d.rounded_rectangle(box,30,fill=(255,253,248,255),outline=GREEN,width=5)
         text(L,'／'.join(films),46,(XC+XR)/2,72,GREEN,anchor='m',maxw=XR-XC-50)
         if y_ in SECOND:
@@ -146,6 +147,7 @@ for (yr,*_),r in zip(TL,ROWS):
 # 年表の線（いちばん古い年の少し下から、いちばん新しい年まで）
 d=ImageDraw.Draw(STRIP); d.line((AX,CEN[2023],AX,CEN[1984]+260),fill=WHITE,width=18); d.line((AX,CEN[2023],AX,CEN[1984]+260),fill=LINE,width=8)
 for r,y_ in zip(ROWS,POS): STRIP.alpha_composite(r,(0,y_))
+CHABS=[(c,x-DX,POS[i]+yb) for i,(yr,*_) in enumerate(TL) if yr in ROWCH for c,x,yb in [ROWCH[yr]]]   # 帯の上の位置（下端）
 STRIP.alpha_composite(HOOK,(0,STRIP_H-H))
 STRIP=STRIP.crop((DX,0,W,STRIP_H)); _t=Image.new('RGBA',(W,STRIP_H),(0,0,0,0)); _t.alpha_composite(STRIP,(0,0)); STRIP=_t   # 全体を左へ（DX）
 
@@ -228,6 +230,11 @@ def popped(L,k):
 def frame(t):
     if t>=dict(NARR)['fol']-0.1: return FOLLOW   # 締めのナレーションが終わってから
     top=win(t); im=GRID.convert('RGBA')
+    for j,(c,x,yb) in enumerate(CHABS):   # 映画のキャラ：下を支点に±2°でゆっくりゆらゆら（カードの後ろ）
+        y=yb-top
+        if -50<y<H+c.height:
+            ang=2*math.sin(2*math.pi*0.35*t+j*1.1); r=c.rotate(ang,Image.BICUBIC,expand=True,center=(c.width/2,c.height))
+            im.alpha_composite(r,(int(x-r.width/2),int(y-r.height+(r.height-c.height)/2)))
     dy=WIN_START-top   # つかみのキャラ：下を支点に±3°でゆらゆら（帯と一緒に流れる）
     if dy<H:
         for j,(c,x,yb) in enumerate(HOOKCH):
