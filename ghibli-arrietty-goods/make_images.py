@@ -88,21 +88,25 @@ def chars_layer(p):
 # ---------- サムネ ----------
 def thumbnail():
     f=Image.open(TK+'bg_grid.jpg').convert('RGBA').resize((W,H))
+    CH=Image.new('RGBA',(W,H),(0,0,0,0))   # グッズの後ろに大きくアリエッティと翔
+    a_=sticker(S+'cut/karigurashi033.png',560,640); paste(CH,a_,190,245+a_.height/2)   # 顔がグッズに隠れないよう上の段の上に
+    s_=sticker(S+'cut/karigurashi048.png',520,470); paste(CH,s_,840,960+s_.height/2)    # 顔が帯と下の段のあいだに出るよう右寄せ
+    f.alpha_composite(CH)
     P=Image.new('RGBA',(W,H),(0,0,0,0)); xs=[200,435,670,900]
     def st(n,r):
         if n==11:   # 切り抜きにくいジオラマは写真のまま角丸で
             im=Image.open(A+f'big/{n}.jpg').convert('RGBA').resize((250,250),Image.LANCZOS); im.putalpha(rmask(250,250,24))
             o=Image.new('RGBA',(274,274),(0,0,0,0)); wb=Image.new('RGBA',o.size,WHITE+(255,)); wb.putalpha(rmask(274,274,30)); o.alpha_composite(wb); o.alpha_composite(im,(12,12)); return o.rotate(r,Image.BICUBIC,expand=True)
         return sticker(A+f'cut/{n}.png',250,330,r)
-    for k,(n,r) in enumerate([(1,-7),(8,5),(7,-5),(2,7)]): paste(P,st(n,r),xs[k],520+(30 if k%2 else 0))
-    for k,(n,r) in enumerate([(12,6),(6,-5),(11,5),(4,-7)]): paste(P,st(n,r),xs[k],1350-(30 if k%2 else 0))
+    for k,(n,r) in enumerate([(8,-7),(1,5),(7,-5),(2,7)]): paste(P,st(n,r),[230,455,680,905][k],(640 if k==0 else 590)+(25 if k%2 else 0))
+    for k,(n,r) in enumerate([(12,6),(6,-5),(11,5),(4,-7)]): paste(P,st(n,r),xs[k],1420-(25 if k%2 else 0))
     f.alpha_composite(P)
     T=Image.new('RGBA',(W,H),(0,0,0,0)); x,tw=text(T,'どんぐり共和国で買える！',60,W/2,795,DARK,stw=12)
     d=ImageDraw.Draw(T)
     for sx,ex in ((x-58,x-28),(x+tw+58,x+tw+28)): d.line((sx,762,ex,828),fill=DARK,width=8)
     text(T,'アリエッティ',120,W/2,925,GREEN,stw=18)
     pill(T,W/2,1065,'グッズまとめ',58,ORANGE,pad=60,h=100)
-    f.alpha_composite(T); text(f,'画像出典：どんぐり共和国 そらのうえ店　© Studio Ghibli',24,W/2,1515,GRAY,w=800,stw=6); return f.convert('RGB')
+    f.alpha_composite(T); text(f,'画像出典：どんぐり共和国 そらのうえ店　© Studio Ghibli',24,W/2,1640,GRAY,w=800,stw=6); return f.convert('RGB')
 
 if __name__=='__main__':
     thumbnail().save(OUT+'00_thumbnail.png')
