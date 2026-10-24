@@ -74,6 +74,17 @@ def chara(n,h):
 FCH={1984:'nausicaa007',1986:'laputa005',1988:'totoro018',1989:'majo018',1991:'omoide002',1992:'porco010',1994:'tanuki010',1995:'mimi032',
 1997:'mononoke003',1999:'yamada010',2001:'chihiro019',2002:'baron002',2004:'howl035',2008:'ponyo003_c',2010:'karigurashi033',2011:'kok_shunumi',
 2013:'kaguyahime009',2014:'marnie001_c',2023:'kimitachi027'}   # 映画の年のキャラ（場面写真の切り抜き）
+OBJ={1996:('cut','tamagotchi','Photo: Nori Norisa / CC BY 2.0'),2005:('cut','ds','Photo: Evan-Amos / Public domain'),2012:('photo','skytree','Photo: Akonnchiroll / CC0')}   # Wikimedia Commons
+def chara_path(p,h):
+    im=Image.open(p).convert('RGBA'); im.putalpha(im.getchannel('A').point(lambda v:0 if v<40 else v))
+    im=im.resize((int(im.width*h/im.height),h),Image.LANCZOS) if im.height>=im.width else im.resize((h,int(im.height*h/im.width)),Image.LANCZOS)
+    ow=10; pad=30; big=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); big.alpha_composite(im,(pad,pad))
+    A_=big.getchannel('A').point(lambda v:255 if v>90 else 0); o=A_.filter(ImageFilter.MaxFilter(ow*2+1)).filter(ImageFilter.GaussianBlur(1.2))
+    out=Image.new('RGBA',big.size,(0,0,0,0)); w_=Image.new('RGBA',big.size,(255,255,255,0)); w_.putalpha(o); out.alpha_composite(w_); out.alpha_composite(big); return out.rotate(-6,Image.BICUBIC,expand=True)
+def still_path(p,w,h):
+    im=Image.open(p).convert('RGB'); s_=max(w/im.width,h/im.height); im=im.resize((int(im.width*s_)+1,int(im.height*s_)+1),Image.LANCZOS)
+    x=(im.width-w)//2; y=(im.height-h)//2; c=im.crop((x,y,x+w,y+h)).convert('RGBA'); c.putalpha(rmask(w,h,16))
+    o=Image.new('RGBA',(w+12,h+12),(0,0,0,0)); wb=Image.new('RGBA',o.size,WHITE+(255,)); wb.putalpha(rmask(w+12,h+12,20)); o.alpha_composite(wb); o.alpha_composite(c,(6,6)); return o.rotate(5,Image.BICUBIC,expand=True)
 def row(y_,films,stl,ev):
     ev=ev.replace('\n','')
     if films:
@@ -89,6 +100,18 @@ def row(y_,films,stl,ev):
         pill(L,(XC+XR)/2,h-58,ev,30,(250,236,214),fg=INK,pad=24,h=56,anchor='m',maxw=XR-XC-40)
         d.ellipse((AX-26,h/2-26,AX+26,h/2+26),fill=ORANGE,outline=WHITE,width=6)
         text(L,str(y_),58,AX-40,h/2,ORANGE,stw=10,stc=WHITE,anchor='r')
+        return L
+    if y_ in OBJ:   # フリー素材の写真を右に（クレジットつき）
+        kind,src,cr=OBJ[y_]; h=300; L=Image.new('RGBA',(W,h),(0,0,0,0)); d=ImageDraw.Draw(L)
+        if kind=='cut': im=chara_path(NR+f'../obj/{src}.png',210)
+        else: im=still_path(NR+f'../obj/{src}.jpg',170,230)
+        L.alpha_composite(im,(int(XR+30-im.width/2),int(h/2-10-im.height/2)))
+        text(L,cr,18,XR+30,h-14,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
+        ls=ev.split('、') if tlen(ev,34)>XR-XC-200 else [ev]; ls=[l+('、' if i<len(ls)-1 else '') for i,l in enumerate(ls)]
+        tw=max(tlen(l,34) for l in ls); bh=36+len(ls)*24; box=(XC,h/2-bh,XC+tw+50,h/2+bh)
+        card_shadow(L,box,24,70); d.rounded_rectangle(box,24,fill=(255,255,255,255))
+        for i,l in enumerate(ls): text(L,l,34,XC+25,h/2+(i-(len(ls)-1)/2)*48,INK)
+        d.ellipse((AX-15,h/2-15,AX+15,h/2+15),fill=WHITE,outline=GREEN,width=6); text(L,str(y_),40,AX-34,h/2,INK,stw=8,stc=WHITE,anchor='r')
         return L
     h=110; L=Image.new('RGBA',(W,h),(0,0,0,0)); d=ImageDraw.Draw(L)
     tw=min(tlen(ev,34),XR-XC-60); box=(XC,18,XC+tw+50,h-18)
