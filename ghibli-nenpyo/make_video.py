@@ -1,4 +1,4 @@
-# 初めて見たジブリ、何歳だった？ ジブリ年表（上から下に流れる年表）
+# あなたはどのジブリ作品と同い年？ ジブリ年表（上から下に流れる年表）
 # 使い方: python3 make_video.py <作業フォルダ(setup.shのW)> <ナレーションwavのフォルダ> [stills]
 import sys,os,math,wave,subprocess,numpy as np
 from PIL import Image,ImageDraw,ImageFont,ImageFilter
@@ -131,8 +131,8 @@ def hook_layer():
                        ('chihiro019',2001,190,1440,300),('howl035',2004,540,1450,290),('ponyo003_c',2008,890,1440,250)]:
         c=chara(n,h); HOOKCH.append((c,x,y+c.height/2))   # キャラは帯に描かず、別に重ねてゆらゆら
         pill(L,x,(y-c.height/2+14) if y<960 else (y+c.height/2-14),f'{yr}年',36,ORANGE,pad=22,h=62,anchor='m')   # 上の段は頭の上、下の段は足もとに
-    text(L,'初めて見たジブリ',96,W/2,830,GREEN,stw=16,stc=WHITE,anchor='m')
-    text(L,'何歳だった？',128,W/2,975,ORANGE,stw=18,stc=WHITE,anchor='m')
+    text(L,'あなたはどの',92,W/2,830,GREEN,stw=16,stc=WHITE,anchor='m')
+    text(L,'ジブリ作品と同い年？',104,W/2,975,ORANGE,stw=18,stc=WHITE,anchor='m',maxw=1000)
     pill(L,W/2,1120,'ジブリ年表 1984〜2023',46,GREEN,pad=40,h=84,anchor='m')
     text(L,'© Studio Ghibli',22,W/2,1700,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
     return L
@@ -199,7 +199,7 @@ def sub_layer(t):
     for j,l in enumerate(ls): text(L,l,42,CX,cy+(j-(len(ls)-1)/2)*60,INK,anchor='m')
     return L
 SUBL={k:sub_layer(v) for k,v in SUB.items()}
-ENDL=Image.new('RGBA',(W,H),(0,0,0,0)); card_shadow(ENDL,(CX-400,1380,CX+400,1680)); ImageDraw.Draw(ENDL).rounded_rectangle((CX-400,1380,CX+400,1680),40,fill=(255,253,248,255),outline=GREEN,width=6); text(ENDL,'あなたの初ジブリは？',62,CX,1490,GREEN,anchor='m'); pill(ENDL,CX,1600,'コメントで教えてね',40,ORANGE,pad=34,h=74,anchor='m')
+ENDL=Image.new('RGBA',(W,H),(0,0,0,0)); card_shadow(ENDL,(CX-400,1380,CX+400,1680)); ImageDraw.Draw(ENDL).rounded_rectangle((CX-400,1380,CX+400,1680),40,fill=(255,253,248,255),outline=GREEN,width=6); text(ENDL,'同い年の作品はどれだった？',54,CX,1490,GREEN,anchor='m'); pill(ENDL,CX,1600,'コメントで教えてね',40,ORANGE,pad=34,h=74,anchor='m')
 CR=Image.new('RGBA',(W,H),(0,0,0,0)); text(CR,'© Studio Ghibli',22,CX,1720,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
 MIYA=Image.open(HERE+'obj/miyazaki.png').convert('RGBA'); MIYA=MIYA.resize((int(MIYA.width*820/MIYA.height),820),Image.LANCZOS)
 _b=Image.new('RGBA',(MIYA.width+60,MIYA.height+60),(0,0,0,0)); _b.alpha_composite(MIYA,(30,30)); _o=_b.getchannel('A').point(lambda v:255 if v>90 else 0).filter(ImageFilter.MaxFilter(21)).filter(ImageFilter.GaussianBlur(1.2))
@@ -226,7 +226,7 @@ def popped(L,k):
     s=POP[k]; bb=L.getbbox(); c=L.crop(bb).resize((max(1,int((bb[2]-bb[0])*s)),max(1,int((bb[3]-bb[1])*s))),Image.BICUBIC)
     o=Image.new('RGBA',(W,H),(0,0,0,0)); o.alpha_composite(c,(int((bb[0]+bb[2])/2-c.width/2),int((bb[1]+bb[3])/2-c.height/2))); return o
 def frame(t):
-    if t>=T_HOOK+SCROLL+T_END: return FOLLOW
+    if t>=dict(NARR)['fol']-0.1: return FOLLOW   # 締めのナレーションが終わってから
     top=win(t); im=GRID.convert('RGBA')
     dy=WIN_START-top   # つかみのキャラ：下を支点に±3°でゆらゆら（帯と一緒に流れる）
     if dy<H:
@@ -263,7 +263,7 @@ for k,t0 in NARR: add(rd(NR+k+'.wav'),t0,1.0)
 add(rd(S+'labsfx/kira1.wav'),0.1,0.4)
 for yr,f,*_ in TL:
     pass
-add(rd(S+'labsfx/shine2.wav'),T_HOOK+SCROLL,0.4)
+add(rd(S+'labsfx/shine2.wav'),dict(NARR)['end'],0.4)
 mix=mix[:int(TOT*SR)]; mix/=max(1.0,np.abs(mix).max()/0.95)
 with wave.open(NR+'../a.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((mix*32767).astype(np.int16).tobytes())
 subprocess.run(['ffmpeg','-v','error','-y','-i',NR+'../v.mp4','-i',NR+'../a.wav','-c:v','copy','-af','loudnorm=I=-14:TP=-1.5:LRA=11,volume=1.8dB,alimiter=limit=0.8:level=0','-ar','44100','-c:a','aac','-b:a','192k','-shortest',OUTV])
