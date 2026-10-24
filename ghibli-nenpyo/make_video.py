@@ -153,18 +153,27 @@ def wdur(k):
 def rd(p):
     with wave.open(p) as w: a=np.frombuffer(w.readframes(w.getnframes()),np.int16).astype(np.float32)/32768; ch=w.getnchannels()
     return a.reshape(-1,ch).mean(1) if ch>1 else a
-T_HOOK=0.25+wdur('hook')+0.3        # つかみを止めて見せる
+T_HOOK=0.25+wdur('hook')+0.15       # つかみを止めて見せる（「生まれた年から」で流れ始める）
 WIN_START=STRIP_H-H                  # 画面の上端が帯のどこにあるか（最初はいちばん下＝つかみ）
 WIN_END=CEN[2023]-700               # 2023年が y=700 あたりで止まる
-SCROLL=56.0; V=(WIN_START-WIN_END)/SCROLL
+SCROLL=float(os.environ.get('SCROLL','56')); V=(WIN_START-WIN_END)/SCROLL
 T_END=0.3+wdur('end')+1.2; T_FOL=0.1+wdur('fol')+0.4
 TOT=T_HOOK+SCROLL+T_END+T_FOL; print('total',round(TOT,2))
 def win(t):
     if t<T_HOOK: return WIN_START
     return max(WIN_END,WIN_START-V*(t-T_HOOK))
 def t_at_center(yr): return T_HOOK+(WIN_START-(CEN[yr]-H/2))/V
-NARR=[('hook',0.25),('n1988',t_at_center(1988)+0.2),('n2001',t_at_center(2001)+0.2),('end',T_HOOK+SCROLL+0.3),('fol',T_HOOK+SCROLL+T_END+0.1)]
-SUB={'hook':'自分の生まれた年から\n探してみて！','n1988':'トトロと火垂るの墓は\n同じ日に2本立てで公開','n2001':'千と千尋は約19年間\n日本の興行収入1位だった'}
+NARR=[('hook',0.25),('hook2',T_HOOK)]
+_e=T_HOOK+wdur('hook2')+0.3
+for yr in (1984,1986,1988,1989,1995,1997,2001,2004,2008,2010,2013,2023):   # その年が画面のまん中あたりに来たら話す（前と重なるときはずらす）
+    t0=max(t_at_center(yr)-0.6,_e); NARR.append((f'n{yr}',t0)); _e=t0+wdur(f'n{yr}')+0.3
+LATE=_e-(T_HOOK+SCROLL)
+T_END+=max(0,LATE); TOT=T_HOOK+SCROLL+T_END+T_FOL; print('total',round(TOT,2))   # 最後の解説が長いぶん、締めを延ばす
+NARR+=[('end',max(T_HOOK+SCROLL+0.3,_e)),('fol',T_HOOK+SCROLL+T_END+0.1)]
+SUB={'hook2':'自分の生まれた年から\n探してみて！','n1984':'ナウシカは\nジブリができる前の作品','n1986':'ラピュタは\nジブリ最初の作品','n1988':'トトロと火垂るの墓は\n同じ日に2本立てで公開',
+'n1989':'キキの声は\n高山みなみさん','n1995':'耳をすませばの監督は\n近藤喜文さん','n1997':'もののけ姫は\n当時の興行記録を塗り替えた','n2001':'千と千尋は約19年間\n日本の興行収入1位だった',
+'n2004':'ハウルの声は\n木村拓哉さん','n2008':'ポニョの歌は\n大橋のぞみちゃんと藤岡藤巻','n2010':'アリエッティは\n米林宏昌さんの初監督作品','n2013':'風立ちぬは\n宮崎駿監督の引退作と言われた',
+'n2023':'君たちはどう生きるかは\nアカデミー賞を受賞'}
 def sub_layer(t):
     L=Image.new('RGBA',(W,H),(0,0,0,0)); ls=t.split('\n'); d=ImageDraw.Draw(L)
     wmax=max(tlen(l,42) for l in ls); h=len(ls)*60+40; cy=1560
@@ -204,7 +213,7 @@ def add(a,t,g):
 for k,t0 in NARR: add(rd(NR+k+'.wav'),t0,1.0)
 add(rd(S+'labsfx/kira1.wav'),0.1,0.4)
 for yr,f,*_ in TL:
-    if f: add(rd(S+'labsfx/touch1.wav'),t_at_center(yr)-0.6,0.18)   # ジブリの年が来るたび小さく「ポン」
+    pass
 add(rd(S+'labsfx/shine2.wav'),T_HOOK+SCROLL,0.4)
 mix=mix[:int(TOT*SR)]; mix/=max(1.0,np.abs(mix).max()/0.95)
 with wave.open(NR+'../a.wav','wb') as w: w.setnchannels(1); w.setsampwidth(2); w.setframerate(SR); w.writeframes((mix*32767).astype(np.int16).tobytes())
