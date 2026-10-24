@@ -123,12 +123,13 @@ def row(y_,films,stl,ev):
 ROWS=[row(*r[:2],r[2],r[3]) for r in TL]
 
 # つかみ（帯のいちばん下＝最初に見える画面。そのまま下へ流れていく）
+HOOKCH=[]
 def hook_layer():
     L=Image.new('RGBA',(W,H),(0,0,0,0))
     # 上下3体ずつ、作品のキャラ（切り抜き）＋公開年
     for n,yr,x,y,h in [('totoro018',1988,190,440,300),('majo018',1989,540,430,240),('mimi032',1995,890,440,310),
                        ('chihiro019',2001,190,1440,300),('howl035',2004,540,1450,290),('ponyo003_c',2008,890,1440,250)]:
-        c=chara(n,h); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
+        c=chara(n,h); HOOKCH.append((c,x,y+c.height/2))   # キャラは帯に描かず、別に重ねてゆらゆら
         pill(L,x,(y-c.height/2+14) if y<960 else (y+c.height/2-14),f'{yr}年',36,ORANGE,pad=22,h=62,anchor='m')   # 上の段は頭の上、下の段は足もとに
     text(L,'初めて見たジブリ',96,W/2,830,GREEN,stw=16,stc=WHITE,anchor='m')
     text(L,'何歳だった？',128,W/2,975,ORANGE,stw=18,stc=WHITE,anchor='m')
@@ -227,9 +228,12 @@ def popped(L,k):
 def frame(t):
     if t>=T_HOOK+SCROLL+T_END: return FOLLOW
     top=win(t); im=GRID.convert('RGBA')
+    dy=WIN_START-top   # つかみのキャラ：下を支点に±3°でゆらゆら（帯と一緒に流れる）
+    if dy<H:
+        for j,(c,x,yb) in enumerate(HOOKCH):
+            ang=3*math.sin(2*math.pi*0.55*t+j*1.3); r=c.rotate(ang,Image.BICUBIC,expand=True,center=(c.width/2,c.height))
+            im.alpha_composite(r,(int(x-DX-r.width/2),int(yb+dy-r.height+(r.height-c.height)/2)))
     im.alpha_composite(STRIP.crop((0,int(top),W,int(top)+H)))
-    if t<T_HOOK+0.6:   # 生まれ年の帯（流れ始めたら消える）
-        im.alpha_composite(bylayer(t,1.0 if t<T_HOOK else max(0,1-(t-T_HOOK)/0.6)))
     tm=dict(NARR)['n2023']   # 「アカデミー賞を受賞しました」で宮崎駿監督が下からニョキッ＋ゆらゆら
     te=dict(NARR)['end']
     if tm<=t<te:   # 締めのカードが出るまで
@@ -241,7 +245,7 @@ def frame(t):
         if k=='n2023' and k in SUBL and t0<=t<t0+wdur(k)+0.4:   # 字幕はアカデミー賞の解説だけ
             im.alpha_composite(SUBL[k])
     if t>=te: im.alpha_composite(popped(ENDL,int((t-te)*FPS)))
-    if T_HOOK<=t: im.alpha_composite(CR)
+    if WIN_START-top>300: im.alpha_composite(CR)   # つかみのクレジットと重ならないように
     return im.convert('RGB')
 
 if len(sys.argv)>3 and sys.argv[3]=='stills':
