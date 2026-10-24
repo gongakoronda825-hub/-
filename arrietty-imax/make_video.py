@@ -149,14 +149,25 @@ def c8_rows(y):
     L=layer(); text(L,'[迷ってる人]に送ってあげて',52,CX,yy+215,INK,w='Black'); out.append((L,0.78))
     L=layer(); text(L,'※劇場によって設備が違います（レーザーでない劇場、2K上映の劇場あり）',22,CX,yy+285,DIM,w='Bold'); out.append((L,0.0))
     return out
+def logo(name,w,border):
+    # ポスターから切り抜いたロゴ（parts/）に、ふち（border=[(色,太さ),…] 内側から）と影をつける
+    im=Image.open(HERE+f'parts/{name}.png').convert('RGBA'); im=im.resize((w,int(im.height*w/im.width)),Image.LANCZOS)
+    pad=sum(t for _,t in border)+16; o=Image.new('RGBA',(im.width+2*pad,im.height+2*pad),(0,0,0,0)); A=Image.new('L',o.size,0); A.paste(im.getchannel('A'),(pad,pad))
+    A=A.point(lambda v:255 if v>100 else 0); layers=[]; r=0
+    for col,t in border: r+=t; layers.append((col,A.filter(ImageFilter.MaxFilter(2*r+1)).filter(ImageFilter.GaussianBlur(1))))
+    sh=Image.new('RGBA',o.size,(40,30,20,0)); sh.putalpha(layers[-1][1].filter(ImageFilter.GaussianBlur(10)).point(lambda v:int(v*0.35))); o.alpha_composite(sh,(0,6))
+    for col,m in layers[::-1]: c=Image.new('RGBA',o.size,col+(0,)); c.putalpha(m); o.alpha_composite(c)
+    o.alpha_composite(im,(pad,pad)); return o
 def hook():
-    L=layer(); sc=Screen(gb(33),540,640,1000,500,0.55)
-    text(L,'借りぐらしのアリエッティ',36,540,330,GOLD,w='Black',track=4)
-    text(L,'IMAXで観る',118,540,1040,INK,w='Black')
-    text(L,'[意味ある？]',150,540,1200,INK,w='Black')
-    text(L,'何が変わるのか、観た人の声と一緒に',40,540,1345,SUBC)
-    d=ImageDraw.Draw(L); t='IMAX上映　〜11/2（月）'; w=tlen(t,32)+60; d.rounded_rectangle((540-w/2,1420,540+w/2,1482),31,fill=WHITE,outline=GOLD,width=3)
-    text(L,t,32,540,1451,GOLD,shadow=False); footer(L,540)
+    # サムネ：上にポスターのタイトルロゴ、まん中にスクリーン、下に「(IMAXロゴ)で観る 意味ある？」（y=240〜1680に収める）
+    L=layer(); sc=Screen(gb(33),540,775,1000,430,0.55)
+    t=logo('title_cut',600,[(WHITE,12)]); L.alpha_composite(t,(int(540-t.width/2),int(395-t.height/2)))
+    im=logo('imax_cut',620,[(INK,3),(WHITE,9)]); L.alpha_composite(im,(int(540-im.width/2),int(1075-im.height/2)))
+    text(L,'で観る[意味ある？]',112,540,1285,INK,w='Black')
+    text(L,'何が変わるのか、観た人の声と一緒に',40,540,1415,SUBC)
+    d=ImageDraw.Draw(L); t='IMAX上映　〜11/2（月）'; w=tlen(t,32)+60; d.rounded_rectangle((540-w/2,1478,540+w/2,1540),31,fill=WHITE,outline=GOLD,width=3)
+    text(L,t,32,540,1509,GOLD,shadow=False); footer(L,540)
+    text(L,'タイトル・IMAXロゴ：公式ポスターより',16,540,1590,DIM,w='Bold')
     return dict(base=L,scr=[sc],ch=(CH[12],'r'),rows=[])
 
 # ---------- 演出 ----------
