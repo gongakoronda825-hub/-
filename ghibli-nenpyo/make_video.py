@@ -219,7 +219,8 @@ def frame(t):
         im.alpha_composite(r,(int(330-r.width/2),int(H+40-r.height*u)))
         im.alpha_composite(MIYA_CR)
     for k,t0 in NARR:
-        if k in SUBL and t0<=t<t0+wdur(k)+0.4: im.alpha_composite(SUBL[k])
+        if k=='n2023' and k in SUBL and t0<=t<t0+wdur(k)+0.4:   # 字幕はアカデミー賞の解説だけ
+            im.alpha_composite(SUBL[k])
     if t>=te: im.alpha_composite(popped(ENDL,int((t-te)*FPS)))
     if T_HOOK<=t: im.alpha_composite(CR)
     return im.convert('RGB')
