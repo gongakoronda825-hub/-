@@ -125,8 +125,10 @@ ROWS=[row(*r[:2],r[2],r[3]) for r in TL]
 # つかみ（帯のいちばん下＝最初に見える画面。そのまま下へ流れていく）
 def hook_layer():
     L=Image.new('RGBA',(W,H),(0,0,0,0))
-    for n,(x,y,r) in zip(['totoro002','chihiro003','majo001','mononoke003'],[(280,470,-5),(800,430,5),(280,1420,4),(800,1460,-5)]):
-        c=still(n,440,248).rotate(r,Image.BICUBIC,expand=True); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
+    for n,yr,(x,y,r) in zip(['totoro002','chihiro003','majo001','mononoke003'],[1988,2001,1989,1997],[(280,470,-5),(800,430,5),(280,1420,4),(800,1460,-5)]):
+        c=still(n,440,248)
+        T=Image.new('RGBA',(c.width+40,c.height+60),(0,0,0,0)); T.alpha_composite(c,(20,40)); pill(T,20+c.width/2,40,f'{yr}年',34,ORANGE,pad=22,h=58,anchor='m')   # 公開年
+        c=T.rotate(r,Image.BICUBIC,expand=True); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
     text(L,'初めて見たジブリ',96,W/2,830,GREEN,stw=16,stc=WHITE,anchor='m')
     text(L,'何歳だった？',128,W/2,975,ORANGE,stw=18,stc=WHITE,anchor='m')
     pill(L,W/2,1120,'ジブリ年表 1984〜2023',46,GREEN,pad=40,h=84,anchor='m')
@@ -183,6 +185,10 @@ def sub_layer(t):
 SUBL={k:sub_layer(v) for k,v in SUB.items()}
 ENDL=Image.new('RGBA',(W,H),(0,0,0,0)); card_shadow(ENDL,(CX-400,1380,CX+400,1680)); ImageDraw.Draw(ENDL).rounded_rectangle((CX-400,1380,CX+400,1680),40,fill=(255,253,248,255),outline=GREEN,width=6); text(ENDL,'あなたの初ジブリは？',62,CX,1490,GREEN,anchor='m'); pill(ENDL,CX,1600,'コメントで教えてね',40,ORANGE,pad=34,h=74,anchor='m')
 CR=Image.new('RGBA',(W,H),(0,0,0,0)); text(CR,'© Studio Ghibli',22,CX,1720,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
+MIYA=Image.open(HERE+'obj/miyazaki.png').convert('RGBA'); MIYA=MIYA.resize((int(MIYA.width*820/MIYA.height),820),Image.LANCZOS)
+_b=Image.new('RGBA',(MIYA.width+60,MIYA.height+60),(0,0,0,0)); _b.alpha_composite(MIYA,(30,30)); _o=_b.getchannel('A').point(lambda v:255 if v>90 else 0).filter(ImageFilter.MaxFilter(21)).filter(ImageFilter.GaussianBlur(1.2))
+_w=Image.new('RGBA',_b.size,(255,255,255,0)); _w.putalpha(_o); _w.alpha_composite(_b); MIYA=_w   # 白フチ（はみ出させて揺れても隙間が出ないように）
+MIYA_CR=Image.new('RGBA',(W,H),(0,0,0,0)); text(MIYA_CR,'宮崎駿監督　Photo: Natasha Baucas / CC BY 2.0',20,330,H-40,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
 POP=[0.6,0.9,1.08,1.03]
 def popped(L,k):
@@ -193,9 +199,16 @@ def frame(t):
     if t>=T_HOOK+SCROLL+T_END: return FOLLOW
     top=win(t); im=GRID.convert('RGBA')
     im.alpha_composite(STRIP.crop((0,int(top),W,int(top)+H)))
+    tm=dict(NARR)['n2023']   # 「アカデミー賞を受賞しました」で宮崎駿監督が下からニョキッ＋ゆらゆら
+    te=dict(NARR)['end']
+    if tm<=t<te:   # 締めのカードが出るまで
+        u=min(1,(t-tm)/0.45); u=1-(1-u)**3; ang=3*math.sin(2*math.pi*0.6*(t-tm))
+        r=MIYA.rotate(ang,Image.BICUBIC,center=(MIYA.width/2,MIYA.height))
+        im.alpha_composite(r,(int(330-r.width/2),int(H+40-r.height*u)))
+        im.alpha_composite(MIYA_CR)
     for k,t0 in NARR:
         if k in SUBL and t0<=t<t0+wdur(k)+0.4: im.alpha_composite(SUBL[k])
-    if t>=T_HOOK+SCROLL: im.alpha_composite(popped(ENDL,int((t-T_HOOK-SCROLL)*FPS)))
+    if t>=te: im.alpha_composite(popped(ENDL,int((t-te)*FPS)))
     if T_HOOK<=t: im.alpha_composite(CR)
     return im.convert('RGB')
 
