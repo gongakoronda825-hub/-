@@ -132,9 +132,10 @@ def hook_layer():
                        ('chihiro019',2001,190,1340,300),('howl035',2004,540,1345,290),('ponyo003_c',2008,890,1340,250)]:
         c=chara(n,h); HOOKCH.append((c,x,y+c.height/2))   # キャラは帯に描かず、別に重ねてゆらゆら
         pill(L,x,(y-c.height/2+14) if y<960 else (y+c.height/2-14),f'{yr}年',36,ORANGE,pad=22,h=62,anchor='m')   # 上の段は頭の上、下の段は足もとに
-    text(L,'あなたはどの',92,W/2,830,GREEN,stw=16,stc=WHITE,anchor='m')
-    text(L,'ジブリ作品と同い年？',104,W/2,975,ORANGE,stw=18,stc=WHITE,anchor='m',maxw=1000)
-    pill(L,W/2,1120,'ジブリ年表 1984〜2023',46,GREEN,pad=40,h=84,anchor='m')
+    text(L,'あなたはどの',84,W/2,790,GREEN,stw=16,stc=WHITE,anchor='m')   # 画面のはしで切れないよう3行に
+    text(L,'ジブリ作品と',112,W/2,912,ORANGE,stw=18,stc=WHITE,anchor='m',maxw=820)
+    text(L,'同い年？',124,W/2,1045,ORANGE,stw=18,stc=WHITE,anchor='m',maxw=820)
+    pill(L,W/2,1165,'ジブリ年表 1984〜2023',44,GREEN,pad=40,h=80,anchor='m')
     text(L,'© Studio Ghibli',22,W/2,1700,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
     return L
 HOOK=hook_layer()
