@@ -125,14 +125,15 @@ ROWS=[row(*r[:2],r[2],r[3]) for r in TL]
 # つかみ（帯のいちばん下＝最初に見える画面。そのまま下へ流れていく）
 def hook_layer():
     L=Image.new('RGBA',(W,H),(0,0,0,0))
-    for n,yr,(x,y,r) in zip(['totoro002','chihiro003','majo001','mononoke003'],[1988,2001,1989,1997],[(280,470,-5),(800,430,5),(280,1420,4),(800,1460,-5)]):
-        c=still(n,440,248)
-        T=Image.new('RGBA',(c.width+40,c.height+60),(0,0,0,0)); T.alpha_composite(c,(20,40)); pill(T,20+c.width/2,40,f'{yr}年',34,ORANGE,pad=22,h=58,anchor='m')   # 公開年
-        c=T.rotate(r,Image.BICUBIC,expand=True); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
+    # 上下3体ずつ、作品のキャラ（切り抜き）＋公開年
+    for n,yr,x,y,h in [('totoro018',1988,190,440,300),('majo018',1989,540,430,240),('mimi032',1995,890,440,310),
+                       ('chihiro019',2001,190,1440,300),('howl035',2004,540,1450,290),('ponyo003_c',2008,890,1440,250)]:
+        c=chara(n,h); L.alpha_composite(c,(int(x-c.width/2),int(y-c.height/2)))
+        pill(L,x,(y-c.height/2+14) if y<960 else (y+c.height/2-14),f'{yr}年',36,ORANGE,pad=22,h=62,anchor='m')   # 上の段は頭の上、下の段は足もとに
     text(L,'初めて見たジブリ',96,W/2,830,GREEN,stw=16,stc=WHITE,anchor='m')
     text(L,'何歳だった？',128,W/2,975,ORANGE,stw=18,stc=WHITE,anchor='m')
     pill(L,W/2,1120,'ジブリ年表 1984〜2023',46,GREEN,pad=40,h=84,anchor='m')
-    text(L,'© Studio Ghibli',22,W/2,1660,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
+    text(L,'© Studio Ghibli',22,W/2,1700,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
     return L
 HOOK=hook_layer()
 GAP=18; TOPPAD=820
@@ -244,7 +245,7 @@ def frame(t):
     return im.convert('RGB')
 
 if len(sys.argv)>3 and sys.argv[3]=='stills':
-    frame(BY0+len(BYL)*BYD+0.3).save(HERE+'thumbnail.png')   # サムネは生まれ年が全部出た画面
+    frame(0).save(HERE+'thumbnail.png')   # サムネは最初の画面（キャラ＋公開年）
     for j,t in enumerate([T_HOOK+1.0,t_at_center(1988),t_at_center(2001),T_HOOK+SCROLL+1.0]): frame(t).save(NR+f'../still{j}.jpg',quality=85)
     sys.exit()
 N=int(round(TOT*FPS))
