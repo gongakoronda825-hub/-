@@ -159,7 +159,7 @@ T_HOOK=0.25+wdur('hook')+0.15       # つかみを止めて見せる（「生ま
 WIN_START=STRIP_H-H                  # 画面の上端が帯のどこにあるか（最初はいちばん下＝つかみ）
 WIN_END=CEN[2023]-700               # 2023年が y=700 あたりで止まる
 # 一定の速さで流し、その年がまん中に来たときに話せる解説だけを選ぶ（重なるものは入れない）
-CAND=(1984,1986,1988,1989,1992,1995,1997,2001,2004,2008,2010,2013,2016,2023)
+CAND=(1984,1988,1992,1995,2001,2008,2013,2016,2023)   # 雑学ではなく「懐かしさ」に寄せた解説
 T_END=0.3+wdur('end')+0.5; T_FOL=0.1+wdur('fol')+0.4; TARGET=61.0; GAPN=0.5
 def plan(SC):
     V=(WIN_START-WIN_END)/SC; tc=lambda yr: T_HOOK+(WIN_START-(CEN[yr]-H*0.45))/V
@@ -169,7 +169,9 @@ def plan(SC):
         if yr==2023:
             while sel and t0<sel[-1][1]+wdur(f'n{sel[-1][0]}')+GAPN: sel.pop()
             t0=max(t0,sel[-1][1]+wdur(f'n{sel[-1][0]}')+GAPN if sel else e)
-        elif t0<e: continue
+        elif t0<e:
+            if e-t0>1.0: continue   # 1秒以上遅れるなら入れない
+            t0=e
         sel.append((yr,t0)); e=t0+wdur(f'n{yr}')+GAPN
     tend=max(T_HOOK+SC+0.3,e-GAPN+0.3)
     narr=[('hook',0.25),('hook2',T_HOOK)]+[(f'n{yr}',t0) for yr,t0 in sel]+[('end',tend),('fol',tend+T_END+0.1)]
@@ -201,6 +203,20 @@ MIYA=Image.open(HERE+'obj/miyazaki.png').convert('RGBA'); MIYA=MIYA.resize((int(
 _b=Image.new('RGBA',(MIYA.width+60,MIYA.height+60),(0,0,0,0)); _b.alpha_composite(MIYA,(30,30)); _o=_b.getchannel('A').point(lambda v:255 if v>90 else 0).filter(ImageFilter.MaxFilter(21)).filter(ImageFilter.GaussianBlur(1.2))
 _w=Image.new('RGBA',_b.size,(255,255,255,0)); _w.putalpha(_o); _w.alpha_composite(_b); MIYA=_w   # 白フチ（はみ出させて揺れても隙間が出ないように）
 MIYA_CR=Image.new('RGBA',(W,H),(0,0,0,0)); text(MIYA_CR,'宮崎駿監督　Photo: Natasha Baucas / CC BY 2.0',20,330,H-40,SUBG,w=800,stw=4,stc=WHITE,anchor='m')
+BYRS=[(1990,185,668),(1995,540,650),(2000,895,668),(1993,185,1212),(1998,540,1230),(2003,895,1212)]   # 生まれ年の帯（つかみで順に出る）
+BYL=[]
+for yr,x,y in BYRS:
+    L=Image.new('RGBA',(W,H),(0,0,0,0)); pill(L,x,y,f'{yr}年生まれ',42,[ORANGE,GREEN,(206,72,80)][len(BYL)%3],pad=26,h=76,anchor='m'); BYL.append(L)
+BY0,BYD=0.5,0.22   # 出始め・間隔（秒）
+def bylayer(t,fade=1.0):
+    o=Image.new('RGBA',(W,H),(0,0,0,0))
+    for j,L in enumerate(BYL):
+        k=int((t-BY0-j*BYD)*FPS)
+        if k<0: continue
+        p_=popped(L,k)
+        if fade<1: p_=p_.copy(); p_.putalpha(p_.getchannel('A').point(lambda v:int(v*fade)))
+        o.alpha_composite(p_)
+    return o
 FOLLOW=Image.open(TK+'follow.jpg').convert('RGB').resize((W,H))
 POP=[0.6,0.9,1.08,1.03]
 def popped(L,k):
@@ -211,6 +227,8 @@ def frame(t):
     if t>=T_HOOK+SCROLL+T_END: return FOLLOW
     top=win(t); im=GRID.convert('RGBA')
     im.alpha_composite(STRIP.crop((0,int(top),W,int(top)+H)))
+    if t<T_HOOK+0.6:   # 生まれ年の帯（流れ始めたら消える）
+        im.alpha_composite(bylayer(t,1.0 if t<T_HOOK else max(0,1-(t-T_HOOK)/0.6)))
     tm=dict(NARR)['n2023']   # 「アカデミー賞を受賞しました」で宮崎駿監督が下からニョキッ＋ゆらゆら
     te=dict(NARR)['end']
     if tm<=t<te:   # 締めのカードが出るまで
@@ -226,7 +244,7 @@ def frame(t):
     return im.convert('RGB')
 
 if len(sys.argv)>3 and sys.argv[3]=='stills':
-    frame(0).save(HERE+'thumbnail.png')
+    frame(BY0+len(BYL)*BYD+0.3).save(HERE+'thumbnail.png')   # サムネは生まれ年が全部出た画面
     for j,t in enumerate([T_HOOK+1.0,t_at_center(1988),t_at_center(2001),T_HOOK+SCROLL+1.0]): frame(t).save(NR+f'../still{j}.jpg',quality=85)
     sys.exit()
 N=int(round(TOT*FPS))
