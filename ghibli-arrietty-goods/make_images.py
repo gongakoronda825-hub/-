@@ -89,8 +89,8 @@ def chars_layer(p):
 def thumbnail():
     f=Image.open(TK+'bg_grid.jpg').convert('RGBA').resize((W,H))
     CH=Image.new('RGBA',(W,H),(0,0,0,0))   # グッズの後ろに大きくアリエッティと翔
-    a_=sticker(S+'cut/karigurashi033.png',560,640); paste(CH,a_,190,245+a_.height/2)   # 顔がグッズに隠れないよう上の段の上に
-    s_=sticker(S+'cut/karigurashi048.png',520,470); paste(CH,s_,840,960+s_.height/2)    # 顔が帯と下の段のあいだに出るよう右寄せ
+    a_=sticker(S+'cut/karigurashi033.png',680,780); paste(CH,a_,150,245+a_.height/2)   # 顔がグッズに隠れないよう上の段の上に
+    s_=sticker(S+'cut/karigurashi048.png',640,580); paste(CH,s_,1080-s_.width/2+40,1500-s_.height/2)   # 目が下の段のグッズより上に出る高さ    # 顔が帯と下の段のあいだに出るよう右寄せ
     f.alpha_composite(CH)
     P=Image.new('RGBA',(W,H),(0,0,0,0)); xs=[200,435,670,900]
     def st(n,r):
