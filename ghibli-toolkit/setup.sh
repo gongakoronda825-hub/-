@@ -16,6 +16,7 @@ curl -sSLo mochiy-japanese.woff $FS/mochiy-pop-one@5.0.0/files/mochiy-pop-one-ja
 curl -sSLo dela-gothic-one.woff $FS/dela-gothic-one@5.0.0/files/dela-gothic-one-japanese-400-normal.woff
 curl -sSLo reggae-one.woff $FS/reggae-one@5.0.0/files/reggae-one-japanese-400-normal.woff
 G=https://raw.githubusercontent.com/google/fonts/main/ofl
+for w in Medium Bold Black; do curl -sSLo ZenMaru-$w.ttf $G/zenmarugothic/ZenMaruGothic-$w.ttf; done   # 映画・情緒系の動画用（arrietty-imax）
 curl -sSLo ZenOldMincho-Bold.ttf $G/zenoldmincho/ZenOldMincho-Bold.ttf
 curl -sSLo ZenOldMincho-Regular.ttf $G/zenoldmincho/ZenOldMincho-Regular.ttf
 curl -sSLo "CormorantGaramond-Italic[wght].ttf" "$G/cormorantgaramond/CormorantGaramond-Italic%5Bwght%5D.ttf"
