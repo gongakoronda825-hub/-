@@ -1,5 +1,5 @@
 # アリエッティをIMAXで観た人の感想（2026/10/25）ナレーション動画　約61秒
-# デザイン：暗い映画館＋ゆるく湾曲したIMAXスクリーン。文字は Zen Maru Gothic、白＋アリエッティの赤・ランプの金
+# デザイン：いつもの緑の方眼＋ゆるく湾曲したIMAXスクリーン。文字は Zen Maru Gothic、こげ茶＋アリエッティの赤・金茶
 # 使い方: python3 make_narration.py <出力先>/ → python3 make_video.py <作業フォルダ(setup.shのW)> <出力先>/narr [stills]
 import json,sys,os,wave,subprocess,numpy as np
 from PIL import Image,ImageDraw,ImageFont,ImageFilter
@@ -9,7 +9,7 @@ OUTV=HERE+'arrietty_imax.mp4'
 W,H=1080,1920; FPS=30; SR=44100; DX=40; CX=W/2-DX
 TOTAL=61.5   # 収益化の「1分以上」を超えるよう、最後のフォロー画像で尺を合わせる
 CREDIT='© 2010 Mary Norton/Keiko Niwa/Studio Ghibli, NDHDMTW'
-BG0=(14,13,18); CREAM=(255,248,236); RED=(234,88,66); GOLD=(232,193,112); DIM=(160,150,140)
+INK=(58,46,40); WHITE=(255,255,255); RED=(214,70,50); GOLD=(168,104,24); DIM=(120,110,100); SUBC=(100,88,80)
 
 # ---------- 文字（[ ]で囲んだところを赤にする） ----------
 _fc={}
@@ -28,11 +28,11 @@ def parts(t,base,acc):
     return out
 def tlen(t,sz,w='Bold'): return font(sz,w).getlength(t.replace('[','').replace(']',''))
 def layer(): return Image.new('RGBA',(W,H),(0,0,0,0))
-def text(L,t,sz,cx,cy,fill=CREAM,w='Bold',acc=RED,anchor='m',maxw=900,shadow=True,track=0):
+def text(L,t,sz,cx,cy,fill=INK,w='Bold',acc=RED,anchor='m',maxw=900,shadow=True,track=0):
     while tlen(t,sz,w)+track*len(t)>maxw: sz-=2
     x=cx-(tlen(t,sz,w)+track*(len(t)-1))/2 if anchor=='m' else cx
     if shadow:
-        sh=layer(); text(sh,t,sz,cx,cy+4,(0,0,0),w,(0,0,0),anchor,maxw,False,track)
+        sh=layer(); text(sh,t,sz,cx,cy,WHITE,w,WHITE,anchor,maxw,False,track)
         L.alpha_composite(_soft(sh))
     d=ImageDraw.Draw(L); f=font(sz,w)
     for s,c in parts(t,fill,acc):
@@ -40,7 +40,8 @@ def text(L,t,sz,cx,cy,fill=CREAM,w='Bold',acc=RED,anchor='m',maxw=900,shadow=Tru
             for ch in s: d.text((x,cy),ch,font=f,fill=c,anchor='lm'); x+=f.getlength(ch)+track
         else: d.text((x,cy),s,font=f,fill=c,anchor='lm'); x+=f.getlength(s)
 def _soft(sh):
-    a=sh.getchannel('A').filter(ImageFilter.GaussianBlur(7)).point(lambda v:int(v*0.7)); o=Image.new('RGBA',sh.size,(0,0,0,0)); o.putalpha(a); return o
+    # 方眼の線の上でも読めるよう、文字のまわりに白いぼかしフチ
+    a=sh.getchannel('A').filter(ImageFilter.MaxFilter(9)).filter(ImageFilter.GaussianBlur(6)).point(lambda v:min(255,int(v*1.6))); o=Image.new('RGBA',sh.size,(255,255,255,0)); o.putalpha(a); return o
 
 # ---------- 写真・スクリーン ----------
 def gb(n): return Image.open(S+f'gb/karigurashi{n:03d}.jpg').convert('RGB')
@@ -56,26 +57,16 @@ def curve_mask(w,h,sag):
 class Screen:
     def __init__(s,src,cx,cy,w,h,fx=0.5,fy=0.5,sag=22):
         s.src=src; s.cx,s.cy,s.w,s.h,s.fx,s.fy=cx,cy,w,h,fx,fy; s.m=curve_mask(w,h,sag)
-        # スクリーンの光がまわりにこぼれる感じ（色は写真の平均色）
-        col=tuple(int(v) for v in np.asarray(src.resize((8,8))).reshape(-1,3).mean(0))
-        g=Image.new('RGBA',(w+240,h+240),col+(0,)); gm=Image.new('L',g.size,0); gm.paste(s.m,(120,120))
-        g.putalpha(gm.filter(ImageFilter.GaussianBlur(50)).point(lambda v:int(v*0.55))); s.glow=g
+        # スクリーンの下にやわらかい影
+        g=Image.new('RGBA',(w+240,h+240),(40,30,20,0)); gm=Image.new('L',g.size,0); gm.paste(s.m,(120,120))
+        g.putalpha(gm.filter(ImageFilter.GaussianBlur(22)).point(lambda v:int(v*0.35))); s.glow=g
     def draw(s,L,u=0.0):
         im=cover(s.src,s.w,s.h,s.fx,s.fy,1.0+0.05*u).convert('RGBA'); im.putalpha(s.m)
-        x,y=int(s.cx-s.w/2),int(s.cy-s.h/2); L.alpha_composite(s.glow,(x-120,y-120)); L.alpha_composite(im,(x,y))
+        x,y=int(s.cx-s.w/2),int(s.cy-s.h/2); L.alpha_composite(s.glow,(x-120,y-108)); L.alpha_composite(im,(x,y))
 
 # ---------- 背景（暗い館内＋場面写真をうっすら。ゆっくりズーム＋横パン） ----------
-def dark_bg(n,fx=0.5):
-    im=gb(n); b=cover(im,int(W*1.12),int(H*1.12),fx).filter(ImageFilter.GaussianBlur(26))
-    b=Image.blend(Image.new('RGB',b.size,BG0),b,0.30)
-    # 上から映写の光がさすように、上を少し明るく・下を暗く
-    g=np.linspace(1.15,0.55,b.height)[:,None,None]; a=np.clip(np.asarray(b).astype(np.float32)*g,0,255).astype(np.uint8)
-    return Image.fromarray(a)
 def bg_frames(B,n):
-    for k in range(n):
-        u=k/max(n-1,1); z=1.0+0.08*u
-        sw,sh=min(W*1.12/z,B.width),min(H*1.12/z,B.height); x=(B.width-sw)*(0.3+0.4*u); y=(B.height-sh)/2
-        yield B.resize((W,H),Image.BILINEAR,box=(x,y,x+sw,y+sh)).convert('RGBA')
+    for _ in range(n): yield B.convert('RGBA')
 
 # ---------- キャラ（スクリーンのふちに小さく座る＝小人。紹介作品から3体） ----------
 def chara(n,h,ow=7):
@@ -100,23 +91,23 @@ CUTS={
 'c8':dict(lab='SCHEDULE',ttl='上映期間',ph=47,fx=0.5,bg=2,ch=(12,'l'),rows=[])}
 
 def head(L,lab,ttl):
-    text(L,lab,30,CX,330,GOLD,w='Bold',track=8,shadow=False)
+    text(L,lab,30,CX,330,GOLD,w='Black',track=8)
     ImageDraw.Draw(L).line((CX-26,362,CX+26,362),fill=GOLD,width=3)
-    text(L,ttl,76,CX,420,CREAM,w='Black',maxw=640)   # 両はしのキャラと重ならない幅
+    text(L,ttl,76,CX,420,INK,w='Black',maxw=640)   # 両はしのキャラと重ならない幅
 def footer(L,cx=CX):
-    text(L,'観た人の感想をもとに再構成',22,cx,1612,DIM,w='Medium',shadow=False)
-    text(L,CREDIT,20,cx,1644,DIM,w='Medium',shadow=False)
+    text(L,'観た人の感想をもとに再構成',22,cx,1612,DIM,w='Bold')
+    text(L,CREDIT,20,cx,1644,DIM,w='Bold')
 def row_layer(r):
     # 1行（または1つの声）だけのレイヤーと高さ
     k,t=r[0],r[1]; L=layer(); ls=t.split('\n')
-    if k=='t': text(L,t,52,CX,0+40,CREAM,w='Black'); return L,96
-    if k=='s': text(L,t,38,CX,0+30,(225,215,200),w='Bold'); return L,72
+    if k=='t': text(L,t,52,CX,0+40,INK,w='Black'); return L,96
+    if k=='s': text(L,t,38,CX,0+30,SUBC,w='Bold'); return L,72
     # 観た人の声：金の小さいラベル＋うすい枠
     lh=58; h=50+len(ls)*lh+24; w=max(tlen(l,44) for l in ls)+100; d=ImageDraw.Draw(L)
-    d.rounded_rectangle((CX-w/2,14,CX+w/2,14+h),34,fill=(255,255,255,26),outline=GOLD+(200,),width=3)
+    d.rounded_rectangle((CX-w/2,14,CX+w/2,14+h),34,fill=(255,255,255,235),outline=GOLD+(255,),width=4)
     lw=tlen('観た人の声',24)+40; d.rounded_rectangle((CX-lw/2,0,CX+lw/2,30),15,fill=GOLD)
-    text(L,'観た人の声',24,CX,15,BG0,w='Bold',shadow=False)
-    for j,l in enumerate(ls): text(L,l,44,CX,14+50+j*lh+lh/2-8,CREAM,w='Bold')
+    text(L,'観た人の声',24,CX,15,WHITE,w='Bold',shadow=False)
+    for j,l in enumerate(ls): text(L,l,44,CX,14+50+j*lh+lh/2-8,INK,w='Bold',shadow=False)
     return L,h+50
 def build(k):
     c=CUTS[k]; base=layer(); head(base,c['lab'],c['ttl']); footer(base)
@@ -135,20 +126,22 @@ def build(k):
     return dict(base=base,scr=scr,ch=(ch,chpos),rows=rows)
 def c8_rows(y):
     out=[]
-    for j,(lab,dt) in enumerate([('IMAX','〜11/2（月）'),('全国の拡大上映','10/30（金）〜11/12（木）')]):
+    for j,(lab,dt) in enumerate([('IMAX上映','〜11/2（月）'),('全国の拡大上映','10/30（金）〜11/12（木）')]):
         L=layer(); yy=y+j*120; d=ImageDraw.Draw(L)
-        d.rounded_rectangle((CX-460,yy,CX+460,yy+100),28,fill=(255,255,255,22),outline=(255,255,255,60),width=2)
-        text(L,lab,32,CX-300,yy+50,GOLD,w='Black',maxw=280); text(L,dt,46,CX+130,yy+50,CREAM,w='Black',maxw=560); out.append((L,0.0 if j==0 else 0.3))
-    L=layer(); text(L,'[迷ってる人]に送ってあげて',54,CX,y+300,CREAM,w='Black'); out.append((L,0.68))
-    L=layer(); text(L,'※劇場によって設備が違います（レーザーでない劇場、2K上映の劇場あり）',24,CX,y+380,DIM,w='Medium',shadow=False); out.append((L,0.0))
+        d.rounded_rectangle((CX-460,yy,CX+460,yy+100),28,fill=(255,255,255,235),outline=(GOLD if j==0 else DIM)+(255,),width=4)
+        text(L,lab,32,CX-300,yy+50,GOLD,w='Black',maxw=280); text(L,dt,46,CX+130,yy+50,INK,w='Black',maxw=560,shadow=False); out.append((L,0.0 if j==0 else 0.3))
+    L=layer(); t='拡大上映はIMAXではありません（通常の上映）'; w=tlen(t,34)+60
+    ImageDraw.Draw(L).rounded_rectangle((CX-w/2,y+232,CX+w/2,y+292),30,fill=RED); text(L,t,34,CX,y+262,WHITE,w='Black',shadow=False); out.append((L,0.4))
+    L=layer(); text(L,'[迷ってる人]に送ってあげて',54,CX,y+350,INK,w='Black'); out.append((L,0.78))
+    L=layer(); text(L,'※劇場によって設備が違います（レーザーでない劇場、2K上映の劇場あり）',24,CX,y+425,DIM,w='Bold'); out.append((L,0.0))
     return out
 def hook():
     L=layer(); sc=Screen(gb(33),540,640,1000,500,0.55)
-    text(L,'借りぐらしのアリエッティ',34,540,330,GOLD,track=4,shadow=False)
-    text(L,'IMAXで観る',118,540,1040,CREAM,w='Black')
-    text(L,'[意味ある？]',150,540,1200,CREAM,w='Black')
-    text(L,'何が変わるのか、観た人の声と一緒に',40,540,1345,(225,215,200))
-    d=ImageDraw.Draw(L); t='IMAX上映　〜11/2（月）'; w=tlen(t,32)+60; d.rounded_rectangle((540-w/2,1420,540+w/2,1482),31,outline=GOLD,width=3)
+    text(L,'借りぐらしのアリエッティ',36,540,330,GOLD,w='Black',track=4)
+    text(L,'IMAXで観る',118,540,1040,INK,w='Black')
+    text(L,'[意味ある？]',150,540,1200,INK,w='Black')
+    text(L,'何が変わるのか、観た人の声と一緒に',40,540,1345,SUBC)
+    d=ImageDraw.Draw(L); t='IMAX上映　〜11/2（月）'; w=tlen(t,32)+60; d.rounded_rectangle((540-w/2,1420,540+w/2,1482),31,fill=WHITE,outline=GOLD,width=3)
     text(L,t,32,540,1451,GOLD,shadow=False); footer(L,540)
     return dict(base=L,scr=[sc],ch=(CH[12],(int(540+500-170-CH[12].width/2),int(640-250-CH[12].height+60))),rows=[])
 
@@ -164,7 +157,7 @@ tl=[]; t=0
 for k in KEYS:
     d_=max(DUR.get(k,0),0.15+wdur(k)+0.45); tl.append([t,d_,k]); t+=d_
 tl[-1][1]+=max(0,TOTAL-t); TOT=sum(x[1] for x in tl); print('total',round(TOT,2))
-BGS={k:dark_bg(CUTS[k]['bg']) for k in CUTS}; BGS['hook']=dark_bg(33)
+GRID=Image.open(TK+'bg_grid.jpg').convert('RGB').resize((W,H)); BGS={k:GRID for k in KEYS}
 POP=[0.6,0.9,1.08,1.03]
 def popped(F,j):
     if j<0: return None
