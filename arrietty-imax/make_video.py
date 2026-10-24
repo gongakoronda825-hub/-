@@ -1,8 +1,8 @@
 # アリエッティをIMAXで観た人の感想（2026/10/25）ナレーション動画　約61秒
-# デザイン：いつもの緑の方眼＋ゆるく湾曲したIMAXスクリーン。文字は Zen Maru Gothic、こげ茶＋アリエッティの赤・金茶
+# デザイン：ポスターの黄緑のグラデーション（方眼うすく）＋ゆるく湾曲したIMAXスクリーン。文字は Zen Maru Gothic、こげ茶＋アリエッティの赤・金茶
 # 使い方: python3 make_narration.py <出力先>/ → python3 make_video.py <作業フォルダ(setup.shのW)> <出力先>/narr [stills]
 import json,sys,os,wave,subprocess,numpy as np
-from PIL import Image,ImageDraw,ImageFont,ImageFilter
+from PIL import Image,ImageDraw,ImageFont,ImageFilter,ImageChops
 S=sys.argv[1].rstrip('/')+'/'; NR=sys.argv[2].rstrip('/')+'/'
 HERE=os.path.dirname(os.path.abspath(__file__))+'/'; TK=HERE+'../ghibli-toolkit/assets/'
 OUTV=HERE+'arrietty_imax.mp4'
@@ -269,7 +269,13 @@ tl=[]; t=0
 for k in KEYS:
     d_=max(DUR.get(k,0),0.15+wdur(k)+0.45); tl.append([t,d_,k]); t+=d_
 tl[-1][1]+=max(0,TOTAL-t); TOT=sum(x[1] for x in tl); print('total',round(TOT,2))
-GRID=Image.open(TK+'bg_grid.jpg').convert('RGB').resize((W,H)); BGS={k:GRID for k in KEYS}
+def poster_bg():
+    # 背景：IMAXポスターの庭の光に合わせた黄緑→生成りのグラデーション＋いつもの方眼をごく薄く
+    t=np.linspace(0,1,H)[:,None,None]**0.8; top=np.array((214,234,180),float); bot=np.array((250,246,232),float)
+    B=Image.fromarray(np.broadcast_to(top*(1-t)+bot*t,(H,W,3)).astype(np.uint8))
+    lines=ImageChops.invert(Image.open(TK+'bg_grid.jpg').convert('L').resize((W,H))).point(lambda v:int(v*0.22))
+    B.paste(Image.new('RGB',(W,H),(120,160,100)),(0,0),lines); return B
+GRID=poster_bg(); BGS={k:GRID for k in KEYS}
 POP=[0.6,0.9,1.08,1.03]
 def popped(F,j):
     if j<0: return None
